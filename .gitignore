@@ -1,0 +1,47 @@
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test / tooling cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local logs / temp
+*.log
+*.tmp
+*.bak
+
+# Local environment / secrets
+.env
+.env.*
+*.secret
+secrets.*
+
+# Local databases / runtime artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.pid
+
+# Temporary personal debug files
+tmp_check.py

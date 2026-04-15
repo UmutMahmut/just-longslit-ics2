@@ -1,0 +1,176 @@
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from justls.ics.domain.detector.config import DetectorConfig
+
+
+class PresetListItemResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    summary: str
+
+
+class PresetListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[PresetListItemResponse]
+
+
+class CalibrationStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: str
+    active_lamp: str | None = None
+    lamp_enabled: bool
+    mirror_inserted: bool
+
+
+class PresetApplyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    applied_preset: str
+    summary: str
+    detector_config: DetectorConfig
+    calibration: CalibrationStatusResponse | None = None
+    calibration_applied: bool
+    slit_plan: dict[str, Any] | None = None
+    slit_applied: bool
+
+
+class ObservationExposureResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    frame_type: str | None = None
+    exp_time_s: float | None = None
+    operator_note: str | None = None
+    result: str | None = None
+    kept: bool | None = None
+    early_stop: bool | None = None
+    discarded: bool | None = None
+
+
+class ObservationFrameResultResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    result: str | None = None
+    kept: bool | None = None
+    early_stop: bool | None = None
+    discarded: bool | None = None
+    channel: str | None = None
+
+
+class ObservationMetaResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    obs_id: str | None = None
+    exp_id: str | None = None
+    frame_type: str
+    exp_time_s: float
+    state: str
+    created_at_utc: str | None = None
+    started_at_utc: str | None = None
+    finished_at_utc: str | None = None
+    operator_note: str | None = None
+    instrument_snapshot: dict[str, Any] | None = None
+    calibration_snapshot: CalibrationStatusResponse | None = None
+    detector_config: DetectorConfig | None = None
+    frame_results: list[ObservationFrameResultResponse] = Field(default_factory=list)
+
+
+class ObservationStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    state: str
+    armed_exposure: ObservationExposureResponse | None = None
+    last_exposure: ObservationExposureResponse | None = None
+    observation_meta: ObservationMetaResponse | None = None
+
+class RuntimeSubsystemStateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    state: str
+    connected: bool
+    updated_at: str
+    message: str
+
+
+class RuntimeStateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    run_mode: str
+    overall_state: str
+    exposure_state: str
+    updated_at: str
+    subsystems: dict[str, RuntimeSubsystemStateResponse]
+
+
+class RuntimeStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    app_name: str
+    version: str
+    run_mode: str
+    telemetry_enabled: bool
+    started_at: str
+    state: RuntimeStateResponse
+    latest_job: dict[str, Any] | None = None
+
+
+class HealthResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ok: bool
+    service: str
+    runtime: RuntimeStatusResponse
+
+
+class StateDtoResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    slit_width_um: float | None = None
+    slit_angle_deg: float | None = None
+    lamp_on: bool = False
+    temperature_c: float | None = None
+
+
+class CapabilitiesResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    slit: bool
+    slit_angle: bool
+    calib_lamps: bool
+    rotator: bool
+    slit_monitor_camera: bool
+    guider: bool
+    science_channels_bgr: bool
+    fast_photometry: bool
+
+
+class StatusFullResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    state: StateDtoResponse
+    capabilities: CapabilitiesResponse
+    calibration: CalibrationStatusResponse | None = None
+    observation: ObservationStatusResponse | None = None
+    detector_config: DetectorConfig
+    hal: str
+    run_mode: str
+    timestamp_utc: str
+
+class ApiErrorDetailResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    message: str
+
+
+class ApiErrorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detail: ApiErrorDetailResponse

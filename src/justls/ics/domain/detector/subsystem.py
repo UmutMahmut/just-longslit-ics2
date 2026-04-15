@@ -1,0 +1,247 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from justls.ics.adapters.detector.adapter import BaseDetectorAdapter
+from justls.ics.domain.observation.models import FrameResult, ObservationMeta, utc_now_iso
+from justls.ics.kernel.errors import InvalidParamError, InvalidStateError
+from justls.ics.kernel.states import ExposureState
+
+
+@dataclass(slots=True)
+class ArmedExposure:
+    obs_id: str
+    exp_id: str
+    exp_time_s: float
+    frame_type: str
+    operator_note: str | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "obs_id": self.obs_id,
+            "exp_id": self.exp_id,
+            "exp_time_s": self.exp_time_s,
+            "frame_type": self.frame_type,
+            "operator_note": self.operator_note,
+        }
+
+
+@dataclass(slots=True)
+class ExposureSnapshot:
+    state: ExposureState
+    armed_exposure: dict | None
+    last_exposure: dict | None
+    observation_meta: dict | None
+
+    def to_dict(self) -> dict:
+        return {
+            "state": self.state.value,
+            "armed_exposure": self.armed_exposure,
+            "last_exposure": self.last_exposure,
+            "observation_meta": self.observation_meta,
+        }
+
+
+class DetectorSubsystem:
+    def __init__(self, adapter: BaseDetectorAdapter) -> None:
+        self.adapter = adapter
+        self._state = ExposureState.READY_TO_ARM
+        self._armed: ArmedExposure | None = None
+        self._last_exposure: dict | None = None
+        self._observation_meta: ObservationMeta | None = None
+
+    def get_snapshot(self) -> ExposureSnapshot:
+        return ExposureSnapshot(
+            state=self._state,
+            armed_exposure=self._armed.to_dict() if self._armed is not None else None,
+            last_exposure=self._last_exposure,
+            observation_meta=self._observation_meta.to_dict() if self._observation_meta is not None else None,
+        )
+
+    def arm(
+        self,
+        *,
+        exp_time_s: float,
+        frame_type: str = "science",
+        operator_note: str | None = None,
+        instrument_snapshot: dict | None = None,
+        calibration_snapshot: dict | None = None,
+        detector_config: dict | None = None,
+    ) -> ExposureSnapshot:
+        exp_time_s = float(exp_time_s)
+
+        if exp_time_s <= 0:
+            raise InvalidParamError(
+                "exposure time must be > 0 s",
+                subsystem="detector",
+                details={"exp_time_s": exp_time_s},
+            )
+
+        if self._state not in {
+            ExposureState.READY_TO_ARM,
+            ExposureState.COMPLETED,
+            ExposureState.ABORTED,
+            ExposureState.DISCARDED,
+            ExposureState.FAILED,
+        }:
+            raise InvalidStateError(
+                "detector is not ready to arm a new exposure",
+                subsystem="detector",
+                details={"state": self._state.value},
+            )
+
+        meta = ObservationMeta.create(
+            frame_type=frame_type,
+            exp_time_s=exp_time_s,
+            operator_note=operator_note,
+            instrument_snapshot=instrument_snapshot,
+            calibration_snapshot=calibration_snapshot,
+            detector_config=detector_config,
+        )
+
+        self._observation_meta = meta
+        self._armed = ArmedExposure(
+            obs_id=meta.obs_id,
+            exp_id=meta.exp_id,
+            exp_time_s=exp_time_s,
+            frame_type=frame_type,
+            operator_note=operator_note,
+        )
+        self._state = ExposureState.ARMED
+        return self.get_snapshot()
+
+    def start(self) -> ExposureSnapshot:
+        if self._state != ExposureState.ARMED or self._armed is None or self._observation_meta is None:
+            raise InvalidStateError(
+                "exposure must be armed before start",
+                subsystem="detector",
+                details={"state": self._state.value},
+            )
+
+        self._state = ExposureState.EXPOSING
+        self._observation_meta.mark_exposing()
+        return self.get_snapshot()
+
+    def stop_and_readout(self) -> ExposureSnapshot:
+        if self._state != ExposureState.EXPOSING or self._armed is None or self._observation_meta is None:
+            raise InvalidStateError(
+                "stop_readout is only valid while exposing",
+                subsystem="detector",
+                details={"state": self._state.value},
+            )
+
+        self._state = ExposureState.READING_OUT
+
+        result = self.adapter.acquire_exposure(
+            obs_id=self._armed.obs_id,
+            exp_time_s=self._armed.exp_time_s,
+            frame_type=self._armed.frame_type,
+        )
+
+        frame_result = FrameResult(
+            frame_token=result.get("frame_token"),
+            file_uri=result.get("file_uri"),
+            kept=True,
+            early_stop=True,
+            discarded=False,
+            checksum=result.get("checksum"),
+            started_at_utc=result.get("started_at"),
+            finished_at_utc=result.get("finished_at"),
+            result="completed",
+        )
+
+        result["kept"] = True
+        result["early_stop"] = True
+        result["discarded"] = False
+        result["exp_id"] = self._armed.exp_id
+        result["operator_note"] = self._armed.operator_note
+
+        self._last_exposure = result
+        self._observation_meta.add_frame_result(frame_result)
+        self._observation_meta.mark_completed(finished_at_utc=result.get("finished_at"))
+        self._armed = None
+        self._state = ExposureState.COMPLETED
+        return self.get_snapshot()
+
+    def finish_normal(self) -> ExposureSnapshot:
+        if self._state != ExposureState.EXPOSING or self._armed is None or self._observation_meta is None:
+            raise InvalidStateError(
+                "normal readout is only valid while exposing",
+                subsystem="detector",
+                details={"state": self._state.value},
+            )
+
+        self._state = ExposureState.READING_OUT
+
+        result = self.adapter.acquire_exposure(
+            obs_id=self._armed.obs_id,
+            exp_time_s=self._armed.exp_time_s,
+            frame_type=self._armed.frame_type,
+        )
+
+        frame_result = FrameResult(
+            frame_token=result.get("frame_token"),
+            file_uri=result.get("file_uri"),
+            kept=True,
+            early_stop=False,
+            discarded=False,
+            checksum=result.get("checksum"),
+            started_at_utc=result.get("started_at"),
+            finished_at_utc=result.get("finished_at"),
+            result="completed",
+        )
+
+        result["kept"] = True
+        result["early_stop"] = False
+        result["discarded"] = False
+        result["exp_id"] = self._armed.exp_id
+
+        self._last_exposure = result
+        self._observation_meta.add_frame_result(frame_result)
+        self._observation_meta.mark_completed(finished_at_utc=result.get("finished_at"))
+        self._armed = None
+        self._state = ExposureState.COMPLETED
+        return self.get_snapshot()
+
+    def abort_discard(self) -> ExposureSnapshot:
+        if self._state not in {ExposureState.ARMED, ExposureState.EXPOSING} or self._armed is None or self._observation_meta is None:
+            raise InvalidStateError(
+                "abort_discard is only valid for armed or exposing observations",
+                subsystem="detector",
+                details={"state": self._state.value},
+            )
+
+        finished_at = utc_now_iso()
+
+        frame_result = FrameResult(
+            frame_token=None,
+            file_uri=None,
+            kept=False,
+            early_stop=False,
+            discarded=True,
+            checksum=None,
+            started_at_utc=self._observation_meta.started_at_utc,
+            finished_at_utc=finished_at,
+            result="discarded",
+        )
+
+        self._last_exposure = {
+            "obs_id": self._armed.obs_id,
+            "exp_id": self._armed.exp_id,
+            "frame_type": self._armed.frame_type,
+            "exp_time_s": self._armed.exp_time_s,
+            "operator_note": self._armed.operator_note,
+            "frame_token": None,
+            "started_at": self._observation_meta.started_at_utc,
+            "finished_at": finished_at,
+            "result": "discarded",
+            "kept": False,
+            "early_stop": False,
+            "discarded": True,
+        }
+
+        self._observation_meta.add_frame_result(frame_result)
+        self._observation_meta.mark_discarded(finished_at_utc=finished_at)
+        self._armed = None
+        self._state = ExposureState.DISCARDED
+        return self.get_snapshot()

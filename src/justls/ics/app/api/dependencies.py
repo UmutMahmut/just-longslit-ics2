@@ -8,7 +8,7 @@ from justls.ics.application.dispatcher import CommandDispatcher, validate_requir
 from justls.ics.application.services.health_service import HealthService
 from justls.ics.application.services.management_service import ManagementService
 from justls.ics.application.services.observation_service import ObservationService
-from justls.ics.kernel.errors import UnsupportedError
+from justls.ics.kernel.errors import InvalidStateError, UnsupportedError
 from justls.ics.kernel.runtime import Runtime, get_runtime
 
 
@@ -54,7 +54,24 @@ def _require_detector(runtime: Runtime):
     return runtime.detector
 
 
+def _assert_observation_mutation_allowed(runtime: Runtime, action_name: str) -> None:
+    if runtime.detector is None:
+        return
+
+    state = runtime.detector.get_snapshot().state.value
+    if state in {"armed", "exposing"}:
+        raise InvalidStateError(
+            f"{action_name} is blocked while observation state is {state}",
+            subsystem="detector",
+            details={
+                "observation_state": state,
+                "blocked_action": action_name,
+            },
+        )
+
+
 def _handle_slit_set_width(runtime: Runtime, request):
+    _assert_observation_mutation_allowed(runtime, "set_slit_width")
     validate_required_params(request, {"width_um"})
     slit = _require_slit(runtime)
     snapshot = slit.set_width_um(float(request.params["width_um"]))
@@ -62,6 +79,7 @@ def _handle_slit_set_width(runtime: Runtime, request):
 
 
 def _handle_slit_set_angle(runtime: Runtime, request):
+    _assert_observation_mutation_allowed(runtime, "set_slit_angle")
     validate_required_params(request, {"angle_deg"})
     slit = _require_slit(runtime)
     snapshot = slit.set_angle_deg(float(request.params["angle_deg"]))
@@ -69,6 +87,7 @@ def _handle_slit_set_angle(runtime: Runtime, request):
 
 
 def _handle_lamp_legacy_set(runtime: Runtime, request):
+    _assert_observation_mutation_allowed(runtime, "set_legacy_lamp")
     validate_required_params(request, {"on"})
     lamps = _require_lamps(runtime)
     snapshot = lamps.set_legacy_on(bool(request.params["on"]))
@@ -76,6 +95,7 @@ def _handle_lamp_legacy_set(runtime: Runtime, request):
 
 
 def _handle_calibration_set_mode(runtime: Runtime, request):
+    _assert_observation_mutation_allowed(runtime, "set_calibration_mode")
     validate_required_params(request, {"mode"})
     lamps = _require_lamps(runtime)
     snapshot = lamps.set_mode(str(request.params["mode"]))
@@ -83,6 +103,7 @@ def _handle_calibration_set_mode(runtime: Runtime, request):
 
 
 def _handle_calibration_select_lamp(runtime: Runtime, request):
+    _assert_observation_mutation_allowed(runtime, "select_calibration_lamp")
     validate_required_params(request, {"lamp", "enabled"})
     lamps = _require_lamps(runtime)
     snapshot = lamps.select_lamp(
@@ -115,35 +136,30 @@ def _handle_observation_arm(runtime: Runtime, request):
         calibration_snapshot=calibration_snapshot,
         detector_config=detector_config,
     )
-    runtime.set_exposure_state(snapshot.state)
     return snapshot.to_dict()
 
 
 def _handle_observation_start(runtime: Runtime, request):
     detector = _require_detector(runtime)
     snapshot = detector.start()
-    runtime.set_exposure_state(snapshot.state)
     return snapshot.to_dict()
 
 
 def _handle_observation_finish(runtime: Runtime, request):
     detector = _require_detector(runtime)
     snapshot = detector.finish_normal()
-    runtime.set_exposure_state(snapshot.state)
     return snapshot.to_dict()
 
 
 def _handle_observation_stop_readout(runtime: Runtime, request):
     detector = _require_detector(runtime)
     snapshot = detector.stop_and_readout()
-    runtime.set_exposure_state(snapshot.state)
     return snapshot.to_dict()
 
 
 def _handle_observation_abort_discard(runtime: Runtime, request):
     detector = _require_detector(runtime)
     snapshot = detector.abort_discard()
-    runtime.set_exposure_state(snapshot.state)
     return snapshot.to_dict()
 
 

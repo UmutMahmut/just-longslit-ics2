@@ -50,6 +50,9 @@ class Runtime:
     started_at: datetime = field(default_factory=utc_now)
 
     def get_snapshot(self) -> SystemStateSnapshot:
+        if self.detector is not None:
+            detector_snapshot = self.detector.get_snapshot()
+            self.system_state.exposure_state = detector_snapshot.state
         self.system_state.refresh_timestamp()
         return self.system_state
 
@@ -176,6 +179,50 @@ class Runtime:
         return self.job_tracker.mark_succeeded(
             job_id,
             result=result,
+            state_after=state_after,
+        )
+
+    def _parse_control_state(self, value: str | None) -> ControlState | None:
+        if value is None:
+            return None
+        try:
+            return ControlState(value)
+        except ValueError:
+            return None
+
+    def mark_job_rejected(
+        self,
+        job_id: str,
+        exc: ICSException,
+        *,
+        subsystem: str | None = None,
+        message: str = "",
+    ) -> JobRecord:
+        """
+        Mark a job as failed without escalating the subsystem into FAULT.
+
+        This is intended for command rejections such as invalid params,
+        invalid state transitions, and unsupported operations.
+        """
+        state_after = None
+
+        if subsystem is not None:
+            job = self.job_tracker.get_job(job_id)
+            restore_state = self._parse_control_state(job.state_before if job else None)
+
+            if restore_state is None:
+                restore_state = ControlState.IDLE
+
+            self.set_subsystem_state(
+                subsystem,
+                restore_state,
+                message=message or exc.info.message,
+            )
+            state_after = self.get_subsystem_state(subsystem).state.value
+
+        return self.job_tracker.mark_failed_from_exception(
+            job_id,
+            exc,
             state_after=state_after,
         )
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from justls.ics.application.usecases.preset_plan import PresetPlan
 from justls.ics.domain.detector.config import DetectorConfig
+from justls.ics.kernel.errors import InvalidStateError
 from justls.ics.kernel.runtime import Runtime
 from justls.ics.kernel.states import ControlState
 
@@ -9,6 +10,21 @@ from justls.ics.kernel.states import ControlState
 class ManagementService:
     def __init__(self, runtime: Runtime) -> None:
         self.runtime = runtime
+
+    def _assert_mutation_allowed(self, action_name: str) -> None:
+        if self.runtime.detector is None:
+            return
+
+        state = self.runtime.detector.get_snapshot().state.value
+        if state in {"armed", "exposing"}:
+            raise InvalidStateError(
+                f"{action_name} is blocked while observation state is {state}",
+                subsystem="detector",
+                details={
+                    "observation_state": state,
+                    "blocked_action": action_name,
+                },
+            )
 
     def set_connected(self, subsystem: str, connected: bool, *, message: str = "") -> dict:
         state = self.runtime.set_subsystem_connected(subsystem, connected, message=message)
@@ -25,10 +41,13 @@ class ManagementService:
         return self.runtime.get_detector_config_dict()
 
     def set_detector_config(self, config: DetectorConfig | dict) -> dict:
+        self._assert_mutation_allowed("set_detector_config")
         updated = self.runtime.set_detector_config(config)
         return updated.to_dict()
 
     def apply_preset_plan(self, plan: PresetPlan) -> dict:
+        self._assert_mutation_allowed("apply_preset_plan")
+
         detector_config = self.runtime.set_detector_config(plan.detector_config).to_dict()
 
         calibration_result = None

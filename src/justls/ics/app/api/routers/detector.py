@@ -3,7 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from justls.ics.app.api.dependencies import ManagementServiceDep
+from justls.ics.app.api.errors import raise_api_error
 from justls.ics.domain.detector.config import DetectorConfig
+from justls.ics.kernel.errors import InvalidStateError
 
 router = APIRouter(prefix="/api/v1", tags=["detector"])
 
@@ -18,4 +20,12 @@ def set_detector_config(
     req: DetectorConfig,
     management_service: ManagementServiceDep,
 ) -> DetectorConfig:
-    return DetectorConfig.model_validate(management_service.set_detector_config(req))
+    try:
+        payload = management_service.set_detector_config(req)
+    except InvalidStateError as exc:
+        raise_api_error(
+            status_code=400,
+            code=exc.code.value,
+            message=exc.info.message,
+        )
+    return DetectorConfig.model_validate(payload)

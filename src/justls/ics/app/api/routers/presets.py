@@ -11,6 +11,7 @@ from justls.ics.app.api.schemas.responses import (
     PresetListResponse,
 )
 from justls.ics.application.usecases.presets import build_preset_plan, list_presets
+from justls.ics.kernel.errors import InvalidStateError
 
 router = APIRouter(prefix="/api/v1", tags=["presets"])
 
@@ -38,5 +39,13 @@ def apply_preset(
             message=f"Preset not found: {req.name}",
         )
 
-    payload = management_service.apply_preset_plan(plan)
+    try:
+        payload = management_service.apply_preset_plan(plan)
+    except InvalidStateError as exc:
+        raise_api_error(
+            status_code=400,
+            code=exc.code.value,
+            message=exc.info.message,
+        )
+
     return PresetApplyResponse.model_validate(payload)

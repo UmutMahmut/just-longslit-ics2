@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from justls.ics.kernel.errors import ICSException, InvalidParamError, UnsupportedError
+from justls.ics.kernel.errors import ErrorCode, ICSException, InvalidParamError, UnsupportedError
 from justls.ics.kernel.jobs import CommandRequest, JobRecord
 from justls.ics.kernel.runtime import Runtime
 
@@ -43,33 +43,51 @@ class CommandDispatcher:
                 details={"action": request.action},
             )
 
+        tracked_subsystems = {"system", "slit", "lamps", "detector", "health"}
+        tracked_subsystem = request.subsystem if request.subsystem in tracked_subsystems else None
+
         job = self.runtime.create_job(
             request,
-            subsystem_state_name=request.subsystem if request.subsystem in {"system", "slit", "lamps", "detector", "health"} else None,
+            subsystem_state_name=tracked_subsystem,
         )
 
         try:
             self.runtime.mark_job_running(
                 job.job_id,
-                subsystem=request.subsystem if request.subsystem in {"system", "slit", "lamps", "detector", "health"} else None,
+                subsystem=tracked_subsystem,
                 message=f"Running {request.action}",
             )
             payload = handler(self.runtime, request) or {}
             job = self.runtime.mark_job_succeeded(
                 job.job_id,
-                subsystem=request.subsystem if request.subsystem in {"system", "slit", "lamps", "detector", "health"} else None,
+                subsystem=tracked_subsystem,
                 result=payload,
                 message=f"Completed {request.action}",
             )
             return DispatchResult(job=job, payload=payload)
 
         except ICSException as exc:
-            job = self.runtime.mark_job_failed(
-                job.job_id,
-                exc,
-                subsystem=request.subsystem if request.subsystem in {"system", "slit", "lamps", "detector", "health"} else None,
-                message=exc.info.message,
-            )
+            non_fault_codes = {
+                ErrorCode.INVALID_PARAM,
+                ErrorCode.INVALID_STATE,
+                ErrorCode.UNSUPPORTED,
+            }
+
+            if exc.code in non_fault_codes:
+                job = self.runtime.mark_job_rejected(
+                    job.job_id,
+                    exc,
+                    subsystem=tracked_subsystem,
+                    message=exc.info.message,
+                )
+            else:
+                job = self.runtime.mark_job_failed(
+                    job.job_id,
+                    exc,
+                    subsystem=tracked_subsystem,
+                    message=exc.info.message,
+                )
+
             return DispatchResult(job=job, payload={"error": exc.to_dict()})
 
     def list_handlers(self) -> list[dict[str, str]]:

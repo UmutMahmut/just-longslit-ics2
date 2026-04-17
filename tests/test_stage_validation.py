@@ -1342,3 +1342,290 @@ def test_stage_2d2_api_apply_unknown_preset_returns_structured_error():
     assert "detail" in data
     assert data["detail"]["code"] == "preset_not_found"
     assert data["detail"]["message"] == "Preset not found: not_exists"
+
+def test_stage_2d2_dispatcher_invalid_state_does_not_fault_detector_subsystem():
+    runtime = RuntimeAssembler().build()
+    dispatcher = CommandDispatcher(runtime)
+
+    def handler(rt, request):
+        raise InvalidStateError(
+            "detector is not ready for this transition",
+            subsystem="detector",
+            details={"state": "ready_to_arm"},
+        )
+
+    dispatcher.register_handler("detector", "bad_transition", handler)
+
+    req = CommandRequest.create(
+        subsystem="detector",
+        action="bad_transition",
+        params={},
+        source=CommandSource.API,
+    )
+
+    result = dispatcher.dispatch(req)
+    data = result.to_dict()
+
+    assert data["job"]["status"] == "failed"
+    assert data["payload"]["error"]["code"] == "invalid_state"
+    assert runtime.get_subsystem_state("detector").state == ControlState.IDLE
+    assert runtime.get_snapshot().overall_state == ControlState.IDLE
+
+
+def test_stage_2d2_dispatcher_invalid_param_does_not_fault_slit_subsystem():
+    runtime = RuntimeAssembler().build()
+    dispatcher = CommandDispatcher(runtime)
+
+    def handler(rt, request):
+        raise InvalidParamError(
+            "width_um must be > 0",
+            subsystem="slit",
+            details={"width_um": 0},
+        )
+
+    dispatcher.register_handler("slit", "bad_width", handler)
+
+    req = CommandRequest.create(
+        subsystem="slit",
+        action="bad_width",
+        params={"width_um": 0},
+        source=CommandSource.API,
+    )
+
+    result = dispatcher.dispatch(req)
+    data = result.to_dict()
+
+    assert data["job"]["status"] == "failed"
+    assert data["payload"]["error"]["code"] == "invalid_param"
+    assert runtime.get_subsystem_state("slit").state == ControlState.IDLE
+    assert runtime.get_snapshot().overall_state == ControlState.IDLE
+
+
+def test_stage_2d2_api_observation_invalid_start_does_not_fault_runtime_state():
+    client = TestClient(app)
+
+    response = client.post("/api/v1/observation/start")
+    assert response.status_code == 400
+
+    health = client.get("/api/v1/health")
+    assert health.status_code == 200
+    data = health.json()
+
+    runtime_state = data["runtime"]["state"]
+    assert runtime_state["overall_state"] != "fault"
+    assert runtime_state["subsystems"]["detector"]["state"] == "idle"
+    assert runtime_state["exposure_state"] == "ready_to_arm"
+
+def test_stage_2d2_runtime_snapshot_exposure_state_is_derived_from_detector():
+    runtime = RuntimeAssembler().build()
+
+    runtime.detector.arm(
+        exp_time_s=5.0,
+        frame_type="science",
+        operator_note="derive-check",
+        instrument_snapshot=None,
+        calibration_snapshot=None,
+        detector_config=runtime.get_detector_config_dict(),
+    )
+
+    runtime_snapshot = runtime.get_snapshot()
+    detector_snapshot = runtime.detector.get_snapshot()
+
+    assert runtime_snapshot.exposure_state == detector_snapshot.state
+    assert runtime_snapshot.exposure_state.value == "armed"
+
+
+def test_stage_2d2_runtime_snapshot_exposure_state_tracks_detector_after_start_and_finish():
+    runtime = RuntimeAssembler().build()
+
+    runtime.detector.arm(
+        exp_time_s=5.0,
+        frame_type="science",
+        operator_note="derive-check",
+        instrument_snapshot=None,
+        calibration_snapshot=None,
+        detector_config=runtime.get_detector_config_dict(),
+    )
+    runtime.detector.start()
+
+    runtime_snapshot = runtime.get_snapshot()
+    detector_snapshot = runtime.detector.get_snapshot()
+    assert runtime_snapshot.exposure_state == detector_snapshot.state
+    assert runtime_snapshot.exposure_state.value == "exposing"
+
+    runtime.detector.finish_normal()
+
+    runtime_snapshot = runtime.get_snapshot()
+    detector_snapshot = runtime.detector.get_snapshot()
+    assert runtime_snapshot.exposure_state == detector_snapshot.state
+    assert runtime_snapshot.exposure_state.value == "completed"
+
+
+def test_stage_2d2_api_health_runtime_exposure_state_matches_observation_status_across_flow():
+    client = TestClient(app)
+
+    initial_health = client.get("/api/v1/health")
+    initial_obs = client.get("/api/v1/observation/status")
+    assert initial_health.status_code == 200
+    assert initial_obs.status_code == 200
+    assert initial_health.json()["runtime"]["state"]["exposure_state"] == initial_obs.json()["state"] == "ready_to_arm"
+
+    arm = client.post(
+        "/api/v1/observation/arm",
+        json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "api-sync-check"},
+    )
+    assert arm.status_code == 200
+
+    armed_health = client.get("/api/v1/health")
+    armed_obs = client.get("/api/v1/observation/status")
+    assert armed_health.status_code == 200
+    assert armed_obs.status_code == 200
+    assert armed_health.json()["runtime"]["state"]["exposure_state"] == armed_obs.json()["state"] == "armed"
+
+    start = client.post("/api/v1/observation/start")
+    assert start.status_code == 200
+
+    exposing_health = client.get("/api/v1/health")
+    exposing_obs = client.get("/api/v1/observation/status")
+    assert exposing_health.status_code == 200
+    assert exposing_obs.status_code == 200
+    assert exposing_health.json()["runtime"]["state"]["exposure_state"] == exposing_obs.json()["state"] == "exposing"
+
+    finish = client.post("/api/v1/observation/finish")
+    assert finish.status_code == 200
+
+    completed_health = client.get("/api/v1/health")
+    completed_obs = client.get("/api/v1/observation/status")
+    assert completed_health.status_code == 200
+    assert completed_obs.status_code == 200
+    assert completed_health.json()["runtime"]["state"]["exposure_state"] == completed_obs.json()["state"] == "completed"
+
+def test_stage_2d2_armed_blocks_detector_config_mutation():
+    client = TestClient(app)
+
+    arm = client.post(
+        "/api/v1/observation/arm",
+        json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "lock-detector"},
+    )
+    assert arm.status_code == 200
+
+    response = client.post(
+        "/api/v1/detector/config",
+        json={
+            "profile_name": "locked-armed",
+            "save_enabled": True,
+            "trigger_mode": "internal",
+            "readout_mode": "normal",
+            "channels": {
+                "B": {"enabled": True, "camera_role": "science_b"},
+                "G": {"enabled": True, "camera_role": "science_g"},
+                "R": {"enabled": True, "camera_role": "science_r"},
+            },
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "invalid_state"
+
+
+def test_stage_2d2_armed_blocks_preset_apply():
+    client = TestClient(app)
+
+    arm = client.post(
+        "/api/v1/observation/arm",
+        json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "lock-preset"},
+    )
+    assert arm.status_code == 200
+
+    response = client.post("/api/v1/presets/apply", json={"name": "science_default"})
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "invalid_state"
+
+
+def test_stage_2d2_armed_blocks_slit_and_calibration_mutation():
+    client = TestClient(app)
+
+    arm = client.post(
+        "/api/v1/observation/arm",
+        json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "lock-slit-cal"},
+    )
+    assert arm.status_code == 200
+
+    slit = client.post("/api/v1/slit", json={"width_um": 140.0})
+    assert slit.status_code == 400
+    assert slit.json()["detail"]["code"] == "invalid_state"
+
+    calibration = client.post("/api/v1/calibration/mode", json={"mode": "calibration"})
+    assert calibration.status_code == 400
+    assert calibration.json()["detail"]["code"] == "invalid_state"
+
+
+def test_stage_2d2_armed_still_allows_observation_start():
+    client = TestClient(app)
+
+    arm = client.post(
+        "/api/v1/observation/arm",
+        json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "start-still-allowed"},
+    )
+    assert arm.status_code == 200
+
+    start = client.post("/api/v1/observation/start")
+    assert start.status_code == 200
+    assert start.json()["state"] == "exposing"
+
+
+def test_stage_2d2_exposing_blocks_detector_preset_and_slit_mutation():
+    client = TestClient(app)
+
+    arm = client.post(
+        "/api/v1/observation/arm",
+        json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "lock-exposing"},
+    )
+    assert arm.status_code == 200
+
+    start = client.post("/api/v1/observation/start")
+    assert start.status_code == 200
+    assert start.json()["state"] == "exposing"
+
+    detector = client.post(
+        "/api/v1/detector/config",
+        json={
+            "profile_name": "locked-exposing",
+            "save_enabled": True,
+            "trigger_mode": "internal",
+            "readout_mode": "normal",
+            "channels": {
+                "B": {"enabled": True, "camera_role": "science_b"},
+                "G": {"enabled": True, "camera_role": "science_g"},
+                "R": {"enabled": True, "camera_role": "science_r"},
+            },
+        },
+    )
+    assert detector.status_code == 400
+    assert detector.json()["detail"]["code"] == "invalid_state"
+
+    preset = client.post("/api/v1/presets/apply", json={"name": "science_default"})
+    assert preset.status_code == 400
+    assert preset.json()["detail"]["code"] == "invalid_state"
+
+    slit = client.post("/api/v1/slit", json={"width_um": 150.0})
+    assert slit.status_code == 400
+    assert slit.json()["detail"]["code"] == "invalid_state"
+
+
+def test_stage_2d2_exposing_still_allows_observation_finish():
+    client = TestClient(app)
+
+    arm = client.post(
+        "/api/v1/observation/arm",
+        json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "finish-still-allowed"},
+    )
+    assert arm.status_code == 200
+
+    start = client.post("/api/v1/observation/start")
+    assert start.status_code == 200
+    assert start.json()["state"] == "exposing"
+
+    finish = client.post("/api/v1/observation/finish")
+    assert finish.status_code == 200
+    assert finish.json()["state"] == "completed"
+

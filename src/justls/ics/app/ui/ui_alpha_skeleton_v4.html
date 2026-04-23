@@ -1626,7 +1626,7 @@ html.theme-light .warning:hover {
               <div class="placeholder-card">
                 <h3>Legacy /lamp</h3>
                 <p class="hint">保留单一灯开关入口，但不让它成为 Calibration 页的主心智模型。</p>
-                <button class="btn">Legacy Lamp Toggle</button>
+                <button class="btn" type="button" data-state="cal.canLegacyLampToggle">Legacy Lamp Toggle</button>
               </div>
               <div class="placeholder-card">
                 <h3>Future Sequence</h3>
@@ -2131,6 +2131,15 @@ html.theme-light .warning:hover {
       });
     }
 
+    function setActionAvailability(action, enabled) {
+      qsa(`[data-action="${action}"]`).forEach((el) => {
+        if ('disabled' in el) {
+          el.disabled = !enabled;
+          el.setAttribute('aria-disabled', String(!enabled));
+        }
+      });
+    }
+
     function safe(value, fallback = '—') {
       if (value === null || value === undefined || value === '') return fallback;
       return String(value);
@@ -2507,17 +2516,38 @@ html.theme-light .warning:hover {
     function applyObservationButtonState(stateValue) {
       const state = String(stateValue || '').toLowerCase();
       APP.lastObservationState = state;
+
       const canArm =
-  ['ready_to_arm', 'completed', 'aborted', 'discarded', 'failed'].includes(state) &&
-  !APP.observationBusy;
+        ['ready_to_arm', 'completed', 'aborted', 'discarded', 'failed'].includes(state) &&
+        !APP.observationBusy;
       const canStart = state === 'armed' && !APP.observationBusy;
-      const exposing = state === 'exposing' && !APP.observationBusy;
+      const canFinish = state === 'exposing' && !APP.observationBusy;
+      const canStopReadout = state === 'exposing' && !APP.observationBusy;
+      const canAbortDiscard = ['armed', 'exposing'].includes(state) && !APP.observationBusy;
+
       setAvailability('obs.canArm', canArm);
       setAvailability('obs.canStart', canStart);
-      setAvailability('obs.canFinish', exposing);
-      setAvailability('obs.canStopReadout', exposing);
-      setAvailability('obs.canAbortDiscard', exposing);
-      setAvailability('presets.canApply', !APP.observationBusy);
+      setAvailability('obs.canFinish', canFinish);
+      setAvailability('obs.canStopReadout', canStopReadout);
+      setAvailability('obs.canAbortDiscard', canAbortDiscard);
+
+      applyObservationMutationGuards(state);
+    }
+
+    function applyObservationMutationGuards(stateValue) {
+      const state = String(stateValue || '').toLowerCase();
+      const lockedByObservation = ['armed', 'exposing'].includes(state);
+      const locked = lockedByObservation || APP.observationBusy;
+      const mutationsEnabled = !locked;
+
+      setAvailability('presets.canApply', mutationsEnabled);
+      setActionAvailability('slit.applyWidth', mutationsEnabled);
+      setActionAvailability('slit.applyAngle', mutationsEnabled);
+      setActionAvailability('calibration.setMode', mutationsEnabled);
+      setActionAvailability('calibration.enableLamp', mutationsEnabled);
+      setActionAvailability('calibration.disableLamp', mutationsEnabled);
+      setActionAvailability('detector.apply', mutationsEnabled);
+      setAvailability('cal.canLegacyLampToggle', mutationsEnabled);
     }
 
     function renderObservation(observationStatus) {
@@ -2648,7 +2678,7 @@ html.theme-light .warning:hover {
       renderDetectorConfig(detectorConfig || statusFull?.detector_config, capabilities);
 
       if (observationStatus) renderObservation(observationStatus);
-      else applyObservationButtonState('—');
+      else applyObservationButtonState(APP.lastObservationState || '—');
 
       renderDiagnostics(health, capabilities, statusFull, observationStatus, detectorConfig || statusFull?.detector_config);
       if (Array.isArray(presets?.items)) renderPresetsCatalog(presets.items);
@@ -2729,6 +2759,33 @@ html.theme-light .warning:hover {
       setSystemMessage({ level: 'info', text: 'Observation 表单已重置。', badge: 'OBS' });
     }
 
+    function getObservationConfirmation(action) {
+      if (action === 'observation.abort_discard') {
+        return {
+          level: 'danger',
+          title: '确认 Abort & Discard',
+          message: '这会中止当前观测并丢弃本次数据。该操作不可恢复。是否继续？',
+        };
+      }
+
+      if (action === 'observation.stop_readout') {
+        return {
+          level: 'warning',
+          title: '确认 Stop & Readout',
+          message: '这会提前结束当前曝光，但会保留并读出已获得的数据。是否继续？',
+        };
+      }
+
+      return null;
+    }
+
+    function confirmObservationAction(action) {
+      const spec = getObservationConfirmation(action);
+      if (!spec) return true;
+      const text = `${spec.title}\n\n${spec.message}`;
+      return window.confirm(text);
+    }
+
     async function handleObservationAction(action) {
       const configMap = {
         'observation.arm': { path: '/api/v1/observation/arm', label: 'Arm', buildBody: collectObservationArmPayload },
@@ -2745,6 +2802,16 @@ html.theme-light .warning:hover {
 
       const config = configMap[action];
       if (!config) return;
+
+      if (!confirmObservationAction(action)) {
+        const spec = getObservationConfirmation(action);
+        setSystemMessage({
+          level: spec?.level === 'danger' ? 'warning' : 'info',
+          text: `${spec?.title || '操作'}已取消，未发送请求。`,
+          badge: 'OBS',
+        });
+        return;
+      }
 
       APP.observationBusy = true;
       applyObservationButtonState(APP.lastObservationState);
@@ -2780,7 +2847,7 @@ html.theme-light .warning:hover {
         setSystemMessage({ level: 'error', text: `Preset apply 失败：${error.message}`, badge: 'PRESET' });
         throw error;
       } finally {
-        setAvailability('presets.canApply', true);
+        applyObservationMutationGuards(APP.lastObservationState);
       }
     }
 

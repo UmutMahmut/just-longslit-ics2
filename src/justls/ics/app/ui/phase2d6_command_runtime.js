@@ -9,6 +9,15 @@
     if (el) el.textContent = value == null ? "—" : String(value);
   }
 
+  function emitCommandResult(detail) {
+    window.__phase2d6LastCommandResult = detail;
+    window.dispatchEvent(
+      new CustomEvent("phase2d6:command-result", {
+        detail,
+      }),
+    );
+  }
+
   function ensureCommandPanel() {
     let panel = document.querySelector("[data-phase2d6-command-panel]");
     if (panel) return panel;
@@ -154,29 +163,33 @@
 
     try {
       const result = await postJsonWithTimeout(button.dataset.apiPath, bodyFor(button), requestId);
-      setCommandStatus("succeeded", command, result.requestId);
-      setRail("success", `${command} completed.`);
-      markDebugPayload({
+      const payload = {
         command,
         request_id: result.requestId,
         status: result.status,
         result: result.data,
-      });
+      };
+      setCommandStatus("succeeded", command, result.requestId);
+      setRail("success", `${command} completed.`);
+      markDebugPayload(payload);
+      emitCommandResult({ ...payload, outcome: "succeeded" });
       refreshSoon();
     } catch (err) {
       const timedOut = err.name === "AbortError";
       const visibleMessage = timedOut
         ? `${command} timed out after ${(COMMAND_TIMEOUT_MS / 1000).toFixed(1)} s.`
         : err.message || `${command} failed.`;
-      setCommandStatus(timedOut ? "timeout" : "failed", command, err.requestId || requestId);
-      setRail("error", visibleMessage);
-      markDebugPayload({
+      const payload = {
         command,
         request_id: err.requestId || requestId,
         error: visibleMessage,
         status: err.status || null,
         detail: err.payload || null,
-      });
+      };
+      setCommandStatus(timedOut ? "timeout" : "failed", command, err.requestId || requestId);
+      setRail("error", visibleMessage);
+      markDebugPayload(payload);
+      emitCommandResult({ ...payload, outcome: timedOut ? "timeout" : "failed" });
     } finally {
       commandInFlight = false;
     }

@@ -11,12 +11,18 @@
     error: "error",
   };
   const CONTROLLED_COMMANDS = new Set([
+    "observation.arm",
     "observation.start",
     "observation.stop_readout",
     "observation.abort_discard",
     "config.high_impact",
   ]);
   const COMMAND_MARKER_CATALOG = [
+    {
+      command: "observation.arm",
+      labels: ["Arm", "Arm Observation", "准备曝光"],
+      endpoints: ["observation/arm"],
+    },
     {
       command: "observation.start",
       labels: ["Start", "Start Exposure", "Start Observation", "开始曝光"],
@@ -103,6 +109,10 @@
     if (el) el.textContent = value == null ? "—" : String(value);
   }
 
+  function bind(name, value) {
+    setText(byBind(name), value);
+  }
+
   function normalizeText(value) {
     return (value || "").replace(/\s+/g, " ").trim().toLowerCase();
   }
@@ -117,6 +127,7 @@
     const attrs = [
       "data-endpoint",
       "data-action",
+      "data-api-path",
       "onclick",
       "aria-label",
       "title",
@@ -187,10 +198,11 @@
     }
     if (state) state.textContent = level === "ok" ? "Ready" : level.toUpperCase();
 
-    setText(byBind("conn.rtt"), `${Math.round(responseTimeMs)} ms`);
-    setText(byBind("conn.last_ok"), new Date().toLocaleTimeString());
+    bind("conn.rtt", `${Math.round(responseTimeMs)} ms`);
+    bind("conn.last_ok", new Date().toLocaleTimeString());
+    bind("conn.poll", `${(POLL_INTERVAL_MS / 1000).toFixed(1)} s`);
     if (operational.stale_threshold_s != null) {
-      setText(byBind("conn.staleThreshold"), `${operational.stale_threshold_s.toFixed(1)} s`);
+      bind("conn.staleThreshold", `${operational.stale_threshold_s.toFixed(1)} s`);
     }
     if (requestId) {
       const panel = ensureOperationalPanel();
@@ -207,6 +219,36 @@
     setText(panel.querySelector("[data-phase2d6-control]"), `Control: ${operational.control_state || "unknown"}`);
   }
 
+  function updateStatusFullFields(data) {
+    const state = data.state || {};
+    const detectorConfig = data.detector_config || {};
+    const calibration = data.calibration || {};
+    const observation = data.observation || {};
+
+    bind("runtime.mode", data.run_mode || data.hal || "unknown");
+    bind("api.base", window.location.origin || "same-origin");
+    bind("state.slit_width_um", state.slit_width_um == null ? "—" : `${state.slit_width_um} µm`);
+    bind("state.slit_angle_deg", state.slit_angle_deg == null ? "—" : `${state.slit_angle_deg}°`);
+    bind("state.lamp_on", state.lamp_on ? "on" : "off");
+    bind("detector.profile", detectorConfig.profile_name || "—");
+    bind("calibration.mode", calibration.mode || "—");
+    bind("observation.state", observation.state || "—");
+
+    const debugEl = byBind("debug.status");
+    if (debugEl && !debugEl.dataset.phase2d6CommandOutput) {
+      debugEl.textContent = JSON.stringify(
+        {
+          operational_status: data.operational_status,
+          observation: data.observation,
+          detector_config: data.detector_config,
+          timestamp_utc: data.timestamp_utc,
+        },
+        null,
+        2,
+      );
+    }
+  }
+
   function rememberInitialDisabled(button) {
     if (!button.dataset.phase2d6InitialDisabled) {
       button.dataset.phase2d6InitialDisabled = button.disabled ? "true" : "false";
@@ -220,7 +262,8 @@
     const explicitRisk = (button.getAttribute("data-risk") || "").trim().toLowerCase();
     if (explicitRisk === "high-impact-config") return "config.high_impact";
 
-    const endpoint = (button.getAttribute("data-endpoint") || button.getAttribute("data-action") || "").toLowerCase();
+    const endpoint = (button.getAttribute("data-endpoint") || button.getAttribute("data-action") || button.getAttribute("data-api-path") || "").toLowerCase();
+    if (endpoint.includes("observation/arm")) return "observation.arm";
     if (endpoint.includes("observation/start")) return "observation.start";
     if (endpoint.includes("observation/stop_readout")) return "observation.stop_readout";
     if (endpoint.includes("observation/abort_discard")) return "observation.abort_discard";
@@ -239,8 +282,12 @@
   }
 
   function shouldDisableCommand(command, flags) {
+    if (command === "status.refresh") return false;
     if (flags.fault || flags.disconnected) return true;
 
+    if (command === "observation.arm") {
+      return !!(flags.armed || flags.exposing || flags.reading_out);
+    }
     if (command === "observation.start") {
       return !flags.armed || flags.exposing || flags.reading_out;
     }
@@ -304,15 +351,28 @@
       updateRail(data.operational_status || {});
       updateConnectionBlock(data, responseTimeMs, requestId);
       updateOperationalPanel(data);
+      updateStatusFullFields(data);
       applyButtonGates(data);
     } finally {
       statusRefreshInFlight = false;
     }
   }
 
+  function installManualRefresh() {
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest('[data-command="status.refresh"]');
+      if (!button) return;
+      event.preventDefault();
+      refreshOperationalStatus().catch((err) => {
+        setDegradedRail(err.name === "AbortError" ? "Operational status refresh timed out." : err.message);
+      });
+    });
+  }
+
   function start() {
     ensureOperationalPanel();
     annotateCommandMarkers();
+    installManualRefresh();
     refreshOperationalStatus().catch((err) => {
       setDegradedRail(err.name === "AbortError" ? "Operational status refresh timed out." : err.message);
     });

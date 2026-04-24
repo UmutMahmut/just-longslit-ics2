@@ -16,6 +16,52 @@
     "observation.abort_discard",
     "config.high_impact",
   ]);
+  const COMMAND_MARKER_CATALOG = [
+    {
+      command: "observation.start",
+      labels: ["Start", "Start Exposure", "Start Observation", "开始曝光"],
+      endpoints: ["observation/start"],
+    },
+    {
+      command: "observation.stop_readout",
+      labels: ["Stop & Readout", "Stop and Readout", "停止并读出"],
+      endpoints: ["observation/stop_readout"],
+    },
+    {
+      command: "observation.abort_discard",
+      labels: ["Abort & Discard", "Abort and Discard", "中止并丢弃"],
+      endpoints: ["observation/abort_discard"],
+    },
+    {
+      risk: "high-impact-config",
+      labels: [
+        "Apply Preset",
+        "Set Slit",
+        "Set Slit Width",
+        "Set Slit Angle",
+        "Lamp On",
+        "Lamp Off",
+        "Set Lamp",
+        "Set Calibration Mode",
+        "Save Detector Config",
+        "Apply Detector Config",
+        "应用预置",
+        "设置狭缝",
+        "设置狭缝角",
+        "打开灯源",
+        "关闭灯源",
+      ],
+      endpoints: [
+        "/api/v1/slit",
+        "/api/v1/slit_angle",
+        "/api/v1/lamp",
+        "/api/v1/presets/apply",
+        "/api/v1/detector/config",
+        "/api/v1/calibration/mode",
+        "/api/v1/calibration/lamp",
+      ],
+    },
+  ];
 
   let statusRefreshInFlight = false;
 
@@ -57,10 +103,55 @@
     if (el) el.textContent = value == null ? "—" : String(value);
   }
 
+  function normalizeText(value) {
+    return (value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
   function normalizeLevel(level) {
     return level === "ok" || level === "busy" || level === "warning" || level === "error"
       ? level
       : "warning";
+  }
+
+  function readActionSurface(button) {
+    const attrs = [
+      "data-endpoint",
+      "data-action",
+      "onclick",
+      "aria-label",
+      "title",
+      "data-route",
+    ];
+    const values = attrs.map((name) => button.getAttribute(name) || "");
+    values.push(button.textContent || "");
+    return values.join(" ").toLowerCase();
+  }
+
+  function markerMatches(button, marker) {
+    const surface = readActionSurface(button);
+    const label = normalizeText(button.textContent || "");
+    const labels = marker.labels || [];
+    const endpoints = marker.endpoints || [];
+
+    if (labels.some((candidate) => label === normalizeText(candidate))) return true;
+    return endpoints.some((endpoint) => surface.includes(endpoint.toLowerCase()));
+  }
+
+  function annotateCommandMarkers() {
+    document.querySelectorAll("button, .btn").forEach((button) => {
+      if (button.hasAttribute("data-command") || button.hasAttribute("data-risk")) return;
+
+      const marker = COMMAND_MARKER_CATALOG.find((candidate) => markerMatches(button, candidate));
+      if (!marker) return;
+
+      if (marker.command) {
+        button.setAttribute("data-command", marker.command);
+      }
+      if (marker.risk) {
+        button.setAttribute("data-risk", marker.risk);
+      }
+      button.setAttribute("data-phase2d6-marker-source", "catalog");
+    });
   }
 
   function updateRail(operational) {
@@ -166,6 +257,8 @@
   }
 
   function applyButtonGates(data) {
+    annotateCommandMarkers();
+
     const operational = data.operational_status || {};
     const flags = operational.flags || {};
 
@@ -219,6 +312,7 @@
 
   function start() {
     ensureOperationalPanel();
+    annotateCommandMarkers();
     refreshOperationalStatus().catch((err) => {
       setDegradedRail(err.name === "AbortError" ? "Operational status refresh timed out." : err.message);
     });

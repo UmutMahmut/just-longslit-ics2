@@ -49,6 +49,7 @@ def test_stage_2d6_ui_v6_route_available_and_structured():
     assert 'data-command="observation.abort_discard"' in response.text
     assert 'data-risk="high-impact-config"' in response.text
     assert "phase2d6_operational_status.js" in response.text
+    assert "phase2d6_command_runtime.js" in response.text
 
 
 def test_stage_2d6_root_advertises_ui_v6():
@@ -108,3 +109,16 @@ def test_stage_2d6_ui_adapter_has_command_marker_catalog():
     assert "Stop & Readout" in response.text
     assert "Abort & Discard" in response.text
     assert "high-impact-config" in response.text
+
+
+def test_stage_2d6_command_runtime_static_asset_available():
+    client = TestClient(app)
+
+    response = client.get("/ui-assets/phase2d6_command_runtime.js")
+
+    assert response.status_code == 200
+    assert "COMMAND_TIMEOUT_MS" in response.text
+    assert "commandInFlight" in response.text
+    assert "X-Request-ID" in response.text
+    assert "postJsonWithTimeout" in response.text
+    assert "stopImmediatePropagation" in response.text

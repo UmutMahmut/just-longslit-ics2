@@ -98,6 +98,7 @@ app.include_router(presets_router)
 
 UI_DIR = Path(__file__).resolve().parent / "ui"
 UI_ENTRY = UI_DIR / "ui_alpha_skeleton_v5.html"
+UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
 UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
 
 if UI_DIR.exists():
@@ -118,6 +119,18 @@ def inject_phase_2d6_ui_adapter(html: str) -> str:
     return f"{html}\n{adapter_tag}\n"
 
 
+def serve_html(path: Path, *, inject_adapter: bool = False):
+    if path.exists():
+        html = path.read_text(encoding="utf-8")
+        if inject_adapter:
+            html = inject_phase_2d6_ui_adapter(html)
+        return HTMLResponse(html)
+    return {
+        "message": "UI entry not found.",
+        "expected": str(path),
+    }
+
+
 @app.get("/")
 def read_root() -> dict:
     return {
@@ -125,15 +138,15 @@ def read_root() -> dict:
         "docs": "/docs",
         "openapi": "/openapi.json",
         "ui": "/ui" if UI_ENTRY.exists() else None,
+        "ui_v6": "/ui/v6" if UI_V6_ENTRY.exists() else None,
     }
 
 
 @app.get("/ui", include_in_schema=False)
 def read_ui():
-    if UI_ENTRY.exists():
-        html = UI_ENTRY.read_text(encoding="utf-8")
-        return HTMLResponse(inject_phase_2d6_ui_adapter(html))
-    return {
-        "message": "UI entry not found.",
-        "expected": str(UI_ENTRY),
-    }
+    return serve_html(UI_ENTRY, inject_adapter=True)
+
+
+@app.get("/ui/v6", include_in_schema=False)
+def read_ui_v6():
+    return serve_html(UI_V6_ENTRY)

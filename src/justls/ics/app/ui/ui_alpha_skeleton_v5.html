@@ -2078,6 +2078,12 @@ html.theme-light .warning:hover {
       apiBase: inferApiBase(),
       pollMs: 2000,
       staleThresholdSec: 5,
+      http: {
+        getTimeoutMs: 3500,
+        getRetryCount: 1,
+        getRetryDelayMs: 250,
+        postTimeoutMs: 8000,
+      },
       timer: null,
       lastOkAt: null,
       lastSyncState: 'init',
@@ -2340,39 +2346,146 @@ html.theme-light .warning:hover {
       });
     }
 
+    async function sleep(ms) {
+      return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    async function fetchWithTimeout(url, init = {}, { timeoutMs } = {}) {
+      const controller = new AbortController();
+      let didTimeout = false;
+      const timeoutId = window.setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+      }, timeoutMs);
+
+      try {
+        const response = await fetch(url, { ...init, signal: controller.signal });
+        return response;
+      } catch (error) {
+        if (didTimeout && error && typeof error === 'object') error.__justTimeout = true;
+        throw error;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
+    async function parseResponsePayload(response) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          return await response.json();
+        } catch (error) {
+          return null;
+        }
+      }
+
+      const text = await response.text();
+      return text || null;
+    }
+
+    function formatResponseErrorMessage(response, payload, fallbackPath) {
+      const detail = payload?.detail;
+      const requestId = response.headers.get('X-Request-ID')
+        || (typeof detail === 'object' ? detail?.request_id : null)
+        || payload?.request_id
+        || null;
+
+      const baseMessage = typeof detail === 'string'
+        ? detail
+        : detail?.message || payload?.message || `${response.status} ${response.statusText}`;
+
+      return requestId ? `${baseMessage} [request_id: ${requestId}]` : baseMessage;
+    }
+
+    function normalizeThrownError(error, fallbackMessage) {
+      if (error instanceof Error && error.message) return error;
+      return new Error(fallbackMessage || String(error));
+    }
+
     async function fetchJson(path) {
       const url = path.startsWith('http') ? path : `${APP.apiBase}${path}`;
-      const t0 = performance.now();
-      const response = await fetch(url, { cache: 'no-store' });
-      const rtt = performance.now() - t0;
-      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-      return { data: await response.json(), rtt };
+      const timeoutMs = APP.http?.getTimeoutMs || 3500;
+      const retries = APP.http?.getRetryCount || 0;
+      const retryDelayMs = APP.http?.getRetryDelayMs || 250;
+
+      let attempt = 0;
+      let lastError = null;
+
+      while (attempt <= retries) {
+        const t0 = performance.now();
+
+        try {
+          const response = await fetchWithTimeout(
+            url,
+            { cache: 'no-store' },
+            { timeoutMs },
+          );
+          const rtt = performance.now() - t0;
+          const payload = await parseResponsePayload(response);
+
+          if (!response.ok) {
+            const message = formatResponseErrorMessage(response, payload, path);
+            const retryable = response.status >= 500 && attempt < retries;
+            if (retryable) {
+              attempt += 1;
+              await sleep(retryDelayMs);
+              continue;
+            }
+            throw new Error(message);
+          }
+
+          return { data: payload, rtt };
+        } catch (error) {
+          const normalized = normalizeThrownError(error, `GET ${path} 请求失败。`);
+          const timedOut = Boolean(error?.__justTimeout);
+          const networkLike = timedOut || normalized.name === 'TypeError';
+
+          if (networkLike && attempt < retries) {
+            attempt += 1;
+            await sleep(retryDelayMs);
+            continue;
+          }
+
+          if (timedOut) {
+            lastError = new Error(`GET ${path} 请求超时（${timeoutMs} ms）。`);
+          } else {
+            lastError = normalized;
+          }
+          break;
+        }
+      }
+
+      throw lastError || new Error(`GET ${path} 请求失败。`);
     }
 
     async function postJson(path, body) {
       const url = path.startsWith('http') ? path : `${APP.apiBase}${path}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-      });
+      const timeoutMs = APP.http?.postTimeoutMs || 8000;
 
-      let payload = null;
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        payload = await response.json();
-      } else {
-        const text = await response.text();
-        payload = text || null;
+      try {
+        const response = await fetchWithTimeout(
+          url,
+          {
+            method: 'POST',
+            headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+            body: body !== undefined ? JSON.stringify(body) : undefined,
+          },
+          { timeoutMs },
+        );
+
+        const payload = await parseResponsePayload(response);
+
+        if (!response.ok) {
+          throw new Error(formatResponseErrorMessage(response, payload, path));
+        }
+
+        return payload;
+      } catch (error) {
+        if (error?.__justTimeout) {
+          throw new Error(`POST ${path} 请求超时（${timeoutMs} ms）。`);
+        }
+        throw normalizeThrownError(error, `POST ${path} 请求失败。`);
       }
-
-      if (!response.ok) {
-        const detail = payload?.detail;
-        const message = typeof detail === 'string' ? detail : detail?.message || payload?.message || `${response.status} ${response.statusText}`;
-        throw new Error(message);
-      }
-
-      return payload;
     }
 
     function renderHeader(health, rtt) {

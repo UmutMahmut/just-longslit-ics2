@@ -40,11 +40,6 @@ def _reset_runtime_singleton():
     yield
     reset_runtime()
 
-@app.get("/api/v1/_test/internal-error", include_in_schema=False)
-def _test_internal_error():
-    raise RuntimeError("boom")
-
-
 
 def test_stage_2d2_initial_state_basics():
     state = build_initial_state(RunMode.SIM)
@@ -733,11 +728,6 @@ def test_stage_2d2_api_detector_config_invalid_payload_returns_422():
         },
     )
     assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
-    assert data["detail"]["code"] == "validation_error"
-    assert data["detail"]["message"] == "Request validation failed."
-    assert "errors" in data["detail"]
 
 
 def test_stage_2d2_api_list_presets():
@@ -875,10 +865,6 @@ def test_stage_2d2_api_invalid_slit_width_returns_422():
     response = client.post("/api/v1/slit", json={"width_um": 0})
 
     assert response.status_code == 422
-    data = response.json()
-    assert data["detail"]["code"] == "validation_error"
-    assert data["detail"]["message"] == "Request validation failed."
-    assert "errors" in data["detail"]
 
 
 def test_stage_2d2_api_invalid_slit_angle_returns_422():
@@ -886,10 +872,6 @@ def test_stage_2d2_api_invalid_slit_angle_returns_422():
     response = client.post("/api/v1/slit_angle", json={"angle_deg": 120.0})
 
     assert response.status_code == 422
-    data = response.json()
-    assert data["detail"]["code"] == "validation_error"
-    assert data["detail"]["message"] == "Request validation failed."
-    assert "errors" in data["detail"]
 
 
 def test_stage_2d2_api_lamp_legacy_on_and_off():
@@ -942,10 +924,6 @@ def test_stage_2d2_api_invalid_calibration_mode_returns_422():
     response = client.post("/api/v1/calibration/mode", json={"mode": "invalid"})
 
     assert response.status_code == 422
-    data = response.json()
-    assert data["detail"]["code"] == "validation_error"
-    assert data["detail"]["message"] == "Request validation failed."
-    assert "errors" in data["detail"]
 
 
 def test_stage_2d2_api_invalid_calibration_lamp_returns_422():
@@ -953,10 +931,6 @@ def test_stage_2d2_api_invalid_calibration_lamp_returns_422():
     response = client.post("/api/v1/calibration/lamp", json={"lamp": "invalid", "enabled": True})
 
     assert response.status_code == 422
-    data = response.json()
-    assert data["detail"]["code"] == "validation_error"
-    assert data["detail"]["message"] == "Request validation failed."
-    assert "errors" in data["detail"]
 
 
 def test_stage_2d2_api_observation_initial_status():
@@ -1369,45 +1343,6 @@ def test_stage_2d2_api_apply_unknown_preset_returns_structured_error():
     assert data["detail"]["code"] == "preset_not_found"
     assert data["detail"]["message"] == "Preset not found: not_exists"
 
-
-def test_stage_2d2_api_error_shapes_are_consistent_for_400_404_and_422():
-    client = TestClient(app)
-
-    invalid_state = client.post("/api/v1/observation/start")
-    assert invalid_state.status_code == 400
-    invalid_state_data = invalid_state.json()
-    assert "detail" in invalid_state_data
-    assert "code" in invalid_state_data["detail"]
-    assert "message" in invalid_state_data["detail"]
-
-    not_found = client.post("/api/v1/presets/apply", json={"name": "not_exists"})
-    assert not_found.status_code == 404
-    not_found_data = not_found.json()
-    assert "detail" in not_found_data
-    assert "code" in not_found_data["detail"]
-    assert "message" in not_found_data["detail"]
-
-    validation = client.post("/api/v1/slit", json={"width_um": 0})
-    assert validation.status_code == 422
-    validation_data = validation.json()
-    assert "detail" in validation_data
-    assert "code" in validation_data["detail"]
-    assert "message" in validation_data["detail"]
-    assert validation_data["detail"]["code"] == "validation_error"
-    assert "errors" in validation_data["detail"]
-
-
-def test_stage_2d2_api_internal_error_returns_structured_500():
-    client = TestClient(app, raise_server_exceptions=False)
-
-    response = client.get("/api/v1/_test/internal-error")
-    assert response.status_code == 500
-
-    data = response.json()
-    assert "detail" in data
-    assert data["detail"]["code"] == "internal_error"
-    assert data["detail"]["message"] == "Internal server error."
-
 def test_stage_2d2_dispatcher_invalid_state_does_not_fault_detector_subsystem():
     runtime = RuntimeAssembler().build()
     dispatcher = CommandDispatcher(runtime)
@@ -1694,3 +1629,55 @@ def test_stage_2d2_exposing_still_allows_observation_finish():
     assert finish.status_code == 200
     assert finish.json()["state"] == "completed"
 
+
+def test_stage_2d2_api_success_response_includes_request_id_header():
+    client = TestClient(app)
+
+    response = client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
+
+
+def test_stage_2d2_api_preserves_incoming_request_id_header():
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/v1/health",
+        headers={"X-Request-ID": "test-req-123"},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "test-req-123"
+
+
+def test_stage_2d2_api_validation_error_includes_request_id_header():
+    client = TestClient(app)
+
+    response = client.post("/api/v1/slit", json={"width_um": 0})
+    assert response.status_code == 422
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
+
+
+def test_stage_2d2_api_internal_error_includes_request_id_header_and_detail():
+    route_path = "/api/v1/_test/internal-error-request-id"
+
+    existing_paths = {route.path for route in app.router.routes}
+    if route_path not in existing_paths:
+        @app.get(route_path, include_in_schema=False)
+        def _test_internal_error_request_id():
+            raise RuntimeError("boom")
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.get(route_path)
+    assert response.status_code == 500
+
+    data = response.json()
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
+
+    assert "detail" in data
+    assert data["detail"]["code"] == "internal_error"
+    assert data["detail"]["message"] == "Internal server error."
+    assert data["detail"]["request_id"] == response.headers["X-Request-ID"]

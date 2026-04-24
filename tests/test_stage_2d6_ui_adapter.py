@@ -37,6 +37,29 @@ def test_stage_2d6_ui_serves_operational_adapter():
     assert "phase2d6_operational_status.js" in response.text
 
 
+def test_stage_2d6_ui_v6_route_available_and_structured():
+    client = TestClient(app)
+
+    response = client.get("/ui/v6")
+
+    assert response.status_code == 200
+    assert "Operational UI v6" in response.text
+    assert 'data-command="observation.start"' in response.text
+    assert 'data-command="observation.stop_readout"' in response.text
+    assert 'data-command="observation.abort_discard"' in response.text
+    assert 'data-risk="high-impact-config"' in response.text
+    assert "phase2d6_operational_status.js" in response.text
+
+
+def test_stage_2d6_root_advertises_ui_v6():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json()["ui_v6"] == "/ui/v6"
+
+
 def test_stage_2d6_ui_adapter_static_asset_available():
     client = TestClient(app)
 

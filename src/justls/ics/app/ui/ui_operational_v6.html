@@ -215,6 +215,8 @@
             <div class="metric"><span>Slit Angle</span><code data-bind="state.slit_angle_deg">—</code></div>
             <div class="metric"><span>Lamp</span><code data-bind="state.lamp_on">—</code></div>
             <div class="metric"><span>Detector Profile</span><code data-bind="detector.profile">—</code></div>
+            <div class="metric"><span>Calibration</span><code data-bind="calibration.mode">—</code></div>
+            <div class="metric"><span>Observation</span><code data-bind="observation.state">—</code></div>
           </div>
         </section>
 
@@ -310,14 +312,26 @@
     return true;
   }
 
+  function refreshSoon() {
+    window.setTimeout(() => {
+      const button = document.querySelector('[data-command="status.refresh"]');
+      if (button) button.click();
+    }, 150);
+  }
+
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-api-path]");
     if (!button || button.disabled) return;
     if (!requireConfirmation(button)) return;
     try {
       const data = await postJson(button.dataset.apiPath, bodyFor(button));
+      const debug = document.querySelector("[data-bind='debug.status']");
+      if (debug) debug.dataset.phase2d6CommandOutput = "true";
       setText("[data-bind='debug.status']", JSON.stringify(data, null, 2));
+      refreshSoon();
     } catch (err) {
+      const debug = document.querySelector("[data-bind='debug.status']");
+      if (debug) debug.dataset.phase2d6CommandOutput = "true";
       setText("[data-bind='debug.status']", JSON.stringify({ error: err.message }, null, 2));
       const rail = document.querySelector(".message-rail");
       if (rail) rail.setAttribute("data-level", "error");

@@ -2,12 +2,22 @@
   "use strict";
 
   const STATUS_URL = "/api/v1/status/full";
+  const POLL_INTERVAL_MS = 1500;
+  const STATUS_TIMEOUT_MS = 1200;
   const LEVEL_TO_RAIL = {
     ok: "success",
     busy: "info",
     warning: "warning",
     error: "error",
   };
+  const CONTROLLED_COMMANDS = new Set([
+    "observation.start",
+    "observation.stop_readout",
+    "observation.abort_discard",
+    "config.high_impact",
+  ]);
+
+  let statusRefreshInFlight = false;
 
   function byBind(name) {
     return document.querySelector(`[data-bind="${name}"]`);
@@ -66,6 +76,14 @@
     }
   }
 
+  function setDegradedRail(message) {
+    const rail = document.querySelector(".message-rail");
+    if (!rail) return;
+    rail.setAttribute("data-level", "warning");
+    const body = rail.querySelector(".rail-body-text") || rail.querySelector(".rail-body");
+    if (body) body.textContent = message || "Operational status refresh degraded.";
+  }
+
   function updateConnectionBlock(data, responseTimeMs, requestId) {
     const operational = data.operational_status || {};
     const level = normalizeLevel(operational.level);
@@ -98,64 +116,117 @@
     setText(panel.querySelector("[data-phase2d6-control]"), `Control: ${operational.control_state || "unknown"}`);
   }
 
+  function rememberInitialDisabled(button) {
+    if (!button.dataset.phase2d6InitialDisabled) {
+      button.dataset.phase2d6InitialDisabled = button.disabled ? "true" : "false";
+    }
+  }
+
+  function inferCommand(button) {
+    const explicitCommand = (button.getAttribute("data-command") || "").trim().toLowerCase();
+    if (explicitCommand) return explicitCommand;
+
+    const explicitRisk = (button.getAttribute("data-risk") || "").trim().toLowerCase();
+    if (explicitRisk === "high-impact-config") return "config.high_impact";
+
+    const endpoint = (button.getAttribute("data-endpoint") || button.getAttribute("data-action") || "").toLowerCase();
+    if (endpoint.includes("observation/start")) return "observation.start";
+    if (endpoint.includes("observation/stop_readout")) return "observation.stop_readout";
+    if (endpoint.includes("observation/abort_discard")) return "observation.abort_discard";
+    if (
+      endpoint.includes("/slit") ||
+      endpoint.includes("/lamp") ||
+      endpoint.includes("presets/apply") ||
+      endpoint.includes("detector/config") ||
+      endpoint.includes("calibration/mode") ||
+      endpoint.includes("calibration/lamp")
+    ) {
+      return "config.high_impact";
+    }
+
+    return "";
+  }
+
+  function shouldDisableCommand(command, flags) {
+    if (flags.fault || flags.disconnected) return true;
+
+    if (command === "observation.start") {
+      return !flags.armed || flags.exposing || flags.reading_out;
+    }
+    if (command === "observation.stop_readout") {
+      return !flags.exposing || flags.reading_out;
+    }
+    if (command === "observation.abort_discard") {
+      return !(flags.armed || flags.exposing) || flags.reading_out;
+    }
+    if (command === "config.high_impact") {
+      return !!(flags.armed || flags.exposing || flags.reading_out);
+    }
+    return false;
+  }
+
   function applyButtonGates(data) {
     const operational = data.operational_status || {};
     const flags = operational.flags || {};
-    const blockHighImpact = !!(flags.armed || flags.exposing || flags.reading_out || flags.fault || flags.disconnected);
-    const blockStart = !!(flags.exposing || flags.reading_out || flags.fault || flags.disconnected);
-    const blockStopAbort = !!(flags.reading_out || flags.fault || flags.disconnected);
 
     document.querySelectorAll("button, .btn").forEach((button) => {
-      const label = (button.textContent || "").trim().toLowerCase();
-      const endpoint = (button.getAttribute("data-endpoint") || button.getAttribute("data-action") || "").toLowerCase();
-      const isStart = label.includes("start") || endpoint.includes("observation/start");
-      const isStopOrAbort = label.includes("abort") || label.includes("discard") || label.includes("stop") || endpoint.includes("abort_discard") || endpoint.includes("stop_readout");
-      const isHighImpactConfig = label.includes("apply preset") || label.includes("slit") || label.includes("lamp") || endpoint.includes("/slit") || endpoint.includes("/lamp") || endpoint.includes("presets/apply") || endpoint.includes("detector/config");
+      rememberInitialDisabled(button);
+      const command = inferCommand(button);
+      if (!CONTROLLED_COMMANDS.has(command)) return;
 
-      if (isStopOrAbort) {
-        button.disabled = blockStopAbort;
-        button.title = blockStopAbort ? "Blocked by operational status." : "";
-      } else if (isStart) {
-        button.disabled = blockStart;
-        button.title = blockStart ? "Blocked by operational status." : "";
-      } else if (isHighImpactConfig) {
-        button.disabled = blockHighImpact;
-        button.title = blockHighImpact ? "High-impact configuration is blocked by operational status." : "";
-      }
+      const initiallyDisabled = button.dataset.phase2d6InitialDisabled === "true";
+      const disableByOperationalStatus = shouldDisableCommand(command, flags);
+      button.disabled = initiallyDisabled || disableByOperationalStatus;
+      button.title = disableByOperationalStatus ? "Blocked by operational status." : "";
+      button.dataset.phase2d6Command = command;
     });
   }
 
-  async function refreshOperationalStatus() {
-    const t0 = performance.now();
-    const response = await fetch(STATUS_URL, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-    });
-    const requestId = response.headers.get("X-Request-ID") || "";
-    const data = await response.json();
-    const responseTimeMs = performance.now() - t0;
-    if (!response.ok) {
-      throw new Error(data?.detail?.message || `Status refresh failed: ${response.status}`);
+  async function fetchStatusWithTimeout() {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), STATUS_TIMEOUT_MS);
+    try {
+      return await fetch(STATUS_URL, {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      });
+    } finally {
+      window.clearTimeout(timeoutId);
     }
-    updateRail(data.operational_status || {});
-    updateConnectionBlock(data, responseTimeMs, requestId);
-    updateOperationalPanel(data);
-    applyButtonGates(data);
+  }
+
+  async function refreshOperationalStatus() {
+    if (statusRefreshInFlight) return;
+    statusRefreshInFlight = true;
+    const t0 = performance.now();
+    try {
+      const response = await fetchStatusWithTimeout();
+      const requestId = response.headers.get("X-Request-ID") || "";
+      const data = await response.json();
+      const responseTimeMs = performance.now() - t0;
+      if (!response.ok) {
+        throw new Error(data?.detail?.message || `Status refresh failed: ${response.status}`);
+      }
+      updateRail(data.operational_status || {});
+      updateConnectionBlock(data, responseTimeMs, requestId);
+      updateOperationalPanel(data);
+      applyButtonGates(data);
+    } finally {
+      statusRefreshInFlight = false;
+    }
   }
 
   function start() {
     ensureOperationalPanel();
     refreshOperationalStatus().catch((err) => {
-      const rail = document.querySelector(".message-rail");
-      if (rail) {
-        rail.setAttribute("data-level", "error");
-        const body = rail.querySelector(".rail-body-text") || rail.querySelector(".rail-body");
-        if (body) body.textContent = err.message || "Operational status refresh failed.";
-      }
+      setDegradedRail(err.name === "AbortError" ? "Operational status refresh timed out." : err.message);
     });
     window.setInterval(() => {
-      refreshOperationalStatus().catch(() => {});
-    }, 1500);
+      refreshOperationalStatus().catch((err) => {
+        setDegradedRail(err.name === "AbortError" ? "Operational status refresh timed out." : err.message);
+      });
+    }, POLL_INTERVAL_MS);
   }
 
   if (document.readyState === "loading") {

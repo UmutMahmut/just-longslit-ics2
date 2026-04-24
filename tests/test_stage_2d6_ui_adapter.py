@@ -48,6 +48,7 @@ def test_stage_2d6_ui_v6_route_available_and_structured():
     assert 'data-command="observation.stop_readout"' in response.text
     assert 'data-command="observation.abort_discard"' in response.text
     assert 'data-risk="high-impact-config"' in response.text
+    assert "phase2d6_job_alignment.js" in response.text
     assert "phase2d6_operational_status.js" in response.text
     assert "phase2d6_command_runtime.js" in response.text
 
@@ -122,3 +123,17 @@ def test_stage_2d6_command_runtime_static_asset_available():
     assert "X-Request-ID" in response.text
     assert "postJsonWithTimeout" in response.text
     assert "stopImmediatePropagation" in response.text
+    assert "phase2d6:command-result" in response.text
+
+
+def test_stage_2d6_job_alignment_static_asset_available():
+    client = TestClient(app)
+
+    response = client.get("/ui-assets/phase2d6_job_alignment.js")
+
+    assert response.status_code == 200
+    assert "latest_job" in response.text
+    assert "phase2d6:status-full" in response.text
+    assert "phase2d6:command-result" in response.text
+    assert "data-phase2d6-job-panel" in response.text
+    assert "job.alignment" in response.text

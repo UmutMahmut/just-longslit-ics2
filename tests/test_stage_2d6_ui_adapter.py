@@ -71,3 +71,17 @@ def test_stage_2d6_ui_adapter_uses_explicit_command_gate_model():
     assert "observation.stop_readout" in response.text
     assert "observation.abort_discard" in response.text
     assert "config.high_impact" in response.text
+
+
+def test_stage_2d6_ui_adapter_has_command_marker_catalog():
+    client = TestClient(app)
+
+    response = client.get("/ui-assets/phase2d6_operational_status.js")
+
+    assert response.status_code == 200
+    assert "COMMAND_MARKER_CATALOG" in response.text
+    assert "annotateCommandMarkers" in response.text
+    assert "data-phase2d6-marker-source" in response.text
+    assert "Stop & Readout" in response.text
+    assert "Abort & Discard" in response.text
+    assert "high-impact-config" in response.text

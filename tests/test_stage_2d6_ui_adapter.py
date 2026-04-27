@@ -112,6 +112,17 @@ def test_stage_2d6_ui_adapter_has_command_marker_catalog():
     assert "high-impact-config" in response.text
 
 
+def test_stage_2d6_operational_adapter_emits_status_full_event():
+    client = TestClient(app)
+
+    response = client.get("/ui-assets/phase2d6_operational_status.js")
+
+    assert response.status_code == 200
+    assert "emitStatusFull" in response.text
+    assert "phase2d6:status-full" in response.text
+    assert "new CustomEvent" in response.text
+
+
 def test_stage_2d6_command_runtime_static_asset_available():
     client = TestClient(app)
 
@@ -137,3 +148,5 @@ def test_stage_2d6_job_alignment_static_asset_available():
     assert "phase2d6:command-result" in response.text
     assert "data-phase2d6-job-panel" in response.text
     assert "job.alignment" in response.text
+    assert "installStatusFetchTap" not in response.text
+    assert "window.fetch =" not in response.text

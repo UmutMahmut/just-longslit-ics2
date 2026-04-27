@@ -1,8 +1,6 @@
 (function () {
   "use strict";
 
-  const STATUS_URL = "/api/v1/status/full";
-
   function setText(selector, value) {
     const el = typeof selector === "string" ? document.querySelector(selector) : selector;
     if (el) el.textContent = value == null || value === "" ? "—" : String(value);
@@ -107,38 +105,12 @@
     );
   }
 
-  function emitStatusFull(data, requestId) {
-    window.__phase2d6StatusFull = data;
-    window.dispatchEvent(
-      new CustomEvent("phase2d6:status-full", {
-        detail: { data, requestId },
-      }),
-    );
-  }
-
-  function installStatusFetchTap() {
-    if (window.__phase2d6StatusFetchTapped) return;
-    window.__phase2d6StatusFetchTapped = true;
-
-    const originalFetch = window.fetch.bind(window);
-    window.fetch = async function phase2d6Fetch(input, init) {
-      const response = await originalFetch(input, init);
-      const url = typeof input === "string" ? input : input?.url || "";
-      if (url.includes(STATUS_URL)) {
-        response
-          .clone()
-          .json()
-          .then((data) => emitStatusFull(data, response.headers.get("X-Request-ID") || ""))
-          .catch(() => {});
-      }
-      return response;
-    };
-  }
-
   function installListeners() {
     window.addEventListener("phase2d6:status-full", (event) => {
-      updateJobPanel(event.detail?.data || {});
-      updateDebugWithJob(event.detail?.data || {});
+      const data = event.detail?.data || {};
+      window.__phase2d6StatusFull = data;
+      updateJobPanel(data);
+      updateDebugWithJob(data);
     });
 
     window.addEventListener("phase2d6:command-result", (event) => {
@@ -152,7 +124,6 @@
   function start() {
     ensureJobPanel();
     installListeners();
-    installStatusFetchTap();
   }
 
   if (document.readyState === "loading") {

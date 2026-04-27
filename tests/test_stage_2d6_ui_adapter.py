@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.abspath("src"))
 
-from justls.ics.app.main import app, inject_phase_2d6_ui_adapter
+from justls.ics.app.main import app, env_flag, inject_phase_2d6_ui_adapter
 from justls.ics.kernel.runtime import reset_runtime
 
 
@@ -60,6 +60,42 @@ def test_stage_2d6_root_advertises_ui_v6():
 
     assert response.status_code == 200
     assert response.json()["ui_v6"] == "/ui/v6"
+
+
+def test_stage_2d6_env_flag_parsing(monkeypatch):
+    monkeypatch.delenv("JUSTLS_TEST_FLAG", raising=False)
+    assert env_flag("JUSTLS_TEST_FLAG", default=True) is True
+    assert env_flag("JUSTLS_TEST_FLAG", default=False) is False
+
+    for value in ["0", "false", "False", "no", "off", "disabled"]:
+        monkeypatch.setenv("JUSTLS_TEST_FLAG", value)
+        assert env_flag("JUSTLS_TEST_FLAG", default=True) is False
+
+    for value in ["1", "true", "yes", "on", "enabled"]:
+        monkeypatch.setenv("JUSTLS_TEST_FLAG", value)
+        assert env_flag("JUSTLS_TEST_FLAG", default=False) is True
+
+
+def test_stage_2d6_v5_adapter_can_be_disabled_by_env(monkeypatch):
+    monkeypatch.setenv("JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED", "0")
+    client = TestClient(app)
+
+    response = client.get("/ui")
+
+    assert response.status_code == 200
+    assert "phase2d6_operational_status.js" not in response.text
+
+
+def test_stage_2d6_v6_can_be_disabled_by_env(monkeypatch):
+    monkeypatch.setenv("JUSTLS_UI_V6_ENABLED", "0")
+    client = TestClient(app)
+
+    root = client.get("/")
+    response = client.get("/ui/v6")
+
+    assert root.status_code == 200
+    assert root.json()["ui_v6"] is None
+    assert response.status_code == 404
 
 
 def test_stage_2d6_ui_adapter_static_asset_available():

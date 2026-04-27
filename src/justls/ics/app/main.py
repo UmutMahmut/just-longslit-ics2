@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from justls.ics.app.api.errors import build_api_error_detail
@@ -98,9 +98,37 @@ app.include_router(presets_router)
 
 UI_DIR = Path(__file__).resolve().parent / "ui"
 UI_ENTRY = UI_DIR / "ui_alpha_skeleton_v5.html"
+UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
+UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
 
 if UI_DIR.exists():
     app.mount("/ui-assets", StaticFiles(directory=UI_DIR), name="ui-assets")
+
+
+def inject_phase_2d6_ui_adapter(html: str) -> str:
+    """Attach the Phase 2.6 operational-status adapter to the static UI.
+
+    The adapter lets the existing v5 skeleton consume the new backend
+    `operational_status` block without copying or rewriting the large HTML file.
+    """
+    adapter_tag = f'<script src="{UI_PHASE_2D6_ADAPTER}" defer></script>'
+    if adapter_tag in html:
+        return html
+    if "</body>" in html:
+        return html.replace("</body>", f"  {adapter_tag}\n</body>")
+    return f"{html}\n{adapter_tag}\n"
+
+
+def serve_html(path: Path, *, inject_adapter: bool = False):
+    if path.exists():
+        html = path.read_text(encoding="utf-8")
+        if inject_adapter:
+            html = inject_phase_2d6_ui_adapter(html)
+        return HTMLResponse(html)
+    return {
+        "message": "UI entry not found.",
+        "expected": str(path),
+    }
 
 
 @app.get("/")
@@ -110,14 +138,15 @@ def read_root() -> dict:
         "docs": "/docs",
         "openapi": "/openapi.json",
         "ui": "/ui" if UI_ENTRY.exists() else None,
+        "ui_v6": "/ui/v6" if UI_V6_ENTRY.exists() else None,
     }
 
 
 @app.get("/ui", include_in_schema=False)
 def read_ui():
-    if UI_ENTRY.exists():
-        return FileResponse(UI_ENTRY)
-    return {
-        "message": "UI entry not found.",
-        "expected": str(UI_ENTRY),
-    }
+    return serve_html(UI_ENTRY, inject_adapter=True)
+
+
+@app.get("/ui/v6", include_in_schema=False)
+def read_ui_v6():
+    return serve_html(UI_V6_ENTRY)

@@ -89,6 +89,7 @@ class ObservationStatusResponse(BaseModel):
     last_exposure: ObservationExposureResponse | None = None
     observation_meta: ObservationMetaResponse | None = None
 
+
 class RuntimeSubsystemStateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -151,6 +152,24 @@ class CapabilitiesResponse(BaseModel):
     fast_photometry: bool
 
 
+class OperationalStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    level: str
+    summary: str
+    control_state: str
+    exposure_state: str
+    flags: dict[str, bool]
+    busy_subsystems: list[str]
+    fault_subsystems: list[str]
+    disconnected_subsystems: list[str]
+    latest_job: dict[str, Any] | None = None
+    latest_error_code: str | None = None
+    stale_threshold_s: float
+    refresh_hint: str
+    ui_hints: dict[str, Any]
+
+
 class StatusFullResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -158,10 +177,12 @@ class StatusFullResponse(BaseModel):
     capabilities: CapabilitiesResponse
     calibration: CalibrationStatusResponse | None = None
     observation: ObservationStatusResponse | None = None
+    operational_status: OperationalStatusResponse
     detector_config: DetectorConfig
     hal: str
     run_mode: str
     timestamp_utc: str
+
 
 class ApiErrorDetailResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")

@@ -79,6 +79,15 @@
     return document.querySelector(`[data-state="${name}"]`);
   }
 
+  function emitStatusFull(data, requestId, responseTimeMs) {
+    window.__phase2d6StatusFull = data;
+    window.dispatchEvent(
+      new CustomEvent("phase2d6:status-full", {
+        detail: { data, requestId, responseTimeMs },
+      }),
+    );
+  }
+
   function ensureOperationalPanel() {
     let panel = document.querySelector("[data-phase2d6-operational-panel]");
     if (panel) return panel;
@@ -353,6 +362,7 @@
       updateOperationalPanel(data);
       updateStatusFullFields(data);
       applyButtonGates(data);
+      emitStatusFull(data, requestId, responseTimeMs);
     } finally {
       statusRefreshInFlight = false;
     }

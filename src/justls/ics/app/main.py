@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -101,8 +102,32 @@ UI_ENTRY = UI_DIR / "ui_alpha_skeleton_v5.html"
 UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
 UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
 
+PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
+PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
+
 if UI_DIR.exists():
     app.mount("/ui-assets", StaticFiles(directory=UI_DIR), name="ui-assets")
+
+
+def env_flag(name: str, *, default: bool = True) -> bool:
+    """Read a simple boolean environment flag.
+
+    The default remains enabled so normal local development keeps the Phase 2.6
+    review UI visible. Operators can set the variable to 0/false/no/off to
+    disable the feature without reverting code.
+    """
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"0", "false", "no", "off", "disabled"}
+
+
+def phase_2d6_v5_adapter_enabled() -> bool:
+    return env_flag(PHASE_2D6_V5_ADAPTER_ENABLED_ENV, default=True)
+
+
+def phase_2d6_v6_enabled() -> bool:
+    return env_flag(PHASE_2D6_V6_ENABLED_ENV, default=True)
 
 
 def inject_phase_2d6_ui_adapter(html: str) -> str:
@@ -138,15 +163,21 @@ def read_root() -> dict:
         "docs": "/docs",
         "openapi": "/openapi.json",
         "ui": "/ui" if UI_ENTRY.exists() else None,
-        "ui_v6": "/ui/v6" if UI_V6_ENTRY.exists() else None,
+        "ui_v6": "/ui/v6" if UI_V6_ENTRY.exists() and phase_2d6_v6_enabled() else None,
+        "ui_safety_switches": {
+            "phase2d6_v5_adapter_enabled": phase_2d6_v5_adapter_enabled(),
+            "phase2d6_v6_enabled": phase_2d6_v6_enabled(),
+        },
     }
 
 
 @app.get("/ui", include_in_schema=False)
 def read_ui():
-    return serve_html(UI_ENTRY, inject_adapter=True)
+    return serve_html(UI_ENTRY, inject_adapter=phase_2d6_v5_adapter_enabled())
 
 
 @app.get("/ui/v6", include_in_schema=False)
 def read_ui_v6():
+    if not phase_2d6_v6_enabled():
+        raise HTTPException(status_code=404, detail="Operational UI v6 is disabled.")
     return serve_html(UI_V6_ENTRY)

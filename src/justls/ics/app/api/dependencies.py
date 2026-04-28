@@ -70,6 +70,31 @@ def _assert_observation_mutation_allowed(runtime: Runtime, action_name: str) -> 
         )
 
 
+def _latest_successful_preset_apply(runtime: Runtime) -> dict | None:
+    for job in runtime.job_tracker.list_jobs(limit=20):
+        job_dict = job.to_dict()
+        request = job_dict.get("request", {})
+        result = job_dict.get("result", {})
+        if (
+            job_dict.get("status") == "succeeded"
+            and request.get("subsystem") == "presets"
+            and request.get("action") == "apply_preset"
+            and result.get("kind") == "preset_apply"
+        ):
+            return {
+                "job_id": job_dict.get("job_id"),
+                "preset": result.get("preset"),
+                "category": result.get("category"),
+                "risk_level": result.get("risk_level"),
+                "requires_confirmation": result.get("requires_confirmation"),
+                "changed_fields_count": result.get("changed_fields_count"),
+                "calibration_applied": result.get("calibration_applied"),
+                "slit_applied": result.get("slit_applied"),
+                "finished_at": job_dict.get("finished_at"),
+            }
+    return None
+
+
 def _handle_slit_set_width(runtime: Runtime, request):
     _assert_observation_mutation_allowed(runtime, "set_slit_width")
     validate_required_params(request, {"width_um"})
@@ -127,6 +152,7 @@ def _handle_observation_arm(runtime: Runtime, request):
         calibration_snapshot = runtime.lamps.get_snapshot().to_dict()
 
     detector_config = runtime.get_detector_config_dict()
+    preset_apply = _latest_successful_preset_apply(runtime)
 
     snapshot = detector.arm(
         exp_time_s=float(request.params["exp_time_s"]),
@@ -135,6 +161,7 @@ def _handle_observation_arm(runtime: Runtime, request):
         instrument_snapshot=instrument_snapshot,
         calibration_snapshot=calibration_snapshot,
         detector_config=detector_config,
+        preset_apply=preset_apply,
     )
     return snapshot.to_dict()
 

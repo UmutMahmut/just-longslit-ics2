@@ -778,7 +778,7 @@ def test_stage_2d2_api_apply_preset_science_default():
 def test_stage_2d2_api_apply_preset_calib_flat_default():
     client = TestClient(app)
 
-    response = client.post("/api/v1/presets/apply", json={"name": "calib_flat_default"})
+    response = client.post("/api/v1/presets/apply", json={"name": "calib_flat_default", "confirmed": True})
     assert response.status_code == 200
     data = response.json()
 
@@ -811,7 +811,7 @@ def test_stage_2d2_api_observation_arm_reflects_applied_calib_preset():
 
     preset = client.post(
         "/api/v1/presets/apply",
-        json={"name": "calib_flat_default"},
+        json={"name": "calib_flat_default", "confirmed": True},
     )
     assert preset.status_code == 200
 
@@ -1128,7 +1128,7 @@ def test_stage_2d2_api_status_full_reflects_observation_meta_and_detector_config
 
     client.post(
         "/api/v1/presets/apply",
-        json={"name": "calib_flat_default"},
+        json={"name": "calib_flat_default", "confirmed": True},
     )
 
     arm = client.post(

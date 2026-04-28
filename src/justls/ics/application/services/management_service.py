@@ -4,7 +4,7 @@ from typing import Any
 
 from justls.ics.application.usecases.preset_plan import PresetPlan
 from justls.ics.domain.detector.config import DetectorConfig
-from justls.ics.kernel.errors import ICSException, InvalidStateError
+from justls.ics.kernel.errors import ErrorCode, ICSException, InvalidStateError
 from justls.ics.kernel.runtime import Runtime
 from justls.ics.kernel.states import ControlState
 
@@ -12,7 +12,7 @@ from justls.ics.kernel.states import ControlState
 class PresetConfirmationRequiredError(ICSException):
     def __init__(self, plan: PresetPlan) -> None:
         super().__init__(
-            code="confirmation_required",
+            code=ErrorCode.CONFIRMATION_REQUIRED,
             message=f"Preset {plan.name} requires explicit confirmation before apply.",
             subsystem="presets",
             retriable=False,

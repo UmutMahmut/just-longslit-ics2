@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from justls.ics.application.usecases.preset_plan import PresetPlan
 from justls.ics.domain.detector.config import DetectorConfig
 from justls.ics.kernel.errors import InvalidStateError
@@ -26,6 +28,72 @@ class ManagementService:
                 },
             )
 
+    def _mutation_block_reason(self, action_name: str) -> str | None:
+        if self.runtime.detector is None:
+            return None
+
+        state = self.runtime.detector.get_snapshot().state.value
+        if state in {"armed", "exposing"}:
+            return f"{action_name} is blocked while observation state is {state}"
+        return None
+
+    def _diff_values(self, path: str, current: Any, target: Any) -> list[dict[str, Any]]:
+        if isinstance(current, dict) and isinstance(target, dict):
+            changes: list[dict[str, Any]] = []
+            for key in sorted(set(current) | set(target)):
+                child_path = f"{path}.{key}" if path else str(key)
+                changes.extend(
+                    self._diff_values(child_path, current.get(key), target.get(key))
+                )
+            return changes
+
+        if current != target:
+            return [
+                {
+                    "path": path,
+                    "current": current,
+                    "target": target,
+                }
+            ]
+        return []
+
+    def _target_calibration_preview(self, plan: PresetPlan) -> dict[str, Any] | None:
+        if plan.calibration is None:
+            return None
+
+        if plan.calibration.mode == "science":
+            return {
+                "mode": "science",
+                "active_lamp": None,
+                "lamp_enabled": False,
+                "mirror_inserted": False,
+            }
+
+        if plan.calibration.mode == "calibration":
+            return {
+                "mode": "calibration",
+                "active_lamp": plan.calibration.lamp,
+                "lamp_enabled": plan.calibration.enabled,
+                "mirror_inserted": True,
+            }
+
+        return {
+            "mode": plan.calibration.mode,
+            "active_lamp": plan.calibration.lamp,
+            "lamp_enabled": plan.calibration.enabled,
+            "mirror_inserted": None,
+        }
+
+    def _target_slit_preview(self, plan: PresetPlan) -> dict[str, Any] | None:
+        if plan.slit is None:
+            return None
+        return plan.slit.to_dict()
+
+    def _current_slit_preview(self) -> dict[str, Any] | None:
+        if self.runtime.slit is None:
+            return None
+        return self.runtime.slit.get_snapshot().to_dict()
+
     def set_connected(self, subsystem: str, connected: bool, *, message: str = "") -> dict:
         state = self.runtime.set_subsystem_connected(subsystem, connected, message=message)
         return state.to_dict()
@@ -44,6 +112,45 @@ class ManagementService:
         self._assert_mutation_allowed("set_detector_config")
         updated = self.runtime.set_detector_config(config)
         return updated.to_dict()
+
+    def preview_preset_plan(self, plan: PresetPlan) -> dict:
+        detector_config_changes = self._diff_values(
+            "detector_config",
+            self.runtime.get_detector_config_dict(),
+            plan.detector_config.to_dict(),
+        )
+
+        calibration_changes: list[dict[str, Any]] = []
+        target_calibration = self._target_calibration_preview(plan)
+        if target_calibration is not None and self.runtime.lamps is not None:
+            current_calibration = self.runtime.lamps.get_snapshot().to_dict()
+            calibration_changes = self._diff_values(
+                "calibration",
+                current_calibration,
+                target_calibration,
+            )
+
+        slit_changes: list[dict[str, Any]] = []
+        target_slit = self._target_slit_preview(plan)
+        current_slit = self._current_slit_preview()
+        if target_slit is not None and current_slit is not None:
+            slit_changes = self._diff_values("slit", current_slit, target_slit)
+
+        block_reason = self._mutation_block_reason("apply_preset_plan")
+
+        return {
+            "preset": plan.name,
+            "summary": plan.summary,
+            "category": plan.category,
+            "risk_level": plan.risk_level,
+            "requires_confirmation": plan.requires_confirmation,
+            "blocked": block_reason is not None,
+            "blocked_reason": block_reason,
+            "detector_config_changes": detector_config_changes,
+            "calibration_changes": calibration_changes,
+            "slit_changes": slit_changes,
+            "changes": detector_config_changes + calibration_changes + slit_changes,
+        }
 
     def apply_preset_plan(self, plan: PresetPlan) -> dict:
         self._assert_mutation_allowed("apply_preset_plan")

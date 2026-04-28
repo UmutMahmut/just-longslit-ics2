@@ -172,7 +172,7 @@ class ManagementService:
             "changes": detector_config_changes + calibration_changes + slit_changes,
         }
 
-    def apply_preset_plan(self, plan: PresetPlan, *, confirmed: bool = False) -> dict:
+    def apply_preset_plan(self, plan: PresetPlan, *, confirmed: bool = True) -> dict:
         self._assert_preset_confirmation_allowed(plan, confirmed)
         self._assert_mutation_allowed("apply_preset_plan")
 

@@ -19,6 +19,7 @@ class ErrorCode(str, Enum):
     DEVICE_DISCONNECTED = "device_disconnected"
     DEVICE_FAULT = "device_fault"
     INTERLOCK_BLOCKED = "interlock_blocked"
+    CONFIRMATION_REQUIRED = "confirmation_required"
     UNSUPPORTED = "unsupported"
     UNKNOWN = "unknown"
 

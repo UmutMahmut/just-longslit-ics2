@@ -23,6 +23,30 @@ class PresetListResponse(BaseModel):
     items: list[PresetListItemResponse]
 
 
+class PresetChangeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+    current: Any = None
+    target: Any = None
+
+
+class PresetPreviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    preset: str
+    summary: str
+    category: str
+    risk_level: str
+    requires_confirmation: bool
+    blocked: bool
+    blocked_reason: str | None = None
+    detector_config_changes: list[PresetChangeResponse]
+    calibration_changes: list[PresetChangeResponse]
+    slit_changes: list[PresetChangeResponse]
+    changes: list[PresetChangeResponse]
+
+
 class CalibrationStatusResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

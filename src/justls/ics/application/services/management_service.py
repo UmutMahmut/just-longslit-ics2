@@ -5,8 +5,9 @@ from typing import Any
 from justls.ics.application.usecases.preset_plan import PresetPlan
 from justls.ics.domain.detector.config import DetectorConfig
 from justls.ics.kernel.errors import ErrorCode, ICSException, InvalidStateError
+from justls.ics.kernel.jobs import CommandRequest
 from justls.ics.kernel.runtime import Runtime
-from justls.ics.kernel.states import ControlState
+from justls.ics.kernel.states import CommandSource, ControlState
 
 
 class PresetConfirmationRequiredError(ICSException):
@@ -114,6 +115,20 @@ class ManagementService:
             return None
         return self.runtime.slit.get_snapshot().to_dict()
 
+    def _preset_apply_job_result(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "kind": "preset_apply",
+            "preset": payload["applied_preset"],
+            "category": payload["category"],
+            "risk_level": payload["risk_level"],
+            "requires_confirmation": payload["requires_confirmation"],
+            "changed_fields_count": len(payload["changed_fields"]),
+            "calibration_applied": payload["calibration_applied"],
+            "slit_applied": payload["slit_applied"],
+            "skipped_fields": payload["skipped_fields"],
+            "blocked_fields": payload["blocked_fields"],
+        }
+
     def set_connected(self, subsystem: str, connected: bool, *, message: str = "") -> dict:
         state = self.runtime.set_subsystem_connected(subsystem, connected, message=message)
         return state.to_dict()
@@ -203,12 +218,13 @@ class ManagementService:
         if plan.slit is not None and not preview["slit_changes"]:
             skipped_fields.append("slit")
 
-        return {
+        payload = {
             "applied_preset": plan.name,
             "summary": plan.summary,
             "category": plan.category,
             "risk_level": plan.risk_level,
             "requires_confirmation": plan.requires_confirmation,
+            "job_id": None,
             "detector_config": detector_config,
             "calibration": calibration_result,
             "calibration_applied": calibration_applied,
@@ -221,3 +237,21 @@ class ManagementService:
             "skipped_fields": skipped_fields,
             "blocked_fields": [],
         }
+
+        request = CommandRequest.create(
+            subsystem="presets",
+            action="apply_preset",
+            params={
+                "name": plan.name,
+                "category": plan.category,
+                "risk_level": plan.risk_level,
+                "requires_confirmation": plan.requires_confirmation,
+                "confirmed": confirmed,
+            },
+            source=CommandSource.API,
+        )
+        job = self.runtime.create_job(request)
+        self.runtime.mark_job_succeeded(job.job_id, result=self._preset_apply_job_result(payload))
+        payload["job_id"] = job.job_id
+
+        return payload

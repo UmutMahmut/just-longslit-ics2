@@ -11,6 +11,7 @@ from justls.ics.app.api.schemas.responses import (
     PresetListResponse,
     PresetPreviewResponse,
 )
+from justls.ics.application.services.management_service import PresetConfirmationRequiredError
 from justls.ics.application.usecases.presets import build_preset_plan, list_presets
 from justls.ics.kernel.errors import InvalidStateError
 
@@ -50,7 +51,10 @@ def preview_preset(
 @router.post(
     "/presets/apply",
     response_model=PresetApplyResponse,
-    responses={404: {"model": ApiErrorResponse, "description": "Preset not found"}},
+    responses={
+        400: {"model": ApiErrorResponse, "description": "Preset blocked or confirmation required"},
+        404: {"model": ApiErrorResponse, "description": "Preset not found"},
+    },
 )
 def apply_preset(
     req: PresetApplyReq,
@@ -59,7 +63,14 @@ def apply_preset(
     plan = _build_plan_or_404(req.name)
 
     try:
-        payload = management_service.apply_preset_plan(plan)
+        payload = management_service.apply_preset_plan(plan, confirmed=req.confirmed)
+    except PresetConfirmationRequiredError as exc:
+        raise_api_error(
+            status_code=400,
+            code=exc.code.value if hasattr(exc.code, "value") else str(exc.code),
+            message=exc.info.message,
+            **exc.info.details,
+        )
     except InvalidStateError as exc:
         raise_api_error(
             status_code=400,

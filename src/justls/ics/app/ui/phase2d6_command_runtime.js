@@ -11,11 +11,7 @@
 
   function emitCommandResult(detail) {
     window.__phase2d6LastCommandResult = detail;
-    window.dispatchEvent(
-      new CustomEvent("phase2d6:command-result", {
-        detail,
-      }),
-    );
+    window.dispatchEvent(new CustomEvent("phase2d6:command-result", { detail }));
   }
 
   function ensureCommandPanel() {
@@ -82,18 +78,26 @@
         operator_note: document.getElementById("operator-note")?.value || null,
       };
     }
-    if (button.dataset.presetName) return { name: button.dataset.presetName };
+    if (button.dataset.presetName) {
+      return {
+        name: button.dataset.presetName,
+        confirmed: true,
+      };
+    }
     if (button.dataset.calibrationMode) return { mode: button.dataset.calibrationMode };
     return null;
   }
 
   function requireConfirmation(button) {
     const command = button.getAttribute("data-command") || "";
+    if (button.dataset.presetName) {
+      return window.confirm(`Apply preset ${button.dataset.presetName}?`);
+    }
     if (command === "observation.abort_discard") {
-      return window.confirm("Abort current observation and discard data?");
+      return window.confirm("Confirm abort and discard?");
     }
     if (command === "observation.stop_readout") {
-      return window.confirm("Stop early and read out/save the current exposure?");
+      return window.confirm("Confirm stop and readout?");
     }
     return true;
   }

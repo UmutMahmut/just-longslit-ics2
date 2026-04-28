@@ -62,6 +62,7 @@ class ObservationMeta:
     instrument_snapshot: dict[str, Any] | None = None
     calibration_snapshot: dict[str, Any] | None = None
     detector_config: dict[str, Any] | None = None
+    preset_apply: dict[str, Any] | None = None
     frame_results: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
@@ -74,6 +75,7 @@ class ObservationMeta:
         instrument_snapshot: dict[str, Any] | None = None,
         calibration_snapshot: dict[str, Any] | None = None,
         detector_config: dict[str, Any] | None = None,
+        preset_apply: dict[str, Any] | None = None,
     ) -> "ObservationMeta":
         return cls(
             obs_id=new_obs_id(),
@@ -86,6 +88,7 @@ class ObservationMeta:
             instrument_snapshot=instrument_snapshot,
             calibration_snapshot=calibration_snapshot,
             detector_config=detector_config,
+            preset_apply=preset_apply,
         )
 
     def mark_exposing(self) -> None:
@@ -118,5 +121,6 @@ class ObservationMeta:
             "instrument_snapshot": self.instrument_snapshot,
             "calibration_snapshot": self.calibration_snapshot,
             "detector_config": self.detector_config,
+            "preset_apply": self.preset_apply,
             "frame_results": self.frame_results,
         }

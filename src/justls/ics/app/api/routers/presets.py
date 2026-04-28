@@ -9,6 +9,7 @@ from justls.ics.app.api.schemas.responses import (
     ApiErrorResponse,
     PresetApplyResponse,
     PresetListResponse,
+    PresetPreviewResponse,
 )
 from justls.ics.application.usecases.presets import build_preset_plan, list_presets
 from justls.ics.kernel.errors import InvalidStateError
@@ -16,9 +17,34 @@ from justls.ics.kernel.errors import InvalidStateError
 router = APIRouter(prefix="/api/v1", tags=["presets"])
 
 
+def _build_plan_or_404(name: str):
+    try:
+        return build_preset_plan(name)
+    except KeyError:
+        raise_api_error(
+            status_code=404,
+            code="preset_not_found",
+            message=f"Preset not found: {name}",
+        )
+
+
 @router.get("/presets", response_model=PresetListResponse)
 def get_presets() -> PresetListResponse:
     return PresetListResponse(items=list_presets())
+
+
+@router.post(
+    "/presets/preview",
+    response_model=PresetPreviewResponse,
+    responses={404: {"model": ApiErrorResponse, "description": "Preset not found"}},
+)
+def preview_preset(
+    req: PresetApplyReq,
+    management_service: ManagementServiceDep,
+) -> PresetPreviewResponse:
+    plan = _build_plan_or_404(req.name)
+    payload = management_service.preview_preset_plan(plan)
+    return PresetPreviewResponse.model_validate(payload)
 
 
 @router.post(
@@ -30,14 +56,7 @@ def apply_preset(
     req: PresetApplyReq,
     management_service: ManagementServiceDep,
 ) -> PresetApplyResponse:
-    try:
-        plan = build_preset_plan(req.name)
-    except KeyError:
-        raise_api_error(
-            status_code=404,
-            code="preset_not_found",
-            message=f"Preset not found: {req.name}",
-        )
+    plan = _build_plan_or_404(req.name)
 
     try:
         payload = management_service.apply_preset_plan(plan)

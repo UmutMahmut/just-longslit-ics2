@@ -58,6 +58,36 @@ def test_stage_2d7_high_impact_preset_apply_succeeds_when_confirmed():
     assert data["calibration"]["mode"] == "calibration"
     assert data["calibration"]["active_lamp"] == "flat"
     assert data["calibration"]["lamp_enabled"] is True
+    assert data["job_id"]
+
+
+def test_stage_2d7_apply_preset_records_latest_job():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/presets/apply",
+        json={"name": "calib_flat_default", "confirmed": True},
+    )
+    assert response.status_code == 200
+    applied = response.json()
+
+    status = client.get("/api/v1/status/full")
+    assert status.status_code == 200
+    latest_job = status.json()["operational_status"]["latest_job"]
+
+    assert latest_job["job_id"] == applied["job_id"]
+    assert latest_job["status"] == "succeeded"
+    assert latest_job["request"]["subsystem"] == "presets"
+    assert latest_job["request"]["action"] == "apply_preset"
+    assert latest_job["request"]["params"]["name"] == "calib_flat_default"
+    assert latest_job["request"]["params"]["confirmed"] is True
+    assert latest_job["result"]["kind"] == "preset_apply"
+    assert latest_job["result"]["preset"] == "calib_flat_default"
+    assert latest_job["result"]["category"] == "calibration"
+    assert latest_job["result"]["risk_level"] == "high_impact"
+    assert latest_job["result"]["changed_fields_count"] == len(applied["changed_fields"])
+    assert latest_job["result"]["calibration_applied"] is True
+    assert latest_job["result"]["slit_applied"] is False
 
 
 def test_stage_2d7_engineering_preset_requires_confirmation():

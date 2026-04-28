@@ -4,9 +4,25 @@ from typing import Any
 
 from justls.ics.application.usecases.preset_plan import PresetPlan
 from justls.ics.domain.detector.config import DetectorConfig
-from justls.ics.kernel.errors import InvalidStateError
+from justls.ics.kernel.errors import ICSException, InvalidStateError
 from justls.ics.kernel.runtime import Runtime
 from justls.ics.kernel.states import ControlState
+
+
+class PresetConfirmationRequiredError(ICSException):
+    def __init__(self, plan: PresetPlan) -> None:
+        super().__init__(
+            code="confirmation_required",
+            message=f"Preset {plan.name} requires explicit confirmation before apply.",
+            subsystem="presets",
+            retriable=False,
+            details={
+                "preset": plan.name,
+                "category": plan.category,
+                "risk_level": plan.risk_level,
+                "requires_confirmation": plan.requires_confirmation,
+            },
+        )
 
 
 class ManagementService:
@@ -27,6 +43,10 @@ class ManagementService:
                     "blocked_action": action_name,
                 },
             )
+
+    def _assert_preset_confirmation_allowed(self, plan: PresetPlan, confirmed: bool) -> None:
+        if plan.requires_confirmation and not confirmed:
+            raise PresetConfirmationRequiredError(plan)
 
     def _mutation_block_reason(self, action_name: str) -> str | None:
         if self.runtime.detector is None:
@@ -152,7 +172,8 @@ class ManagementService:
             "changes": detector_config_changes + calibration_changes + slit_changes,
         }
 
-    def apply_preset_plan(self, plan: PresetPlan) -> dict:
+    def apply_preset_plan(self, plan: PresetPlan, *, confirmed: bool = False) -> dict:
+        self._assert_preset_confirmation_allowed(plan, confirmed)
         self._assert_mutation_allowed("apply_preset_plan")
 
         detector_config = self.runtime.set_detector_config(plan.detector_config).to_dict()

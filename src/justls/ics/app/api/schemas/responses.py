@@ -61,11 +61,20 @@ class PresetApplyResponse(BaseModel):
 
     applied_preset: str
     summary: str
+    category: str
+    risk_level: str
+    requires_confirmation: bool
     detector_config: DetectorConfig
     calibration: CalibrationStatusResponse | None = None
     calibration_applied: bool
     slit_plan: dict[str, Any] | None = None
     slit_applied: bool
+    detector_config_changes: list[PresetChangeResponse] = Field(default_factory=list)
+    calibration_changes: list[PresetChangeResponse] = Field(default_factory=list)
+    slit_changes: list[PresetChangeResponse] = Field(default_factory=list)
+    changed_fields: list[PresetChangeResponse] = Field(default_factory=list)
+    skipped_fields: list[str] = Field(default_factory=list)
+    blocked_fields: list[str] = Field(default_factory=list)
 
 
 class ObservationExposureResponse(BaseModel):

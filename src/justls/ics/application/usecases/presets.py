@@ -12,6 +12,9 @@ def build_science_default_preset() -> PresetPlan:
     return PresetPlan(
         name="science_default",
         summary="All RGB channels enabled for nominal science-mode detector configuration.",
+        category="science",
+        risk_level="normal",
+        requires_confirmation=False,
         detector_config=DetectorConfig.model_validate(
             {
                 "profile_name": "science-default",
@@ -38,6 +41,9 @@ def build_rgb_safe_default_preset() -> PresetPlan:
     return PresetPlan(
         name="rgb_safe_default",
         summary="Conservative RGB-safe preset with B/R enabled and G disabled.",
+        category="science",
+        risk_level="normal",
+        requires_confirmation=False,
         detector_config=DetectorConfig.model_validate(
             {
                 "profile_name": "rgb-safe-default",
@@ -64,6 +70,9 @@ def build_engineering_all_channels_off_preset() -> PresetPlan:
     return PresetPlan(
         name="engineering_all_channels_off",
         summary="Engineering-safe preset with all RGB channels disabled.",
+        category="engineering",
+        risk_level="engineering",
+        requires_confirmation=True,
         detector_config=DetectorConfig.model_validate(
             {
                 "profile_name": "engineering-all-off",
@@ -90,6 +99,9 @@ def build_calib_flat_default_preset() -> PresetPlan:
     return PresetPlan(
         name="calib_flat_default",
         summary="Default flat-calibration preset with calibration mode and flat lamp enabled.",
+        category="calibration",
+        risk_level="high_impact",
+        requires_confirmation=True,
         detector_config=DetectorConfig.model_validate(
             {
                 "profile_name": "calib-flat-default",
@@ -121,24 +133,7 @@ PRESET_BUILDERS = {
 
 
 def list_presets() -> list[dict]:
-    return [
-        {
-            "name": "science_default",
-            "summary": "All RGB channels enabled for nominal science-mode detector configuration.",
-        },
-        {
-            "name": "rgb_safe_default",
-            "summary": "Conservative RGB-safe preset with B/R enabled and G disabled.",
-        },
-        {
-            "name": "engineering_all_channels_off",
-            "summary": "Engineering-safe preset with all RGB channels disabled.",
-        },
-        {
-            "name": "calib_flat_default",
-            "summary": "Default flat-calibration preset with calibration mode and flat lamp enabled.",
-        },
-    ]
+    return [build_preset_plan(name).list_item() for name in PRESET_BUILDERS]
 
 
 def build_preset_plan(name: str) -> PresetPlan:

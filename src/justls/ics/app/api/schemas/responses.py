@@ -64,6 +64,7 @@ class PresetApplyResponse(BaseModel):
     category: str
     risk_level: str
     requires_confirmation: bool
+    job_id: str | None = None
     detector_config: DetectorConfig
     calibration: CalibrationStatusResponse | None = None
     calibration_applied: bool

@@ -12,6 +12,9 @@ class PresetListItemResponse(BaseModel):
 
     name: str
     summary: str
+    category: str
+    risk_level: str
+    requires_confirmation: bool
 
 
 class PresetListResponse(BaseModel):

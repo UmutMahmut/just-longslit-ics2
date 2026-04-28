@@ -175,6 +175,7 @@ class ManagementService:
     def apply_preset_plan(self, plan: PresetPlan, *, confirmed: bool = True) -> dict:
         self._assert_preset_confirmation_allowed(plan, confirmed)
         self._assert_mutation_allowed("apply_preset_plan")
+        preview = self.preview_preset_plan(plan)
 
         detector_config = self.runtime.set_detector_config(plan.detector_config).to_dict()
 
@@ -198,12 +199,25 @@ class ManagementService:
                 calibration_result = snapshot.to_dict()
                 calibration_applied = True
 
+        skipped_fields: list[str] = []
+        if plan.slit is not None and not preview["slit_changes"]:
+            skipped_fields.append("slit")
+
         return {
             "applied_preset": plan.name,
             "summary": plan.summary,
+            "category": plan.category,
+            "risk_level": plan.risk_level,
+            "requires_confirmation": plan.requires_confirmation,
             "detector_config": detector_config,
             "calibration": calibration_result,
             "calibration_applied": calibration_applied,
             "slit_plan": plan.slit.to_dict() if plan.slit is not None else None,
             "slit_applied": False,
+            "detector_config_changes": preview["detector_config_changes"],
+            "calibration_changes": preview["calibration_changes"],
+            "slit_changes": preview["slit_changes"],
+            "changed_fields": preview["changes"],
+            "skipped_fields": skipped_fields,
+            "blocked_fields": [],
         }

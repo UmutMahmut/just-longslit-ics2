@@ -67,6 +67,7 @@ class DetectorSubsystem:
         instrument_snapshot: dict | None = None,
         calibration_snapshot: dict | None = None,
         detector_config: dict | None = None,
+        preset_apply: dict | None = None,
     ) -> ExposureSnapshot:
         exp_time_s = float(exp_time_s)
 
@@ -97,6 +98,7 @@ class DetectorSubsystem:
             instrument_snapshot=instrument_snapshot,
             calibration_snapshot=calibration_snapshot,
             detector_config=detector_config,
+            preset_apply=preset_apply,
         )
 
         self._observation_meta = meta

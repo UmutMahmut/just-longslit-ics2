@@ -83,7 +83,7 @@ def test_stage_2d7_presets_api_exposes_operational_metadata():
     assert by_name["engineering_all_channels_off"]["requires_confirmation"] is True
 
 
-def test_stage_2d7_apply_preset_remains_backward_compatible():
+def test_stage_2d7_apply_preset_returns_structured_metadata_and_diff():
     client = TestClient(app)
 
     response = client.post("/api/v1/presets/apply", json={"name": "science_default"})
@@ -91,7 +91,11 @@ def test_stage_2d7_apply_preset_remains_backward_compatible():
     assert response.status_code == 200
     data = response.json()
     assert data["applied_preset"] == "science_default"
+    assert data["category"] == "science"
+    assert data["risk_level"] == "normal"
+    assert data["requires_confirmation"] is False
     assert data["detector_config"]["profile_name"] == "science-default"
-    assert "category" not in data
-    assert "risk_level" not in data
-    assert "requires_confirmation" not in data
+    assert data["detector_config_changes"]
+    assert data["changed_fields"]
+    assert data["skipped_fields"] == []
+    assert data["blocked_fields"] == []

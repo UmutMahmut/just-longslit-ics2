@@ -247,3 +247,21 @@ def test_ui_v7_observe_safety_guard_is_frontend_only_and_injected_last():
     assert "/api/v1/observation/start" not in guard.text
     assert "/api/v1/observation/stop_readout" not in guard.text
     assert "/api/v1/observation/abort_discard" not in guard.text
+
+
+def test_ui_v7_guard_scripts_avoid_self_triggering_mutation_loops():
+    client = TestClient(app)
+
+    preset_guard = client.get("/ui-assets/phase2d8_v7_preset_apply_guard.js")
+    observe_guard = client.get("/ui-assets/phase2d8_v7_observe_safety_guard.js")
+
+    assert preset_guard.status_code == 200
+    assert observe_guard.status_code == 200
+
+    for script in (preset_guard.text, observe_guard.text):
+        assert "refreshQueued" in script
+        assert "scheduleRefresh" in script
+        assert "setTextIfChanged" in script
+        assert "setAttributeIfChanged" in script
+        assert "MutationObserver(scheduleRefresh)" in script
+        assert "window.setTimeout" in script

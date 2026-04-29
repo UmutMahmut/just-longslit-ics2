@@ -69,3 +69,18 @@ def test_ui_v7_status_binding_uses_stable_data_bind_panel():
     assert "v7.latest_job" in adapter.text
     assert "setInputByLabel" not in adapter.text
     assert "setDescriptionValue" not in adapter.text
+
+
+def test_ui_v7_status_binding_has_connection_state_markers():
+    client = TestClient(app)
+
+    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+
+    assert adapter.status_code == 200
+    assert "data-connection" in adapter.text
+    assert "connectionStatus" in adapter.text
+    assert "v7.connection" in adapter.text
+    assert "STALE" in adapter.text
+    assert "CONNECTED" in adapter.text
+    assert "ERROR" in adapter.text
+    assert "data-level" in adapter.text

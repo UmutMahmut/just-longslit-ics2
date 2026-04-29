@@ -102,6 +102,7 @@ UI_ENTRY = UI_DIR / "ui_alpha_skeleton_v5.html"
 UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
 UI_V7_ENTRY = UI_DIR / "ui_operational_v7.html"
 UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
+UI_PHASE_2D8_V7_ADAPTER = "/ui-assets/phase2d8_v7_status_binding.js"
 
 PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
 PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
@@ -136,25 +137,36 @@ def phase_2d8_v7_enabled() -> bool:
     return env_flag(PHASE_2D8_V7_ENABLED_ENV, default=True)
 
 
+def inject_script_tag(html: str, script_src: str) -> str:
+    tag = f'<script src="{script_src}" defer></script>'
+    if tag in html:
+        return html
+    if "</body>" in html:
+        return html.replace("</body>", f"  {tag}\n</body>")
+    return f"{html}\n{tag}\n"
+
+
 def inject_phase_2d6_ui_adapter(html: str) -> str:
     """Attach the Phase 2.6 operational-status adapter to the static UI.
 
     The adapter lets the existing v5 skeleton consume the new backend
     `operational_status` block without copying or rewriting the large HTML file.
     """
-    adapter_tag = f'<script src="{UI_PHASE_2D6_ADAPTER}" defer></script>'
-    if adapter_tag in html:
-        return html
-    if "</body>" in html:
-        return html.replace("</body>", f"  {adapter_tag}\n</body>")
-    return f"{html}\n{adapter_tag}\n"
+    return inject_script_tag(html, UI_PHASE_2D6_ADAPTER)
 
 
-def serve_html(path: Path, *, inject_adapter: bool = False):
+def serve_html(
+    path: Path,
+    *,
+    inject_adapter: bool = False,
+    extra_scripts: tuple[str, ...] = (),
+):
     if path.exists():
         html = path.read_text(encoding="utf-8")
         if inject_adapter:
             html = inject_phase_2d6_ui_adapter(html)
+        for script_src in extra_scripts:
+            html = inject_script_tag(html, script_src)
         return HTMLResponse(html)
     return {
         "message": "UI entry not found.",
@@ -195,4 +207,4 @@ def read_ui_v6():
 def read_ui_v7():
     if not phase_2d8_v7_enabled():
         raise HTTPException(status_code=404, detail="Operational UI v7 is disabled.")
-    return serve_html(UI_V7_ENTRY)
+    return serve_html(UI_V7_ENTRY, extra_scripts=(UI_PHASE_2D8_V7_ADAPTER,))

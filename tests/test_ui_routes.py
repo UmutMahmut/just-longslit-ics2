@@ -195,3 +195,29 @@ def test_ui_v7_preset_apply_guard_is_injected_and_served():
     assert "applyPreviewedPreset" in guard.text
     assert "requires_confirmation" in guard.text
     assert "JSON.stringify({ name: preview.preset, confirmed: confirmed })" in guard.text
+
+
+def test_ui_v7_observe_controls_are_single_exposure_only():
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    assert "/ui-assets/phase2d8_v7_observe_controls.js" in response.text
+    assert response.text.index("phase2d8_v7_preset_apply_guard.js") < response.text.index("phase2d8_v7_observe_controls.js")
+
+    observe = client.get("/ui-assets/phase2d8_v7_observe_controls.js")
+
+    assert observe.status_code == 200
+    assert "/api/v1/observation/status" in observe.text
+    assert "/api/v1/observation/arm" in observe.text
+    assert "/api/v1/observation/start" in observe.text
+    assert "/api/v1/observation/stop_readout" in observe.text
+    assert "/api/v1/observation/abort_discard" in observe.text
+    assert "Runtime Observe Controls" in observe.text
+    assert "Single Exposure Only" in observe.text
+    assert "obs-abort-confirm" in observe.text
+    assert "markStaticObserveFallback" in observe.text
+    assert "static-observe-fallback-grid" in observe.text
+    assert "sequence runner" in observe.text
+    assert "observation-plan" not in observe.text

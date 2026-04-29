@@ -51,8 +51,8 @@ NOT APPLICABLE
 | Connection freshness | Present in v5 header | DONE/PARTIAL: v7 runtime panel shows ok/stale/error + last OK | Keep lightweight; no new heartbeat API |
 | Overview-first monitoring | Present in v5 | MISSING as a dedicated v7 page | Map into v7 Observe + Runtime Status, or add Overview later |
 | Live image / latest frame preview | Present as live-vision-first area / placeholders | PARTIAL: v7 Observe has Latest Exposure Preview and B/G/R placeholders | Preserve as first-class feature; no new image backend yet |
-| Observation lifecycle controls | Present in v5 | PARTIAL: v7 Observe has static controls | Phase 2.8-F should bind existing observation APIs |
-| Observation metadata / frame result visibility | Present or planned in v5 direction | PARTIAL/MISSING in v7 | Bring into Observe after status binding is stable |
+| Observation lifecycle controls | Present in v5 | DONE/PARTIAL: v7 has runtime single-exposure controls bound to existing observation endpoints | Keep single-exposure only; no sequence runner |
+| Observation metadata / frame result visibility | Present or planned in v5 direction | DONE/PARTIAL: v7 observe runtime panel shows current state, armed exposure, last command, and command result JSON | Keep display lightweight until local testing |
 | Slit control | Present in v5 instrument pages | MISSING in v7 | Defer until v7 Instrument/Engineer split is decided |
 | Calibration control | Present in v5 | PARTIAL: v7 status/setup panels show calibration summary only | Setup/Observe should show mode; controls can wait |
 | Detector config / BGR channel state | Present in v5 | PARTIAL: v7 shows detector profile and channel placeholders | Bind detector status before adding controls |
@@ -123,23 +123,34 @@ v7 current:
 
 ```text
 - Observe page exists
-- Latest Exposure Preview is visible
-- B/G/R channel placeholders exist
-- Arm / Start / Stop & Readout / Abort & Discard buttons exist but are static
-- runtime status panel shows exposure state and latest job
+- Latest Exposure Preview is visible and remains a first-class placeholder
+- B/G/R channel placeholders exist and are not rewired in Phase 2.8-F
+- Runtime Observe Controls panel is injected by phase2d8_v7_observe_controls.js
+- runtime observe controls bind only existing single-exposure endpoints:
+  - GET /api/v1/observation/status
+  - POST /api/v1/observation/arm
+  - POST /api/v1/observation/start
+  - POST /api/v1/observation/stop_readout
+  - POST /api/v1/observation/abort_discard
+- static Observe control panel is explicitly marked fallback/demo and disabled
+- abort/discard requires an explicit checkbox in the runtime controls
+- frontend-only observe safety guard is injected by phase2d8_v7_observe_safety_guard.js after the observe controls
+- observe safety guard does not call backend APIs; it only constrains visible button availability
+- backend remains the final authority for valid observation state transitions
 ```
 
 Status:
 
 ```text
-PARTIAL
+PARTIAL / PHASE 2.8-F BASELINE DONE
 ```
 
 Next v7 action:
 
 ```text
-Phase 2.8-F should inspect existing observation API semantics first, then bind only existing single-exposure controls.
-Do not introduce sequence runner or new observation-plan features.
+Do not introduce sequence runner or observation-plan features.
+Do not add quicklook/data watcher or image backend in Phase 2.8-F.
+Future cleanup should be driven by local testing of the single-exposure workflow and button-state behavior.
 ```
 
 ### 3. Presets
@@ -278,6 +289,7 @@ To avoid AI-style drift and duplication, continue Phase 2.8 in this order:
    - bind single-exposure controls only
    - keep live preview region
    - no sequence runner yet
+   - status: baseline done; future UX cleanup deferred until local testing
 
 5. Phase 2.8-G extraction
    - extract only stable runtime/components after behavior settles

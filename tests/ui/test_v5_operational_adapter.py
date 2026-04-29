@@ -109,7 +109,7 @@ def test_v5_operational_adapter_static_asset_available():
 def test_stage_2d6_command_runtime_static_asset_available():
     client = TestClient(app)
 
-    response = client.get("/ui-assets/phase2d6_command_runtime.js")
+    response = client.get("/ui-assets/v6/command_runtime.js")
 
     assert response.status_code == 200
     assert "COMMAND_TIMEOUT_MS" in response.text
@@ -123,7 +123,7 @@ def test_stage_2d6_command_runtime_static_asset_available():
 def test_stage_2d6_job_alignment_static_asset_available():
     client = TestClient(app)
 
-    response = client.get("/ui-assets/phase2d6_job_alignment.js")
+    response = client.get("/ui-assets/v6/job_alignment.js")
 
     assert response.status_code == 200
     assert "latest_job" in response.text

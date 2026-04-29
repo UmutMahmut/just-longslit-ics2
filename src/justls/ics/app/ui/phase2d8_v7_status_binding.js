@@ -48,6 +48,12 @@
     });
   }
 
+  function setConnectionState(level, label) {
+    const panel = ensureRuntimePanel();
+    panel.setAttribute("data-connection", level);
+    setBoundText("v7.connection", label, "unknown");
+  }
+
   function addRuntimePanelStyles() {
     if (document.getElementById("v7-runtime-status-style")) return;
 
@@ -59,6 +65,17 @@
         background: linear-gradient(180deg, #ffffff, #edf3fb);
         margin-bottom: 12px;
       }
+      .v7-runtime-status[data-connection="ok"] {
+        border-color: #8fc6ae;
+      }
+      .v7-runtime-status[data-connection="stale"] {
+        border-color: #dab36f;
+        background: linear-gradient(180deg, #fffaf0, #f7edd8);
+      }
+      .v7-runtime-status[data-connection="error"] {
+        border-color: #dc9b9b;
+        background: linear-gradient(180deg, #fff2f2, #f5dddd);
+      }
       .v7-runtime-status h2 {
         margin: 0;
         padding: 8px 10px;
@@ -67,6 +84,15 @@
         font-size: 13px;
         letter-spacing: 0.06em;
         text-transform: uppercase;
+      }
+      .v7-runtime-status[data-connection="ok"] h2 {
+        background: linear-gradient(180deg, #f0fff7, #e0f4ea);
+      }
+      .v7-runtime-status[data-connection="stale"] h2 {
+        background: linear-gradient(180deg, #fff7e5, #f6e3bc);
+      }
+      .v7-runtime-status[data-connection="error"] h2 {
+        background: linear-gradient(180deg, #fff0f0, #f4cccc);
       }
       .v7-runtime-status-grid {
         display: grid;
@@ -92,6 +118,18 @@
         font-family: var(--mono);
         font-size: 12px;
         overflow-wrap: anywhere;
+      }
+      [data-bind="v7.connection"][data-level="ok"] {
+        color: #147a4f;
+        font-weight: 700;
+      }
+      [data-bind="v7.connection"][data-level="stale"] {
+        color: #9a5b00;
+        font-weight: 700;
+      }
+      [data-bind="v7.connection"][data-level="error"] {
+        color: #a93333;
+        font-weight: 700;
       }
       @media (max-width: 1160px) {
         .v7-runtime-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -129,6 +167,7 @@
     panel.id = "v7-runtime-status";
     panel.className = "v7-runtime-status";
     panel.setAttribute("aria-label", "v7 runtime status binding panel");
+    panel.setAttribute("data-connection", "unknown");
 
     const title = document.createElement("h2");
     title.textContent = "Runtime Status · Bound to /api/v1/status/full";
@@ -213,13 +252,22 @@
     return operational.level || operational.state || operational.summary || operational.status || "available";
   }
 
-  function connectionLabel(ok, detail) {
+  function connectionStatus(ok, detail) {
     if (ok) {
       const ageMs = state.lastOkAt ? Date.now() - state.lastOkAt : 0;
       const stale = ageMs > STALE_AFTER_MS;
-      return stale ? `STALE · last ok ${Math.round(ageMs / 1000)}s ago` : "CONNECTED";
+      if (stale) {
+        return {
+          level: "stale",
+          label: `STALE · last ok ${Math.round(ageMs / 1000)}s ago`,
+        };
+      }
+      return { level: "ok", label: "CONNECTED" };
     }
-    return `ERROR · ${detail || "status fetch failed"}`;
+    return {
+      level: "error",
+      label: `ERROR · ${detail || "status fetch failed"}`,
+    };
   }
 
   function formatClock(date) {
@@ -238,7 +286,7 @@
 
     const observation = data && data.observation;
     const exposure = exposureFromObservation(observation);
-    const connection = connectionLabel(true);
+    const connection = connectionStatus(true);
     const runMode = data && data.run_mode;
     const operational = operationalLabel(data);
     const exposureState = observation && observation.state;
@@ -252,7 +300,10 @@
     setTextById("operational-level", upper(operational, "UNKNOWN"));
     setTextById("exposure-state", upper(exposureState, "UNKNOWN"));
 
-    setBoundText("v7.connection", connection, "unknown");
+    setConnectionState(connection.level, connection.label);
+    document.querySelectorAll('[data-bind="v7.connection"]').forEach((node) => {
+      node.setAttribute("data-level", connection.level);
+    });
     setBoundText("v7.run_mode", runMode, "unknown");
     setBoundText("v7.operational", operational, "unknown");
     setBoundText("v7.exposure_state", exposureState, "unknown");
@@ -272,10 +323,13 @@
   }
 
   function bindConnectionError(detail) {
-    ensureRuntimePanel();
-    setBoundText("v7.connection", connectionLabel(false, detail), "error");
+    const connection = connectionStatus(false, detail);
+    setConnectionState(connection.level, connection.label);
+    document.querySelectorAll('[data-bind="v7.connection"]').forEach((node) => {
+      node.setAttribute("data-level", connection.level);
+    });
     setBoundText("v7.request_id", state.lastRequestId, "not available");
-    updateRail(connectionLabel(false, detail));
+    updateRail(connection.label);
   }
 
   async function fetchStatus() {

@@ -173,3 +173,25 @@ def test_ui_v7_presets_static_area_is_marked_as_fallback_demo():
     assert "static-apply-placeholder" in adapter.text
     assert "fallback-demo" in adapter.text
     assert "Runtime catalog/preview is shown in the Runtime Presets panel" in adapter.text
+
+
+def test_ui_v7_preset_apply_guard_is_injected_and_served():
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    assert "/ui-assets/phase2d8_v7_status_binding.js" in response.text
+    assert "/ui-assets/phase2d8_v7_preset_apply_guard.js" in response.text
+    assert response.text.index("phase2d8_v7_status_binding.js") < response.text.index("phase2d8_v7_preset_apply_guard.js")
+
+    guard = client.get("/ui-assets/phase2d8_v7_preset_apply_guard.js")
+
+    assert guard.status_code == 200
+    assert "/api/v1/presets/apply" in guard.text
+    assert "Preview Required" in guard.text
+    assert "confirm-risk-checkbox" in guard.text
+    assert "confirm-preset-name" in guard.text
+    assert "applyPreviewedPreset" in guard.text
+    assert "requires_confirmation" in guard.text
+    assert "JSON.stringify({ name: preview.preset, confirmed: confirmed })" in guard.text

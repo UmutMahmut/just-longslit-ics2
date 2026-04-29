@@ -84,3 +84,19 @@ def test_ui_v7_status_binding_has_connection_state_markers():
     assert "CONNECTED" in adapter.text
     assert "ERROR" in adapter.text
     assert "data-level" in adapter.text
+
+
+def test_ui_v7_status_binding_has_bounded_raw_status_preview():
+    client = TestClient(app)
+
+    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+
+    assert adapter.status_code == 200
+    assert "RAW_STATUS_MAX_CHARS" in adapter.text
+    assert "v7-raw-status-preview" in adapter.text
+    assert "v7.raw_status_preview" in adapter.text
+    assert "ensureRawStatusPreview" in adapter.text
+    assert "updateRawStatusPreview" in adapter.text
+    assert "updateRawStatusError" in adapter.text
+    assert "data-page-panel=\"diagnostics\"" in adapter.text
+    assert "truncated at" in adapter.text

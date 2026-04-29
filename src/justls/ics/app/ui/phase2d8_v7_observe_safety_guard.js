@@ -8,6 +8,10 @@
 (function () {
   "use strict";
 
+  const state = {
+    refreshQueued: false,
+  };
+
   function text(value, fallback) {
     if (value === null || value === undefined || value === "") return fallback;
     return String(value);
@@ -27,6 +31,26 @@
     return text(node && node.textContent, "not armed").toLowerCase();
   }
 
+  function setTextIfChanged(node, value) {
+    const next = text(value, "");
+    if (node && node.textContent !== next) {
+      node.textContent = next;
+    }
+  }
+
+  function setAttributeIfChanged(node, name, value) {
+    const next = text(value, "");
+    if (node && node.getAttribute(name) !== next) {
+      node.setAttribute(name, next);
+    }
+  }
+
+  function setDisabledIfChanged(button, disabled) {
+    if (button && button.disabled !== disabled) {
+      button.disabled = disabled;
+    }
+  }
+
   function setStatus(message) {
     const host = panel();
     if (!host) return;
@@ -40,7 +64,7 @@
       const body = host.querySelector(".observe-body") || host;
       body.insertBefore(node, body.firstChild);
     }
-    node.textContent = message;
+    setTextIfChanged(node, message);
   }
 
   function allowedActions() {
@@ -59,6 +83,8 @@
   }
 
   function refreshButtons() {
+    state.refreshQueued = false;
+
     const host = panel();
     if (!host) return;
 
@@ -71,12 +97,18 @@
       if (!button) return;
 
       const finalAllowed = action === "obs-abort-discard" ? allowed && explicitConfirm : allowed;
-      button.disabled = !finalAllowed;
-      button.setAttribute("data-guard-available", finalAllowed ? "true" : "false");
+      setDisabledIfChanged(button, !finalAllowed);
+      setAttributeIfChanged(button, "data-guard-available", finalAllowed ? "true" : "false");
       if (allowed) labels.push(action.replace("obs-", ""));
     });
 
     setStatus(`Phase 2.8-F guard: allowed actions from current visible state = ${labels.join(", ") || "none"}. Backend still validates final transitions.`);
+  }
+
+  function scheduleRefresh() {
+    if (state.refreshQueued) return;
+    state.refreshQueued = true;
+    window.setTimeout(refreshButtons, 0);
   }
 
   function start() {
@@ -87,11 +119,11 @@
     }
 
     const checkbox = host.querySelector('[data-role="obs-abort-confirm"]');
-    if (checkbox) checkbox.addEventListener("change", refreshButtons);
+    if (checkbox) checkbox.addEventListener("change", scheduleRefresh);
 
-    const observer = new MutationObserver(refreshButtons);
+    const observer = new MutationObserver(scheduleRefresh);
     observer.observe(host, { childList: true, subtree: true, characterData: true });
-    refreshButtons();
+    scheduleRefresh();
   }
 
   if (document.readyState === "loading") {

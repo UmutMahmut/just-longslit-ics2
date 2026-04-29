@@ -154,6 +154,19 @@
         padding: 10px;
         margin: 6px 0 0;
       }
+      .v7-static-presets-fallback {
+        border-color: #dab36f;
+        background: #fffdf7;
+      }
+      .v7-static-presets-fallback-note {
+        border: 1px solid #dab36f;
+        background: #fff8e8;
+        color: #9a5b00;
+        padding: 8px 10px;
+        margin-bottom: 10px;
+        font-size: 12px;
+        line-height: 1.45;
+      }
       .v7-raw-status-preview { margin-top: 12px; }
       .v7-raw-status-preview .panel-body { display: grid; gap: 8px; }
       .v7-raw-status-preview pre {
@@ -303,6 +316,50 @@
     return panel;
   }
 
+  function markStaticPresetFallback() {
+    addRuntimePanelStyles();
+
+    const presetsPage = document.querySelector('[data-page-panel="presets"]');
+    if (!presetsPage) return;
+
+    const staticGrid = presetsPage.querySelector(".grid.grid-2");
+    if (!staticGrid) return;
+
+    staticGrid.setAttribute("data-role", "static-presets-fallback-grid");
+    staticGrid.setAttribute("data-phase", "fallback-demo");
+
+    if (!document.getElementById("v7-static-presets-fallback-note")) {
+      const note = document.createElement("div");
+      note.id = "v7-static-presets-fallback-note";
+      note.className = "v7-static-presets-fallback-note";
+      note.setAttribute("data-role", "static-presets-fallback-note");
+      note.setAttribute("data-phase", "fallback-demo");
+      note.textContent = "Static preset panels below are fallback/demo reference only. Runtime catalog/preview is shown in the Runtime Presets panel above. Apply remains not wired in Phase 2.8-E.";
+      presetsPage.insertBefore(note, staticGrid);
+    }
+
+    const panels = Array.from(staticGrid.querySelectorAll(":scope > .panel"));
+    panels.forEach((panel, index) => {
+      panel.classList.add("v7-static-presets-fallback");
+      panel.setAttribute("data-phase", "fallback-demo");
+      panel.setAttribute(
+        "data-role",
+        index === 0 ? "static-preset-list-fallback" : "static-preset-preview-fallback"
+      );
+    });
+
+    staticGrid.querySelectorAll("button").forEach((button) => {
+      const label = button.textContent.trim().toLowerCase();
+      button.disabled = true;
+      button.setAttribute("data-phase", "fallback-demo");
+      button.setAttribute(
+        "data-role",
+        label.includes("apply") ? "static-apply-placeholder" : "static-preview-placeholder"
+      );
+      button.setAttribute("title", "Use the Runtime Presets panel for Phase 2.8-E catalog/preview binding.");
+    });
+  }
+
   function ensurePresetsRuntimePanel() {
     const existing = document.getElementById("v7-presets-runtime");
     if (existing) return existing;
@@ -349,6 +406,7 @@
     panel.appendChild(body);
     presetsPage.insertBefore(panel, presetsPage.firstChild);
 
+    markStaticPresetFallback();
     return panel;
   }
 
@@ -699,6 +757,7 @@
     ensureRuntimePanel();
     ensureSetupReadinessPanel();
     ensurePresetsRuntimePanel();
+    markStaticPresetFallback();
     ensureRawStatusPreview();
 
     if (state.pollTimer) {

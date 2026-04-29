@@ -17,6 +17,7 @@
   const STATUS_ENDPOINT = "/api/v1/status/full";
   const POLL_INTERVAL_MS = 2000;
   const STALE_AFTER_MS = 6000;
+  const RAW_STATUS_MAX_CHARS = 20000;
 
   const state = {
     lastOkAt: null,
@@ -131,6 +132,30 @@
         color: #a93333;
         font-weight: 700;
       }
+      .v7-raw-status-preview {
+        margin-top: 12px;
+      }
+      .v7-raw-status-preview .panel-body {
+        display: grid;
+        gap: 8px;
+      }
+      .v7-raw-status-preview pre {
+        max-height: 360px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 11px;
+        line-height: 1.45;
+        background: #0f172a;
+        color: #e5edf8;
+        border: 1px solid #334155;
+        padding: 10px;
+        margin: 0;
+      }
+      .v7-raw-status-preview .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
       @media (max-width: 1160px) {
         .v7-runtime-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
@@ -198,6 +223,75 @@
     }
 
     return panel;
+  }
+
+  function ensureRawStatusPreview() {
+    const existing = document.getElementById("v7-raw-status-preview");
+    if (existing) return existing;
+
+    addRuntimePanelStyles();
+
+    const diagnosticsPage = document.querySelector('[data-page-panel="diagnostics"]');
+    if (!diagnosticsPage) return null;
+
+    const panel = document.createElement("section");
+    panel.id = "v7-raw-status-preview";
+    panel.className = "panel v7-raw-status-preview";
+    panel.setAttribute("aria-label", "bounded raw status full preview");
+
+    const title = document.createElement("h2");
+    title.textContent = "Raw Status Preview · /api/v1/status/full";
+
+    const body = document.createElement("div");
+    body.className = "panel-body";
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = `Bounded diagnostic preview from the existing status endpoint. Maximum ${RAW_STATUS_MAX_CHARS} characters.`;
+
+    const pre = document.createElement("pre");
+    pre.setAttribute("data-bind", "v7.raw_status_preview");
+    pre.textContent = "waiting for status/full...";
+
+    body.appendChild(hint);
+    body.appendChild(pre);
+    panel.appendChild(title);
+    panel.appendChild(body);
+    diagnosticsPage.appendChild(panel);
+
+    return panel;
+  }
+
+  function updateRawStatusPreview(data) {
+    const panel = ensureRawStatusPreview();
+    if (!panel) return;
+
+    const rawNode = panel.querySelector('[data-bind="v7.raw_status_preview"]');
+    if (!rawNode) return;
+
+    let rendered = JSON.stringify(data, null, 2);
+    if (rendered.length > RAW_STATUS_MAX_CHARS) {
+      rendered = `${rendered.slice(0, RAW_STATUS_MAX_CHARS)}\n... truncated at ${RAW_STATUS_MAX_CHARS} characters ...`;
+    }
+    rawNode.textContent = rendered;
+  }
+
+  function updateRawStatusError(detail) {
+    const panel = ensureRawStatusPreview();
+    if (!panel) return;
+
+    const rawNode = panel.querySelector('[data-bind="v7.raw_status_preview"]');
+    if (!rawNode) return;
+
+    rawNode.textContent = JSON.stringify(
+      {
+        status_source: STATUS_ENDPOINT,
+        error: text(detail, "status fetch failed"),
+        request_id: state.lastRequestId,
+      },
+      null,
+      2
+    );
   }
 
   function latestJobLabel(data) {
@@ -315,6 +409,7 @@
     setBoundText("v7.last_error", lastError, "none");
     setBoundText("v7.status_source", STATUS_ENDPOINT, STATUS_ENDPOINT);
     setBoundText("v7.last_ok", formatClock(new Date(state.lastOkAt)), "not yet");
+    updateRawStatusPreview(data);
 
     const exposureTime = exposure.exp_time_s !== undefined ? `${exposure.exp_time_s} s` : "not armed";
     updateRail(
@@ -329,6 +424,7 @@
       node.setAttribute("data-level", connection.level);
     });
     setBoundText("v7.request_id", state.lastRequestId, "not available");
+    updateRawStatusError(detail);
     updateRail(connection.label);
   }
 
@@ -359,6 +455,7 @@
 
   function startPolling() {
     ensureRuntimePanel();
+    ensureRawStatusPreview();
 
     if (state.pollTimer) {
       window.clearInterval(state.pollTimer);

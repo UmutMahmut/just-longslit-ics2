@@ -1,20 +1,22 @@
-// Phase 2.8-C/D v7 status and setup binding adapter.
+// Phase 2.8-C/D/E v7 status, setup, and presets binding adapter.
 // Scope:
-//   - bind the v7 operator console prototype to /api/v1/status/full;
+//   - bind the v7 operator console prototype to existing backend APIs only;
 //   - keep the default /ui and /ui/v6 untouched;
 //   - do not introduce new backend API requirements;
 //   - preserve the live image preview area as a placeholder until a future
 //     image/quicklook/data-watcher backend is intentionally added.
 //
 // Cleanup note:
-//   This adapter owns compact runtime/setup panels with explicit data-bind
-//   markers. It intentionally avoids binding by visible label text, so UI copy
-//   changes in the static shell do not silently break status updates.
+//   This adapter owns compact runtime/setup/preset panels with explicit
+//   data-bind markers. It intentionally avoids binding by visible label text,
+//   so UI copy changes in the static shell do not silently break updates.
 
 (function () {
   "use strict";
 
   const STATUS_ENDPOINT = "/api/v1/status/full";
+  const PRESETS_ENDPOINT = "/api/v1/presets";
+  const PRESET_PREVIEW_ENDPOINT = "/api/v1/presets/preview";
   const POLL_INTERVAL_MS = 2000;
   const STALE_AFTER_MS = 6000;
   const RAW_STATUS_MAX_CHARS = 20000;
@@ -23,6 +25,8 @@
     lastOkAt: null,
     lastRequestId: null,
     pollTimer: null,
+    presetItems: [],
+    selectedPresetName: null,
   };
 
   function text(value, fallback) {
@@ -66,9 +70,7 @@
         background: linear-gradient(180deg, #ffffff, #edf3fb);
         margin-bottom: 12px;
       }
-      .v7-runtime-status[data-connection="ok"] {
-        border-color: #8fc6ae;
-      }
+      .v7-runtime-status[data-connection="ok"] { border-color: #8fc6ae; }
       .v7-runtime-status[data-connection="stale"] {
         border-color: #dab36f;
         background: linear-gradient(180deg, #fffaf0, #f7edd8);
@@ -86,15 +88,9 @@
         letter-spacing: 0.06em;
         text-transform: uppercase;
       }
-      .v7-runtime-status[data-connection="ok"] h2 {
-        background: linear-gradient(180deg, #f0fff7, #e0f4ea);
-      }
-      .v7-runtime-status[data-connection="stale"] h2 {
-        background: linear-gradient(180deg, #fff7e5, #f6e3bc);
-      }
-      .v7-runtime-status[data-connection="error"] h2 {
-        background: linear-gradient(180deg, #fff0f0, #f4cccc);
-      }
+      .v7-runtime-status[data-connection="ok"] h2 { background: linear-gradient(180deg, #f0fff7, #e0f4ea); }
+      .v7-runtime-status[data-connection="stale"] h2 { background: linear-gradient(180deg, #fff7e5, #f6e3bc); }
+      .v7-runtime-status[data-connection="error"] h2 { background: linear-gradient(180deg, #fff0f0, #f4cccc); }
       .v7-runtime-status-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -120,36 +116,46 @@
         font-size: 12px;
         overflow-wrap: anywhere;
       }
-      [data-bind="v7.connection"][data-level="ok"] {
-        color: #147a4f;
-        font-weight: 700;
-      }
-      [data-bind="v7.connection"][data-level="stale"] {
-        color: #9a5b00;
-        font-weight: 700;
-      }
-      [data-bind="v7.connection"][data-level="error"] {
-        color: #a93333;
-        font-weight: 700;
-      }
-      .v7-setup-readiness {
+      [data-bind="v7.connection"][data-level="ok"] { color: #147a4f; font-weight: 700; }
+      [data-bind="v7.connection"][data-level="stale"] { color: #9a5b00; font-weight: 700; }
+      [data-bind="v7.connection"][data-level="error"] { color: #a93333; font-weight: 700; }
+      .v7-setup-readiness,
+      .v7-presets-runtime {
         margin-bottom: 12px;
       }
-      .v7-setup-readiness .hint {
+      .v7-setup-readiness .hint,
+      .v7-presets-runtime .hint,
+      .v7-raw-status-preview .hint {
         color: var(--muted);
         font-size: 12px;
         margin-bottom: 8px;
       }
-      .v7-setup-readiness code {
-        font-family: var(--mono);
+      .v7-setup-readiness code,
+      .v7-presets-runtime code { font-family: var(--mono); }
+      .v7-presets-runtime table { margin-top: 8px; }
+      .v7-presets-runtime tbody tr[data-selected="true"] { background: #eef6ff; }
+      .v7-presets-runtime .preset-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+      .v7-presets-runtime .preset-preview-box {
+        border: 1px solid var(--border-soft);
+        background: #f8fafc;
+        padding: 8px;
+        margin-top: 10px;
       }
-      .v7-raw-status-preview {
-        margin-top: 12px;
+      .v7-presets-runtime .preset-preview-box pre {
+        max-height: 280px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 11px;
+        line-height: 1.45;
+        background: #0f172a;
+        color: #e5edf8;
+        border: 1px solid #334155;
+        padding: 10px;
+        margin: 6px 0 0;
       }
-      .v7-raw-status-preview .panel-body {
-        display: grid;
-        gap: 8px;
-      }
+      .v7-raw-status-preview { margin-top: 12px; }
+      .v7-raw-status-preview .panel-body { display: grid; gap: 8px; }
       .v7-raw-status-preview pre {
         max-height: 360px;
         overflow: auto;
@@ -162,10 +168,6 @@
         border: 1px solid #334155;
         padding: 10px;
         margin: 0;
-      }
-      .v7-raw-status-preview .hint {
-        color: var(--muted);
-        font-size: 12px;
       }
       @media (max-width: 1160px) {
         .v7-runtime-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -297,6 +299,55 @@
     panel.appendChild(title);
     panel.appendChild(body);
     setupPage.insertBefore(panel, setupPage.firstChild);
+
+    return panel;
+  }
+
+  function ensurePresetsRuntimePanel() {
+    const existing = document.getElementById("v7-presets-runtime");
+    if (existing) return existing;
+
+    addRuntimePanelStyles();
+
+    const presetsPage = document.querySelector('[data-page-panel="presets"]');
+    if (!presetsPage) return null;
+
+    const panel = document.createElement("section");
+    panel.id = "v7-presets-runtime";
+    panel.className = "panel v7-presets-runtime";
+    panel.setAttribute("aria-label", "v7 runtime preset catalog and preview");
+    panel.setAttribute("data-phase", "2.8-E");
+
+    const title = document.createElement("h2");
+    title.textContent = "Runtime Presets · Catalog / Preview Only";
+
+    const body = document.createElement("div");
+    body.className = "panel-body";
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "Phase 2.8-E binds GET /api/v1/presets and POST /api/v1/presets/preview only. Apply remains not wired in this first slice.";
+
+    const status = document.createElement("div");
+    status.className = "hint";
+    status.setAttribute("data-bind", "v7.presets.status");
+    status.textContent = "loading preset catalog...";
+
+    const table = document.createElement("table");
+    table.className = "table";
+    table.innerHTML = "<thead><tr><th>Name</th><th>Category</th><th>Risk</th><th>Confirm</th><th>Action</th></tr></thead><tbody data-bind=\"v7.presets.catalog\"></tbody>";
+
+    const previewBox = document.createElement("div");
+    previewBox.className = "preset-preview-box";
+    previewBox.innerHTML = "<strong>Preview Result</strong><pre data-bind=\"v7.presets.preview\">Select Preview for a preset.</pre>";
+
+    body.appendChild(hint);
+    body.appendChild(status);
+    body.appendChild(table);
+    body.appendChild(previewBox);
+    panel.appendChild(title);
+    panel.appendChild(body);
+    presetsPage.insertBefore(panel, presetsPage.firstChild);
 
     return panel;
   }
@@ -441,17 +492,11 @@
       const ageMs = state.lastOkAt ? Date.now() - state.lastOkAt : 0;
       const stale = ageMs > STALE_AFTER_MS;
       if (stale) {
-        return {
-          level: "stale",
-          label: `STALE · last ok ${Math.round(ageMs / 1000)}s ago`,
-        };
+        return { level: "stale", label: `STALE · last ok ${Math.round(ageMs / 1000)}s ago` };
       }
       return { level: "ok", label: "CONNECTED" };
     }
-    return {
-      level: "error",
-      label: `ERROR · ${detail || "status fetch failed"}`,
-    };
+    return { level: "error", label: `ERROR · ${detail || "status fetch failed"}` };
   }
 
   function formatClock(date) {
@@ -494,6 +539,83 @@
     ensureSetupReadinessPanel();
     setBoundText("v7.setup.connection", connection && connection.label, "error");
     setBoundText("v7.setup.request_id", state.lastRequestId, "not available");
+  }
+
+  function renderPresetCatalog(items) {
+    ensurePresetsRuntimePanel();
+
+    const body = document.querySelector('[data-bind="v7.presets.catalog"]');
+    if (!body) return;
+
+    body.innerHTML = "";
+    items.forEach((item) => {
+      const row = document.createElement("tr");
+      row.setAttribute("data-preset-name", item.name);
+      row.setAttribute("data-selected", item.name === state.selectedPresetName ? "true" : "false");
+
+      const confirmLabel = item.requires_confirmation ? "yes" : "no";
+      row.innerHTML = `
+        <td><code>${item.name}</code><br><span class="hint">${item.summary || ""}</span></td>
+        <td>${item.category || "unknown"}</td>
+        <td>${item.risk_level || "unknown"}</td>
+        <td>${confirmLabel}</td>
+        <td><div class="preset-actions"><button class="btn" type="button" data-action="preview-preset" data-preset-name="${item.name}">Preview</button><button class="btn" type="button" disabled data-action="apply-preset-disabled">Apply not wired</button></div></td>
+      `;
+      body.appendChild(row);
+    });
+
+    body.querySelectorAll('[data-action="preview-preset"]').forEach((button) => {
+      button.addEventListener("click", () => previewPreset(button.getAttribute("data-preset-name")));
+    });
+  }
+
+  async function fetchPresetCatalog() {
+    ensurePresetsRuntimePanel();
+    setBoundText("v7.presets.status", `loading ${PRESETS_ENDPOINT}...`, "loading preset catalog...");
+
+    try {
+      const response = await fetch(PRESETS_ENDPOINT, {
+        headers: { "Accept": "application/json", "X-Requested-With": "JUSTLS-v7-presets" },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        setBoundText("v7.presets.status", `ERROR · catalog HTTP ${response.status}`, "catalog error");
+        return;
+      }
+      const payload = await response.json();
+      state.presetItems = Array.isArray(payload.items) ? payload.items : [];
+      renderPresetCatalog(state.presetItems);
+      setBoundText("v7.presets.status", `loaded ${state.presetItems.length} presets from ${PRESETS_ENDPOINT}`, "catalog loaded");
+    } catch (error) {
+      setBoundText("v7.presets.status", `ERROR · ${text(error && error.message, "preset catalog fetch failed")}`, "catalog error");
+    }
+  }
+
+  async function previewPreset(name) {
+    if (!name) return;
+    state.selectedPresetName = name;
+    renderPresetCatalog(state.presetItems);
+    setBoundText("v7.presets.status", `previewing ${name} via ${PRESET_PREVIEW_ENDPOINT}...`, "previewing preset...");
+    setBoundText("v7.presets.preview", "loading preview...", "loading preview...");
+
+    try {
+      const response = await fetch(PRESET_PREVIEW_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "X-Requested-With": "JUSTLS-v7-presets",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ name: name, confirmed: false }),
+      });
+      const payload = await response.json();
+      setBoundText("v7.presets.preview", JSON.stringify(payload, null, 2), "preview not available");
+      setBoundText("v7.presets.status", response.ok ? `preview loaded for ${name}` : `ERROR · preview HTTP ${response.status}`, "preview complete");
+    } catch (error) {
+      setBoundText("v7.presets.preview", JSON.stringify({ error: text(error && error.message, "preset preview failed"), preset: name }, null, 2), "preview error");
+      setBoundText("v7.presets.status", `ERROR · ${text(error && error.message, "preset preview failed")}`, "preview error");
+    }
   }
 
   function bindStatus(data) {
@@ -554,10 +676,7 @@
   async function fetchStatus() {
     try {
       const response = await fetch(STATUS_ENDPOINT, {
-        headers: {
-          "Accept": "application/json",
-          "X-Requested-With": "JUSTLS-v7-operator-console",
-        },
+        headers: { "Accept": "application/json", "X-Requested-With": "JUSTLS-v7-operator-console" },
         cache: "no-store",
       });
 
@@ -579,6 +698,7 @@
   function startPolling() {
     ensureRuntimePanel();
     ensureSetupReadinessPanel();
+    ensurePresetsRuntimePanel();
     ensureRawStatusPreview();
 
     if (state.pollTimer) {
@@ -586,6 +706,7 @@
     }
 
     fetchStatus();
+    fetchPresetCatalog();
     state.pollTimer = window.setInterval(fetchStatus, POLL_INTERVAL_MS);
   }
 

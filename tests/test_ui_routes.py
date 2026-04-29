@@ -135,3 +135,24 @@ def test_ui_v7_setup_page_marks_local_placeholders_and_phase_boundary():
     assert "data-role=\"data-product-context\"" in response.text
     assert "data-phase=\"future-binding\"" in response.text
     assert "Runtime instrument context is shown in the Setup Readiness panel" in response.text
+
+
+def test_ui_v7_presets_binding_is_catalog_and_preview_only():
+    client = TestClient(app)
+
+    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+
+    assert adapter.status_code == 200
+    assert "PRESETS_ENDPOINT" in adapter.text
+    assert "PRESET_PREVIEW_ENDPOINT" in adapter.text
+    assert "/api/v1/presets" in adapter.text
+    assert "/api/v1/presets/preview" in adapter.text
+    assert "v7-presets-runtime" in adapter.text
+    assert "Runtime Presets" in adapter.text
+    assert "ensurePresetsRuntimePanel" in adapter.text
+    assert "fetchPresetCatalog" in adapter.text
+    assert "previewPreset" in adapter.text
+    assert "v7.presets.catalog" in adapter.text
+    assert "v7.presets.preview" in adapter.text
+    assert "Apply not wired" in adapter.text
+    assert "/api/v1/presets/apply" not in adapter.text

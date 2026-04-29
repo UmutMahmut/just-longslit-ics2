@@ -220,7 +220,8 @@ def test_ui_v7_observe_controls_are_single_exposure_only():
     assert "markStaticObserveFallback" in observe.text
     assert "static-observe-fallback-grid" in observe.text
     assert "sequence runner" in observe.text
-    assert "observation-plan" not in observe.text
+    assert "/api/v1/observation/sequence" not in observe.text
+    assert "/api/v1/observation/plan" not in observe.text
 
 
 def test_ui_v7_observe_safety_guard_is_frontend_only_and_injected_last():

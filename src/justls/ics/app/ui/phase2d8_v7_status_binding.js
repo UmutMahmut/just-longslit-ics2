@@ -5,6 +5,11 @@
 //   - do not introduce new backend API requirements;
 //   - preserve the live image preview area as a placeholder until a future
 //     image/quicklook/data-watcher backend is intentionally added.
+//
+// Phase 2.8-C cleanup note:
+//   This adapter owns a compact runtime status panel with explicit data-bind
+//   markers. It intentionally avoids binding by visible label text, so UI copy
+//   changes in the static shell do not silently break status updates.
 
 (function () {
   "use strict";
@@ -36,30 +41,124 @@
     node.textContent = text(value, fallback);
   }
 
-  function setInputByLabel(labelText, value) {
-    const labels = Array.from(document.querySelectorAll("label"));
-    const label = labels.find((candidate) => {
-      const firstText = Array.from(candidate.childNodes)
-        .filter((node) => node.nodeType === Node.TEXT_NODE)
-        .map((node) => node.textContent.trim())
-        .join(" ");
-      return firstText.toLowerCase() === labelText.toLowerCase();
+  function setBoundText(name, value, fallback) {
+    const nodes = document.querySelectorAll(`[data-bind="${name}"]`);
+    nodes.forEach((node) => {
+      node.textContent = text(value, fallback);
     });
-    if (!label) return;
-
-    const field = label.querySelector("input, textarea, select");
-    if (!field) return;
-    field.value = text(value, field.value || "");
   }
 
-  function setDescriptionValue(termText, value) {
-    const terms = Array.from(document.querySelectorAll("dt"));
-    const term = terms.find((candidate) => candidate.textContent.trim().toLowerCase() === termText.toLowerCase());
-    if (!term) return;
+  function addRuntimePanelStyles() {
+    if (document.getElementById("v7-runtime-status-style")) return;
 
-    const valueNode = term.nextElementSibling;
-    if (!valueNode || valueNode.tagName.toLowerCase() !== "dd") return;
-    valueNode.textContent = text(value, "not available");
+    const style = document.createElement("style");
+    style.id = "v7-runtime-status-style";
+    style.textContent = `
+      .v7-runtime-status {
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, #ffffff, #edf3fb);
+        margin-bottom: 12px;
+      }
+      .v7-runtime-status h2 {
+        margin: 0;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border-soft);
+        background: linear-gradient(180deg, #f8fafc, #eef3f9);
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .v7-runtime-status-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1px;
+        background: var(--border-soft);
+      }
+      .v7-runtime-status-cell {
+        background: #ffffff;
+        padding: 8px 10px;
+        min-width: 0;
+      }
+      .v7-runtime-status-cell span:first-child {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 4px;
+      }
+      .v7-runtime-status-cell code,
+      .v7-runtime-status-cell strong {
+        font-family: var(--mono);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 1160px) {
+        .v7-runtime-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 720px) {
+        .v7-runtime-status-grid { grid-template-columns: 1fr; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function runtimeCell(label, bindName, initialValue) {
+    const cell = document.createElement("div");
+    cell.className = "v7-runtime-status-cell";
+
+    const labelNode = document.createElement("span");
+    labelNode.textContent = label;
+
+    const valueNode = document.createElement("code");
+    valueNode.setAttribute("data-bind", bindName);
+    valueNode.textContent = initialValue;
+
+    cell.appendChild(labelNode);
+    cell.appendChild(valueNode);
+    return cell;
+  }
+
+  function ensureRuntimePanel() {
+    const existing = document.getElementById("v7-runtime-status");
+    if (existing) return existing;
+
+    addRuntimePanelStyles();
+
+    const panel = document.createElement("section");
+    panel.id = "v7-runtime-status";
+    panel.className = "v7-runtime-status";
+    panel.setAttribute("aria-label", "v7 runtime status binding panel");
+
+    const title = document.createElement("h2");
+    title.textContent = "Runtime Status · Bound to /api/v1/status/full";
+
+    const grid = document.createElement("div");
+    grid.className = "v7-runtime-status-grid";
+    grid.appendChild(runtimeCell("Connection", "v7.connection", "connecting"));
+    grid.appendChild(runtimeCell("Run Mode", "v7.run_mode", "unknown"));
+    grid.appendChild(runtimeCell("Operational", "v7.operational", "unknown"));
+    grid.appendChild(runtimeCell("Exposure", "v7.exposure_state", "unknown"));
+    grid.appendChild(runtimeCell("Detector Profile", "v7.detector_profile", "unknown"));
+    grid.appendChild(runtimeCell("Calibration", "v7.calibration", "unknown"));
+    grid.appendChild(runtimeCell("Preset Context", "v7.preset_context", "not linked"));
+    grid.appendChild(runtimeCell("Latest Job", "v7.latest_job", "not available"));
+    grid.appendChild(runtimeCell("Request ID", "v7.request_id", "not available"));
+    grid.appendChild(runtimeCell("Last Error", "v7.last_error", "none"));
+    grid.appendChild(runtimeCell("Status Source", "v7.status_source", STATUS_ENDPOINT));
+    grid.appendChild(runtimeCell("Last OK", "v7.last_ok", "not yet"));
+
+    panel.appendChild(title);
+    panel.appendChild(grid);
+
+    const workspace = document.querySelector(".workspace");
+    if (workspace) {
+      workspace.insertBefore(panel, workspace.firstChild);
+    } else {
+      document.body.appendChild(panel);
+    }
+
+    return panel;
   }
 
   function latestJobLabel(data) {
@@ -123,6 +222,11 @@
     return `ERROR · ${detail || "status fetch failed"}`;
   }
 
+  function formatClock(date) {
+    if (!date) return "not yet";
+    return date.toLocaleTimeString("zh-CN", { hour12: false });
+  }
+
   function updateRail(message) {
     const railBody = document.querySelector(".rail span");
     if (!railBody) return;
@@ -130,30 +234,48 @@
   }
 
   function bindStatus(data) {
+    ensureRuntimePanel();
+
     const observation = data && data.observation;
     const exposure = exposureFromObservation(observation);
-
-    setTextById("run-mode", upper(data && data.run_mode, "UNKNOWN"));
-    setTextById("operational-level", upper(operationalLabel(data), "UNKNOWN"));
-    setTextById("exposure-state", upper(observation && observation.state, "UNKNOWN"));
-
-    setInputByLabel("Current Preset", presetLabel(data));
-    setInputByLabel("Detector Profile", detectorProfile(data) || "not available");
-
-    setDescriptionValue("Observation State", observation && observation.state);
-    setDescriptionValue("Exposure Time", exposure.exp_time_s !== undefined ? `${exposure.exp_time_s} s` : "not armed");
-    setDescriptionValue("Frame Type", exposure.frame_type || "not available");
-    setDescriptionValue("Preset Context", presetLabel(data));
-    setDescriptionValue("Latest Job", latestJobLabel(data));
-
-    setDescriptionValue("Status Source", STATUS_ENDPOINT);
-    setDescriptionValue("X-Request-ID", state.lastRequestId || "not available");
-    setDescriptionValue("Last Error", data && data.latest_error_code ? data.latest_error_code : "none");
-
-    const detector = detectorProfile(data) || "no detector profile";
+    const connection = connectionLabel(true);
+    const runMode = data && data.run_mode;
+    const operational = operationalLabel(data);
+    const exposureState = observation && observation.state;
+    const detector = detectorProfile(data) || "not available";
     const calibration = calibrationLabel(data);
+    const preset = presetLabel(data);
     const latestJob = latestJobLabel(data);
-    updateRail(`v7 status bound to ${STATUS_ENDPOINT}. Detector: ${detector}. Calibration: ${calibration}. Latest job: ${latestJob}.`);
+    const lastError = data && data.latest_error_code ? data.latest_error_code : "none";
+
+    setTextById("run-mode", upper(runMode, "UNKNOWN"));
+    setTextById("operational-level", upper(operational, "UNKNOWN"));
+    setTextById("exposure-state", upper(exposureState, "UNKNOWN"));
+
+    setBoundText("v7.connection", connection, "unknown");
+    setBoundText("v7.run_mode", runMode, "unknown");
+    setBoundText("v7.operational", operational, "unknown");
+    setBoundText("v7.exposure_state", exposureState, "unknown");
+    setBoundText("v7.detector_profile", detector, "not available");
+    setBoundText("v7.calibration", calibration, "not available");
+    setBoundText("v7.preset_context", preset, "not linked");
+    setBoundText("v7.latest_job", latestJob, "not available");
+    setBoundText("v7.request_id", state.lastRequestId, "not available");
+    setBoundText("v7.last_error", lastError, "none");
+    setBoundText("v7.status_source", STATUS_ENDPOINT, STATUS_ENDPOINT);
+    setBoundText("v7.last_ok", formatClock(new Date(state.lastOkAt)), "not yet");
+
+    const exposureTime = exposure.exp_time_s !== undefined ? `${exposure.exp_time_s} s` : "not armed";
+    updateRail(
+      `v7 status bound to ${STATUS_ENDPOINT}. Exposure: ${text(exposureState, "unknown")} / ${exposureTime}. Detector: ${detector}. Calibration: ${calibration}. Latest job: ${latestJob}.`
+    );
+  }
+
+  function bindConnectionError(detail) {
+    ensureRuntimePanel();
+    setBoundText("v7.connection", connectionLabel(false, detail), "error");
+    setBoundText("v7.request_id", state.lastRequestId, "not available");
+    updateRail(connectionLabel(false, detail));
   }
 
   async function fetchStatus() {
@@ -169,7 +291,7 @@
       state.lastRequestId = response.headers.get("X-Request-ID") || state.lastRequestId;
 
       if (!response.ok) {
-        updateRail(connectionLabel(false, `HTTP ${response.status}`));
+        bindConnectionError(`HTTP ${response.status}`);
         return;
       }
 
@@ -177,11 +299,13 @@
       state.lastOkAt = Date.now();
       bindStatus(data);
     } catch (error) {
-      updateRail(connectionLabel(false, error && error.message));
+      bindConnectionError(error && error.message);
     }
   }
 
   function startPolling() {
+    ensureRuntimePanel();
+
     if (state.pollTimer) {
       window.clearInterval(state.pollTimer);
     }

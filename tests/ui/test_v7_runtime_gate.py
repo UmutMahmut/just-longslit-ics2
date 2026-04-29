@@ -9,10 +9,10 @@ def test_v7_runtime_scripts_are_not_injected_by_default():
     response = client.get("/ui/v7")
 
     assert response.status_code == 200
-    assert "phase2d8_v7_status_binding.js" not in response.text
-    assert "phase2d8_v7_preset_apply_guard.js" not in response.text
-    assert "phase2d8_v7_observe_controls.js" not in response.text
-    assert "phase2d8_v7_observe_safety_guard.js" not in response.text
+    assert "/ui-assets/v7/runtime_status.js" not in response.text
+    assert "/ui-assets/v7/preset_runtime.js" not in response.text
+    assert "/ui-assets/v7/observe_runtime.js" not in response.text
+    assert "/ui-assets/v7/observe_guard.js" not in response.text
 
 
 def test_v7_runtime_scripts_are_injected_when_enabled(monkeypatch):
@@ -26,6 +26,6 @@ def test_v7_runtime_scripts_are_injected_when_enabled(monkeypatch):
     response = client.get("/ui/v7")
 
     assert response.status_code == 200
-    assert response.text.index("phase2d8_v7_status_binding.js") < response.text.index("phase2d8_v7_preset_apply_guard.js")
-    assert response.text.index("phase2d8_v7_preset_apply_guard.js") < response.text.index("phase2d8_v7_observe_controls.js")
-    assert response.text.index("phase2d8_v7_observe_controls.js") < response.text.index("phase2d8_v7_observe_safety_guard.js")
+    assert response.text.index("/ui-assets/v7/runtime_status.js") < response.text.index("/ui-assets/v7/preset_runtime.js")
+    assert response.text.index("/ui-assets/v7/preset_runtime.js") < response.text.index("/ui-assets/v7/observe_runtime.js")
+    assert response.text.index("/ui-assets/v7/observe_runtime.js") < response.text.index("/ui-assets/v7/observe_guard.js")

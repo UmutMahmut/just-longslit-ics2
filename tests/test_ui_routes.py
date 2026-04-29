@@ -100,3 +100,20 @@ def test_ui_v7_status_binding_has_bounded_raw_status_preview():
     assert "updateRawStatusError" in adapter.text
     assert "data-page-panel=\"diagnostics\"" in adapter.text
     assert "truncated at" in adapter.text
+
+
+def test_ui_v7_status_binding_has_setup_readiness_panel():
+    client = TestClient(app)
+
+    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+
+    assert adapter.status_code == 200
+    assert "v7-setup-readiness" in adapter.text
+    assert "Setup Readiness" in adapter.text
+    assert "ensureSetupReadinessPanel" in adapter.text
+    assert "updateSetupReadiness" in adapter.text
+    assert "v7.setup.detector_profile" in adapter.text
+    assert "v7.setup.calibration" in adapter.text
+    assert "v7.setup.preset_context" in adapter.text
+    assert "v7.setup.save_enabled" in adapter.text
+    assert "Session form fields remain local placeholders" in adapter.text

@@ -101,11 +101,11 @@ UI_DIR = Path(__file__).resolve().parent / "ui"
 UI_ENTRY = UI_DIR / "ui_alpha_skeleton_v5.html"
 UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
 UI_V7_ENTRY = UI_DIR / "ui_operational_v7.html"
-UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
-UI_PHASE_2D8_V7_ADAPTER = "/ui-assets/phase2d8_v7_status_binding.js"
-UI_PHASE_2D8_V7_PRESET_APPLY_GUARD = "/ui-assets/phase2d8_v7_preset_apply_guard.js"
-UI_PHASE_2D8_V7_OBSERVE_CONTROLS = "/ui-assets/phase2d8_v7_observe_controls.js"
-UI_PHASE_2D8_V7_OBSERVE_SAFETY_GUARD = "/ui-assets/phase2d8_v7_observe_safety_guard.js"
+UI_PHASE_2D6_ADAPTER = "/ui-assets/v5/phase2d6_operational_status.js"
+UI_V7_RUNTIME_STATUS = "/ui-assets/v7/runtime_status.js"
+UI_V7_PRESET_RUNTIME = "/ui-assets/v7/preset_runtime.js"
+UI_V7_OBSERVE_RUNTIME = "/ui-assets/v7/observe_runtime.js"
+UI_V7_OBSERVE_GUARD = "/ui-assets/v7/observe_guard.js"
 
 PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
 PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
@@ -141,8 +141,8 @@ def phase_2d8_v7_enabled() -> bool:
 
 
 def phase_2d8_v7_runtime_enabled() -> bool:
-    # Keep the v7 static shell safe by default. The Phase 2.8 runtime add-ons
-    # can be enabled explicitly during targeted debugging/local testing.
+    # Keep the v7 static shell safe by default. Runtime add-ons can be enabled
+    # explicitly during targeted debugging/local testing.
     return env_flag(PHASE_2D8_V7_RUNTIME_ENABLED_ENV, default=False)
 
 
@@ -150,10 +150,10 @@ def phase_2d8_v7_runtime_scripts() -> tuple[str, ...]:
     if not phase_2d8_v7_runtime_enabled():
         return ()
     return (
-        UI_PHASE_2D8_V7_ADAPTER,
-        UI_PHASE_2D8_V7_PRESET_APPLY_GUARD,
-        UI_PHASE_2D8_V7_OBSERVE_CONTROLS,
-        UI_PHASE_2D8_V7_OBSERVE_SAFETY_GUARD,
+        UI_V7_RUNTIME_STATUS,
+        UI_V7_PRESET_RUNTIME,
+        UI_V7_OBSERVE_RUNTIME,
+        UI_V7_OBSERVE_GUARD,
     )
 
 
@@ -167,11 +167,7 @@ def inject_script_tag(html: str, script_src: str) -> str:
 
 
 def inject_phase_2d6_ui_adapter(html: str) -> str:
-    """Attach the Phase 2.6 operational-status adapter to the static UI.
-
-    The adapter lets the existing v5 skeleton consume the new backend
-    `operational_status` block without copying or rewriting the large HTML file.
-    """
+    """Attach the Phase 2.6 operational-status adapter to the static v5 UI."""
     return inject_script_tag(html, UI_PHASE_2D6_ADAPTER)
 
 

@@ -47,21 +47,21 @@ NOT APPLICABLE
 | v5 capability area | v5 status | v7 status | Phase 2.8 action |
 | --- | --- | --- | --- |
 | Stable default route | Available at `/ui` | Preserved; v7 separate | Keep `/ui` on v5 until parity decision |
-| Global header / timing / runtime summary | Rich header in v5 | PARTIAL: v7 topbar + runtime status panel | Continue binding v7 to existing status/full only |
-| Connection freshness | Present in v5 header | PARTIAL: v7 runtime panel shows connection / last OK | Improve stale/error visualization in v7-C only |
+| Global header / timing / runtime summary | Rich header in v5 | PARTIAL: v7 topbar + runtime status panel bound to status/full | Continue using existing status/full only |
+| Connection freshness | Present in v5 header | DONE/PARTIAL: v7 runtime panel shows ok/stale/error + last OK | Keep lightweight; no new heartbeat API |
 | Overview-first monitoring | Present in v5 | MISSING as a dedicated v7 page | Map into v7 Observe + Runtime Status, or add Overview later |
 | Live image / latest frame preview | Present as live-vision-first area / placeholders | PARTIAL: v7 Observe has Latest Exposure Preview and B/G/R placeholders | Preserve as first-class feature; no new image backend yet |
 | Observation lifecycle controls | Present in v5 | PARTIAL: v7 Observe has static controls | Phase 2.8-F should bind existing observation APIs |
 | Observation metadata / frame result visibility | Present or planned in v5 direction | PARTIAL/MISSING in v7 | Bring into Observe after status binding is stable |
 | Slit control | Present in v5 instrument pages | MISSING in v7 | Defer until v7 Instrument/Engineer split is decided |
-| Calibration control | Present in v5 | PARTIAL: v7 status panel shows calibration summary only | Setup/Observe should show mode; controls can wait |
-| Detector config / BGR channel state | Present in v5 | PARTIAL: v7 has detector profile and channel placeholders | Bind detector status before adding controls |
-| Preset catalog | Present in v5 | PARTIAL: v7 has static list | Phase 2.8-E should bind `/api/v1/presets` |
-| Preset apply feedback | Present in v5 | MISSING/PARTIAL | Phase 2.8-E should bind preview/apply/latest_job |
+| Calibration control | Present in v5 | PARTIAL: v7 status/setup panels show calibration summary only | Setup/Observe should show mode; controls can wait |
+| Detector config / BGR channel state | Present in v5 | PARTIAL: v7 shows detector profile and channel placeholders | Bind detector status before adding controls |
+| Preset catalog | Present in v5 | PARTIAL: v7 has static list | Phase 2.8-E should bind existing preset catalog endpoint |
+| Preset apply feedback | Present in v5 | MISSING/PARTIAL | Phase 2.8-E should bind existing preview/apply/latest_job semantics |
 | High-risk preset confirmation | Present in backend and v5 direction | MISSING in v7 | Add confirmation in Phase 2.8-E only |
-| Diagnostics / raw JSON visibility | Present in v5 | PARTIAL: v7 Diagnostics skeleton only | Add raw status preview after core status binding |
-| Request ID visibility | Present in Phase 2.6/2.7 direction | PARTIAL: v7 runtime panel shows request id | Keep in runtime panel and diagnostics |
-| Latest job feedback | Present in Phase 2.6/2.7 direction | PARTIAL: v7 runtime panel shows latest job | Improve display, do not duplicate logic |
+| Diagnostics / raw JSON visibility | Present in v5 | DONE/PARTIAL: v7 Diagnostics has bounded raw status/full preview | Keep bounded and read-only |
+| Request ID visibility | Present in Phase 2.6/2.7 direction | DONE/PARTIAL: v7 runtime/setup panels show request id | Keep in runtime panel and diagnostics |
+| Latest job feedback | Present in Phase 2.6/2.7 direction | DONE/PARTIAL: v7 runtime/setup panels show latest job | Improve display, do not duplicate logic |
 | Day/night theme support | Present in v5 | MISSING in v7 | Defer until v7 structure stabilizes |
 | Cameras / guider first-class pages | Present as v5 concept / placeholders | MISSING in v7 | Defer; do not add until Phase 2.8 scope allows |
 | Housekeeping | Present or conceptual in v5 direction | PARTIAL: v7 route placeholder | Defer binding |
@@ -87,21 +87,25 @@ v7 current:
 - Observer(s), Project ID, PI, Support, Comment fields exist
 - Root Name / Date Prefix / Current Preset / Detector Profile fields exist
 - Data Product Context panel exists
-- fields are currently local/static except global runtime panel
+- Setup Readiness panel is injected by the v7 status adapter
+- Setup Readiness uses existing /api/v1/status/full only
+- runtime summary includes connection, run mode, operational level, observation state, detector profile, calibration, preset context, save enabled, latest job, and request id
+- local session fields are explicitly marked with data-role/data-phase as local placeholders
+- placeholder actions are marked not-wired
 ```
 
 Status:
 
 ```text
-PARTIAL
+PARTIAL / PHASE 2.8-D BASELINE DONE
 ```
 
 Next v7 action:
 
 ```text
-Phase 2.8-D should keep Setup mostly frontend/local first.
-Do not add new backend APIs yet.
-Use existing status/full data only for current preset, detector profile, calibration mode, and latest job context.
+Do not add new Setup backend APIs yet.
+Do not make local session form persistence look real until a durable backend contract exists.
+Future Setup work should either keep the form local or explicitly define a session-context API before binding Save/Apply.
 ```
 
 ### 2. Observe
@@ -134,7 +138,7 @@ PARTIAL
 Next v7 action:
 
 ```text
-After Phase 2.8-C finishes, Phase 2.8-F should bind buttons to existing observation APIs.
+After Phase 2.8-E presets work, Phase 2.8-F should bind buttons to existing observation APIs.
 Do not introduce sequence runner or new observation-plan features.
 ```
 
@@ -168,8 +172,9 @@ PARTIAL
 Next v7 action:
 
 ```text
-Phase 2.8-E should bind GET /api/v1/presets, preset preview if available, apply result, confirmation, and latest_job.
+Phase 2.8-E should first inspect existing preset API semantics, then bind only those existing endpoints.
 Do not redesign preset semantics.
+Do not introduce a new preset backend route for the frontend.
 ```
 
 ### 4. Diagnostics
@@ -189,20 +194,21 @@ v7 current:
 - Status / Request Troubleshooting panel exists
 - Image Feed Diagnostics placeholder exists
 - runtime panel shows request id and latest error
-- no raw JSON preview yet
+- bounded raw status/full preview is injected by the v7 status adapter
+- raw preview is read-only and capped to avoid oversized UI payloads
 ```
 
 Status:
 
 ```text
-PARTIAL
+PARTIAL / PHASE 2.8-C BASELINE DONE
 ```
 
 Next v7 action:
 
 ```text
-Add a bounded raw status/full preview after core status binding is stable.
 Keep image feed diagnostics honest as NOT WIRED until a real backend exists.
+Do not add quicklook/data watcher in Phase 2.8-C/D/E.
 ```
 
 ### 5. Instrument / Detector / Calibration / Slit
@@ -220,8 +226,8 @@ v7 current:
 
 ```text
 - no dedicated Instrument page yet
-- detector profile is visible in runtime panel
-- calibration summary is visible in runtime panel
+- detector profile is visible in runtime/setup panels
+- calibration summary is visible in runtime/setup panels
 - channel preview placeholders exist in Observe
 ```
 
@@ -248,13 +254,16 @@ To avoid AI-style drift and duplication, continue Phase 2.8 in this order:
    - connection stale/error display
    - bounded raw status preview if useful
    - no new APIs
+   - status: baseline done
 
 2. Phase 2.8-D Setup page
    - use status/full data only
    - keep form local/static for now
    - make Setup look like instrument preparation, not generic web form
+   - status: baseline done; future backend persistence deferred
 
 3. Phase 2.8-E Presets page
+   - inspect existing preset API semantics first
    - bind existing preset catalog/apply/confirmation semantics
    - preserve Phase 2.7 safety behavior
 

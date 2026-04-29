@@ -221,3 +221,28 @@ def test_ui_v7_observe_controls_are_single_exposure_only():
     assert "static-observe-fallback-grid" in observe.text
     assert "sequence runner" in observe.text
     assert "observation-plan" not in observe.text
+
+
+def test_ui_v7_observe_safety_guard_is_frontend_only_and_injected_last():
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    assert "/ui-assets/phase2d8_v7_observe_controls.js" in response.text
+    assert "/ui-assets/phase2d8_v7_observe_safety_guard.js" in response.text
+    assert response.text.index("phase2d8_v7_observe_controls.js") < response.text.index("phase2d8_v7_observe_safety_guard.js")
+
+    guard = client.get("/ui-assets/phase2d8_v7_observe_safety_guard.js")
+
+    assert guard.status_code == 200
+    assert "Phase 2.8-F conservative button-availability guard" in guard.text
+    assert "data-guard-available" in guard.text
+    assert "Backend still validates final transitions" in guard.text
+    assert "obs-abort-confirm" in guard.text
+    assert "new XMLHttpRequest" not in guard.text
+    assert "fetch(" not in guard.text
+    assert "/api/v1/observation/arm" not in guard.text
+    assert "/api/v1/observation/start" not in guard.text
+    assert "/api/v1/observation/stop_readout" not in guard.text
+    assert "/api/v1/observation/abort_discard" not in guard.text

@@ -56,9 +56,9 @@ NOT APPLICABLE
 | Slit control | Present in v5 instrument pages | MISSING in v7 | Defer until v7 Instrument/Engineer split is decided |
 | Calibration control | Present in v5 | PARTIAL: v7 status/setup panels show calibration summary only | Setup/Observe should show mode; controls can wait |
 | Detector config / BGR channel state | Present in v5 | PARTIAL: v7 shows detector profile and channel placeholders | Bind detector status before adding controls |
-| Preset catalog | Present in v5 | PARTIAL: v7 has static list | Phase 2.8-E should bind existing preset catalog endpoint |
-| Preset apply feedback | Present in v5 | MISSING/PARTIAL | Phase 2.8-E should bind existing preview/apply/latest_job semantics |
-| High-risk preset confirmation | Present in backend and v5 direction | MISSING in v7 | Add confirmation in Phase 2.8-E only |
+| Preset catalog | Present in v5 | DONE/PARTIAL: v7 runtime catalog is bound to existing preset endpoint | Keep static fallback marked demo/fallback |
+| Preset apply feedback | Present in v5 | DONE/PARTIAL: v7 has preview result and guarded apply result | Keep guarded; do not bypass preview requirement |
+| High-risk preset confirmation | Present in backend and v5 direction | DONE/PARTIAL: v7 guarded apply requires exact-name confirmation for confirmation-required presets | Preserve Phase 2.7 safety behavior |
 | Diagnostics / raw JSON visibility | Present in v5 | DONE/PARTIAL: v7 Diagnostics has bounded raw status/full preview | Keep bounded and read-only |
 | Request ID visibility | Present in Phase 2.6/2.7 direction | DONE/PARTIAL: v7 runtime/setup panels show request id | Keep in runtime panel and diagnostics |
 | Latest job feedback | Present in Phase 2.6/2.7 direction | DONE/PARTIAL: v7 runtime/setup panels show latest job | Improve display, do not duplicate logic |
@@ -138,7 +138,7 @@ PARTIAL
 Next v7 action:
 
 ```text
-After Phase 2.8-E presets work, Phase 2.8-F should bind buttons to existing observation APIs.
+Phase 2.8-F should inspect existing observation API semantics first, then bind only existing single-exposure controls.
 Do not introduce sequence runner or new observation-plan features.
 ```
 
@@ -157,24 +157,29 @@ v7 current:
 
 ```text
 - Presets page exists
-- static preset table exists
-- static preview/apply panel exists
-- no live catalog binding yet
-- no preview/apply binding yet
+- Runtime Presets panel is injected by phase2d8_v7_status_binding.js
+- runtime catalog is bound to GET /api/v1/presets
+- runtime preview is bound to POST /api/v1/presets/preview
+- static preset table and static preview/apply panel are explicitly marked fallback/demo
+- guarded apply add-on is injected by phase2d8_v7_preset_apply_guard.js after the status/preset adapter
+- guarded apply calls existing POST /api/v1/presets/apply only after a preview is available
+- confirmation-required presets require an explicit checkbox and exact preset-name text confirmation before apply
+- apply result is shown in the guarded apply panel
 ```
 
 Status:
 
 ```text
-PARTIAL
+PARTIAL / PHASE 2.8-E BASELINE DONE
 ```
 
 Next v7 action:
 
 ```text
-Phase 2.8-E should first inspect existing preset API semantics, then bind only those existing endpoints.
-Do not redesign preset semantics.
-Do not introduce a new preset backend route for the frontend.
+Do not add new preset endpoints.
+Do not remove the preview-before-apply guard.
+Do not let static fallback/demo controls become active.
+Future cleanup can consolidate preset UI once local testing confirms the guarded workflow feels acceptable.
 ```
 
 ### 4. Diagnostics
@@ -208,7 +213,7 @@ Next v7 action:
 
 ```text
 Keep image feed diagnostics honest as NOT WIRED until a real backend exists.
-Do not add quicklook/data watcher in Phase 2.8-C/D/E.
+Do not add quicklook/data watcher in Phase 2.8-C/D/E/F.
 ```
 
 ### 5. Instrument / Detector / Calibration / Slit
@@ -266,8 +271,10 @@ To avoid AI-style drift and duplication, continue Phase 2.8 in this order:
    - inspect existing preset API semantics first
    - bind existing preset catalog/apply/confirmation semantics
    - preserve Phase 2.7 safety behavior
+   - status: baseline done; future UX cleanup deferred until local testing
 
 4. Phase 2.8-F Observe page
+   - inspect existing observation API semantics first
    - bind single-exposure controls only
    - keep live preview region
    - no sequence runner yet

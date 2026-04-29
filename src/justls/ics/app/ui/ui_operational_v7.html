@@ -217,6 +217,18 @@
 
     .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
+    .phase-note {
+      border: 1px solid #dab36f;
+      background: #fff8e8;
+      color: var(--amber);
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .phase-note strong { color: var(--amber); }
+
     label { display: grid; gap: 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
     input, textarea, select {
       width: 100%;
@@ -385,42 +397,45 @@
       </nav>
 
       <section class="workspace">
-        <section class="page active" data-page-panel="setup">
+        <section class="page active" data-page-panel="setup" data-role="setup-page" data-phase="2.8-D">
           <div class="grid grid-2-1">
-            <section class="panel">
+            <section class="panel" data-role="local-session-context" data-phase="local-placeholder">
               <h2>Setup · Observation Context</h2>
-              <div class="panel-body">
-                <div class="field-grid">
-                  <label>Observer(s)<input value="" placeholder="Observer names" /></label>
-                  <label>Project ID<input value="" placeholder="JUST-YYYY-XXX" /></label>
-                  <label>PI Name<input value="" placeholder="PI" /></label>
-                  <label>Support / Operator<input value="" placeholder="Support astronomer" /></label>
-                  <label>Root Name<input value="justls" placeholder="root name" /></label>
-                  <label>Date Prefix<input value="AUTO" placeholder="AUTO" /></label>
-                  <label>Current Preset<input value="science_default" /></label>
-                  <label>Detector Profile<input value="default" /></label>
+              <div class="panel-body" data-role="local-session-context-body" data-phase="local-placeholder">
+                <div class="phase-note" data-role="setup-phase-boundary-note" data-phase="2.8-D">
+                  <strong>Phase 2.8-D:</strong> These session fields are local placeholders. Runtime instrument context is shown in the Setup Readiness panel injected by the status adapter.
                 </div>
-                <label style="margin-top: 10px;">Comment<textarea placeholder="Session note / observing comment"></textarea></label>
-                <div class="badge-row" style="margin-top: 10px;">
-                  <button class="btn" type="button">Clear</button>
-                  <button class="btn" type="button">Reload</button>
-                  <button class="btn primary" type="button">Apply</button>
-                  <button class="btn" type="button">Save</button>
+                <div class="field-grid" data-role="local-session-fields" data-phase="local-placeholder">
+                  <label data-role="session-field" data-field="observers" data-phase="local-placeholder">Observer(s)<input value="" placeholder="Observer names" data-role="session-input" data-field="observers" data-phase="local-placeholder" /></label>
+                  <label data-role="session-field" data-field="project_id" data-phase="local-placeholder">Project ID<input value="" placeholder="JUST-YYYY-XXX" data-role="session-input" data-field="project_id" data-phase="local-placeholder" /></label>
+                  <label data-role="session-field" data-field="pi_name" data-phase="local-placeholder">PI Name<input value="" placeholder="PI" data-role="session-input" data-field="pi_name" data-phase="local-placeholder" /></label>
+                  <label data-role="session-field" data-field="support_operator" data-phase="local-placeholder">Support / Operator<input value="" placeholder="Support astronomer" data-role="session-input" data-field="support_operator" data-phase="local-placeholder" /></label>
+                  <label data-role="session-field" data-field="root_name" data-phase="local-placeholder">Root Name<input value="justls" placeholder="root name" data-role="session-input" data-field="root_name" data-phase="local-placeholder" /></label>
+                  <label data-role="session-field" data-field="date_prefix" data-phase="local-placeholder">Date Prefix<input value="AUTO" placeholder="AUTO" data-role="session-input" data-field="date_prefix" data-phase="local-placeholder" /></label>
+                  <label data-role="session-snapshot-placeholder" data-field="current_preset" data-phase="runtime-summary-placeholder">Current Preset<input value="science_default" data-role="session-input" data-field="current_preset" data-phase="runtime-summary-placeholder" /></label>
+                  <label data-role="session-snapshot-placeholder" data-field="detector_profile" data-phase="runtime-summary-placeholder">Detector Profile<input value="default" data-role="session-input" data-field="detector_profile" data-phase="runtime-summary-placeholder" /></label>
+                </div>
+                <label style="margin-top: 10px;" data-role="session-field" data-field="comment" data-phase="local-placeholder">Comment<textarea placeholder="Session note / observing comment" data-role="session-input" data-field="comment" data-phase="local-placeholder"></textarea></label>
+                <div class="badge-row" style="margin-top: 10px;" data-role="local-session-actions" data-phase="not-wired">
+                  <button class="btn" type="button" data-role="placeholder-action" data-action="clear-session-form" data-phase="not-wired">Clear</button>
+                  <button class="btn" type="button" data-role="placeholder-action" data-action="reload-session-form" data-phase="not-wired">Reload</button>
+                  <button class="btn primary" type="button" data-role="placeholder-action" data-action="apply-session-form" data-phase="not-wired">Apply</button>
+                  <button class="btn" type="button" data-role="placeholder-action" data-action="save-session-form" data-phase="not-wired">Save</button>
                 </div>
               </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" data-role="data-product-context" data-phase="placeholder">
               <h2>Data Product Context</h2>
               <div class="panel-body">
-                <dl class="kv">
-                  <dt>Next Frame Token</dt><dd><code>AUTO-0001</code></dd>
-                  <dt>Last File</dt><dd><code>not available</code></dd>
-                  <dt>B Channel</dt><dd>science_b · placeholder</dd>
-                  <dt>G Channel</dt><dd>science_g · placeholder</dd>
-                  <dt>R Channel</dt><dd>science_r · placeholder</dd>
-                  <dt>Save Enabled</dt><dd>yes</dd>
-                  <dt>Data Directory</dt><dd><code>future backend binding</code></dd>
+                <dl class="kv" data-role="data-product-placeholder-list" data-phase="placeholder">
+                  <dt>Next Frame Token</dt><dd><code data-role="data-product-placeholder" data-field="next_frame_token" data-phase="placeholder">AUTO-0001</code></dd>
+                  <dt>Last File</dt><dd><code data-role="data-product-placeholder" data-field="last_file" data-phase="placeholder">not available</code></dd>
+                  <dt>B Channel</dt><dd data-role="data-product-placeholder" data-field="b_channel" data-phase="placeholder">science_b · placeholder</dd>
+                  <dt>G Channel</dt><dd data-role="data-product-placeholder" data-field="g_channel" data-phase="placeholder">science_g · placeholder</dd>
+                  <dt>R Channel</dt><dd data-role="data-product-placeholder" data-field="r_channel" data-phase="placeholder">science_r · placeholder</dd>
+                  <dt>Save Enabled</dt><dd data-role="data-product-placeholder" data-field="save_enabled" data-phase="placeholder">yes</dd>
+                  <dt>Data Directory</dt><dd><code data-role="data-product-placeholder" data-field="data_directory" data-phase="future-binding">future backend binding</code></dd>
                 </dl>
               </div>
             </section>

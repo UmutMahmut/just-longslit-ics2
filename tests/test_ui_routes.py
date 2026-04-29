@@ -156,3 +156,20 @@ def test_ui_v7_presets_binding_is_catalog_and_preview_only():
     assert "v7.presets.preview" in adapter.text
     assert "Apply not wired" in adapter.text
     assert "/api/v1/presets/apply" not in adapter.text
+
+
+def test_ui_v7_presets_static_area_is_marked_as_fallback_demo():
+    client = TestClient(app)
+
+    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+
+    assert adapter.status_code == 200
+    assert "markStaticPresetFallback" in adapter.text
+    assert "v7-static-presets-fallback" in adapter.text
+    assert "v7-static-presets-fallback-note" in adapter.text
+    assert "static-presets-fallback-grid" in adapter.text
+    assert "static-preset-list-fallback" in adapter.text
+    assert "static-preset-preview-fallback" in adapter.text
+    assert "static-apply-placeholder" in adapter.text
+    assert "fallback-demo" in adapter.text
+    assert "Runtime catalog/preview is shown in the Runtime Presets panel" in adapter.text

@@ -147,6 +147,24 @@ absence of retired helper names when relevant
 
 Do not rely only on visual inspection.
 
+### 11. Keep the remote working tree clean
+
+During Phase 2.8, the remote `main` branch may be the primary working surface before local testing catches up. That makes repository hygiene more important, not less important.
+
+Rules:
+
+- avoid temporary files on `main`;
+- avoid one-off scratch documents unless they become durable project records;
+- prefer updating existing Phase 2.8 documents over creating new ones;
+- when a temporary note has served its purpose, merge it into a durable document or remove it;
+- do not keep multiple documents that say the same thing with different wording;
+- before adding a new document, check whether it belongs in an existing `phase_2_8_*` document;
+- before adding a new adapter or route, check whether the existing adapter or route should be extended instead.
+
+A document is acceptable on `main` when it records a durable decision, acceptance criterion, parity inventory, or implementation constraint.
+
+A document is not acceptable on `main` when it is only a transient planning scratchpad that will not guide future work.
+
 ## Practical workflow for future Phase 2.8 tasks
 
 For each future Phase 2.8 coding step:
@@ -158,10 +176,11 @@ For each future Phase 2.8 coding step:
 4. Record any intentional feature deferral.
 5. Add or update a focused regression test.
 6. Report the Phase 2.8 progress status after the change.
+7. Remove, merge, or avoid temporary artifacts that have finished their job.
 ```
 
 ## Non-goals
 
-These guardrails do not prohibit new files or new abstractions. They prohibit unnecessary duplication and undocumented divergence.
+These guardrails do not prohibit new files or new abstractions. They prohibit unnecessary duplication, undocumented divergence, and avoidable remote clutter.
 
-New files are acceptable when they improve structure and have a clear role, such as the v7 status adapter or parity inventory documents.
+New files are acceptable when they improve structure and have a clear durable role, such as the v7 status adapter or parity inventory documents.

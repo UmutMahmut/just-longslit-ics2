@@ -47,7 +47,7 @@ def test_v6_route_available_and_uses_v5_operational_adapter():
     assert 'data-risk="high-impact-config"' in response.text
     assert "/ui-assets/v6/job_alignment.js" in response.text
     assert V5_ADAPTER_PATH in response.text
-    assert "phase2d6_command_runtime.js" in response.text
+    assert "/ui-assets/v6/command_runtime.js" in response.text
 
 
 def test_root_advertises_ui_v6():

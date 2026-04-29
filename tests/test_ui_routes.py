@@ -40,3 +40,18 @@ def test_ui_v7_operator_console_shell_is_available():
     assert "v7 Operator Console Prototype" in response.text
     assert "Live image region preserved" in response.text
     assert "Latest Exposure Preview" in response.text
+
+
+def test_ui_v7_status_binding_adapter_is_injected_and_served():
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    assert "/ui-assets/phase2d8_v7_status_binding.js" in response.text
+
+    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+
+    assert adapter.status_code == 200
+    assert "/api/v1/status/full" in adapter.text
+    assert "Latest Exposure Preview" not in adapter.text

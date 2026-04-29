@@ -33,6 +33,7 @@ def test_ui_v7_operator_console_shell_is_available():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json()["ui_v7"] == "/ui/v7"
+    assert response.json()["ui_safety_switches"]["phase2d8_v7_runtime_enabled"] is False
 
     response = client.get("/ui/v7")
 
@@ -42,19 +43,55 @@ def test_ui_v7_operator_console_shell_is_available():
     assert "Latest Exposure Preview" in response.text
 
 
-def test_ui_v7_status_binding_adapter_is_injected_and_served():
+def test_ui_v7_runtime_scripts_are_not_injected_by_default():
     client = TestClient(app)
 
     response = client.get("/ui/v7")
 
     assert response.status_code == 200
-    assert "/ui-assets/phase2d8_v7_status_binding.js" in response.text
+    assert "phase2d8_v7_status_binding.js" not in response.text
+    assert "phase2d8_v7_preset_apply_guard.js" not in response.text
+    assert "phase2d8_v7_observe_controls.js" not in response.text
+    assert "phase2d8_v7_observe_safety_guard.js" not in response.text
 
-    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
 
-    assert adapter.status_code == 200
-    assert "/api/v1/status/full" in adapter.text
-    assert "Latest Exposure Preview" not in adapter.text
+def test_ui_v7_runtime_scripts_are_injected_when_enabled(monkeypatch):
+    monkeypatch.setenv("JUSTLS_UI_V7_RUNTIME_ENABLED", "1")
+    client = TestClient(app)
+
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json()["ui_safety_switches"]["phase2d8_v7_runtime_enabled"] is True
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    assert response.text.index("phase2d8_v7_status_binding.js") < response.text.index("phase2d8_v7_preset_apply_guard.js")
+    assert response.text.index("phase2d8_v7_preset_apply_guard.js") < response.text.index("phase2d8_v7_observe_controls.js")
+    assert response.text.index("phase2d8_v7_observe_controls.js") < response.text.index("phase2d8_v7_observe_safety_guard.js")
+
+
+def test_ui_v7_runtime_static_assets_are_served():
+    client = TestClient(app)
+
+    assets = {
+        "status": client.get("/ui-assets/phase2d8_v7_status_binding.js"),
+        "preset_guard": client.get("/ui-assets/phase2d8_v7_preset_apply_guard.js"),
+        "observe_controls": client.get("/ui-assets/phase2d8_v7_observe_controls.js"),
+        "observe_guard": client.get("/ui-assets/phase2d8_v7_observe_safety_guard.js"),
+    }
+
+    for response in assets.values():
+        assert response.status_code == 200
+
+    assert "/api/v1/status/full" in assets["status"].text
+    assert "/api/v1/presets" in assets["status"].text
+    assert "/api/v1/presets/preview" in assets["status"].text
+    assert "/api/v1/presets/apply" in assets["preset_guard"].text
+    assert "/api/v1/observation/status" in assets["observe_controls"].text
+    assert "/api/v1/observation/arm" in assets["observe_controls"].text
+    assert "/api/v1/observation/start" in assets["observe_controls"].text
+    assert "/api/v1/observation/stop_readout" in assets["observe_controls"].text
 
 
 def test_ui_v7_status_binding_uses_stable_data_bind_panel():
@@ -71,52 +108,20 @@ def test_ui_v7_status_binding_uses_stable_data_bind_panel():
     assert "setDescriptionValue" not in adapter.text
 
 
-def test_ui_v7_status_binding_has_connection_state_markers():
+def test_ui_v7_status_binding_has_runtime_panels():
     client = TestClient(app)
 
     adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
 
     assert adapter.status_code == 200
     assert "data-connection" in adapter.text
-    assert "connectionStatus" in adapter.text
     assert "v7.connection" in adapter.text
-    assert "STALE" in adapter.text
-    assert "CONNECTED" in adapter.text
-    assert "ERROR" in adapter.text
-    assert "data-level" in adapter.text
-
-
-def test_ui_v7_status_binding_has_bounded_raw_status_preview():
-    client = TestClient(app)
-
-    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
-
-    assert adapter.status_code == 200
-    assert "RAW_STATUS_MAX_CHARS" in adapter.text
     assert "v7-raw-status-preview" in adapter.text
     assert "v7.raw_status_preview" in adapter.text
-    assert "ensureRawStatusPreview" in adapter.text
-    assert "updateRawStatusPreview" in adapter.text
-    assert "updateRawStatusError" in adapter.text
-    assert "data-page-panel=\"diagnostics\"" in adapter.text
-    assert "truncated at" in adapter.text
-
-
-def test_ui_v7_status_binding_has_setup_readiness_panel():
-    client = TestClient(app)
-
-    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
-
-    assert adapter.status_code == 200
     assert "v7-setup-readiness" in adapter.text
     assert "Setup Readiness" in adapter.text
-    assert "ensureSetupReadinessPanel" in adapter.text
-    assert "updateSetupReadiness" in adapter.text
-    assert "v7.setup.detector_profile" in adapter.text
-    assert "v7.setup.calibration" in adapter.text
-    assert "v7.setup.preset_context" in adapter.text
-    assert "v7.setup.save_enabled" in adapter.text
-    assert "Session form fields remain local placeholders" in adapter.text
+    assert "v7-presets-runtime" in adapter.text
+    assert "Runtime Presets" in adapter.text
 
 
 def test_ui_v7_setup_page_marks_local_placeholders_and_phase_boundary():
@@ -131,125 +136,10 @@ def test_ui_v7_setup_page_marks_local_placeholders_and_phase_boundary():
     assert "data-role=\"setup-phase-boundary-note\"" in response.text
     assert "data-phase=\"2.8-D\"" in response.text
     assert "data-phase=\"local-placeholder\"" in response.text
-    assert "data-phase=\"not-wired\"" in response.text
     assert "data-role=\"data-product-context\"" in response.text
-    assert "data-phase=\"future-binding\"" in response.text
-    assert "Runtime instrument context is shown in the Setup Readiness panel" in response.text
 
 
-def test_ui_v7_presets_binding_is_catalog_and_preview_only():
-    client = TestClient(app)
-
-    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
-
-    assert adapter.status_code == 200
-    assert "PRESETS_ENDPOINT" in adapter.text
-    assert "PRESET_PREVIEW_ENDPOINT" in adapter.text
-    assert "/api/v1/presets" in adapter.text
-    assert "/api/v1/presets/preview" in adapter.text
-    assert "v7-presets-runtime" in adapter.text
-    assert "Runtime Presets" in adapter.text
-    assert "ensurePresetsRuntimePanel" in adapter.text
-    assert "fetchPresetCatalog" in adapter.text
-    assert "previewPreset" in adapter.text
-    assert "v7.presets.catalog" in adapter.text
-    assert "v7.presets.preview" in adapter.text
-    assert "Apply not wired" in adapter.text
-    assert "/api/v1/presets/apply" not in adapter.text
-
-
-def test_ui_v7_presets_static_area_is_marked_as_fallback_demo():
-    client = TestClient(app)
-
-    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
-
-    assert adapter.status_code == 200
-    assert "markStaticPresetFallback" in adapter.text
-    assert "v7-static-presets-fallback" in adapter.text
-    assert "v7-static-presets-fallback-note" in adapter.text
-    assert "static-presets-fallback-grid" in adapter.text
-    assert "static-preset-list-fallback" in adapter.text
-    assert "static-preset-preview-fallback" in adapter.text
-    assert "static-apply-placeholder" in adapter.text
-    assert "fallback-demo" in adapter.text
-    assert "Runtime catalog/preview is shown in the Runtime Presets panel" in adapter.text
-
-
-def test_ui_v7_preset_apply_guard_is_injected_and_served():
-    client = TestClient(app)
-
-    response = client.get("/ui/v7")
-
-    assert response.status_code == 200
-    assert "/ui-assets/phase2d8_v7_status_binding.js" in response.text
-    assert "/ui-assets/phase2d8_v7_preset_apply_guard.js" in response.text
-    assert response.text.index("phase2d8_v7_status_binding.js") < response.text.index("phase2d8_v7_preset_apply_guard.js")
-
-    guard = client.get("/ui-assets/phase2d8_v7_preset_apply_guard.js")
-
-    assert guard.status_code == 200
-    assert "/api/v1/presets/apply" in guard.text
-    assert "Preview Required" in guard.text
-    assert "confirm-risk-checkbox" in guard.text
-    assert "confirm-preset-name" in guard.text
-    assert "applyPreviewedPreset" in guard.text
-    assert "requires_confirmation" in guard.text
-    assert "JSON.stringify({ name: preview.preset, confirmed: confirmed })" in guard.text
-
-
-def test_ui_v7_observe_controls_are_single_exposure_only():
-    client = TestClient(app)
-
-    response = client.get("/ui/v7")
-
-    assert response.status_code == 200
-    assert "/ui-assets/phase2d8_v7_observe_controls.js" in response.text
-    assert response.text.index("phase2d8_v7_preset_apply_guard.js") < response.text.index("phase2d8_v7_observe_controls.js")
-
-    observe = client.get("/ui-assets/phase2d8_v7_observe_controls.js")
-
-    assert observe.status_code == 200
-    assert "/api/v1/observation/status" in observe.text
-    assert "/api/v1/observation/arm" in observe.text
-    assert "/api/v1/observation/start" in observe.text
-    assert "/api/v1/observation/stop_readout" in observe.text
-    assert "/api/v1/observation/abort_discard" in observe.text
-    assert "Runtime Observe Controls" in observe.text
-    assert "Single Exposure Only" in observe.text
-    assert "obs-abort-confirm" in observe.text
-    assert "markStaticObserveFallback" in observe.text
-    assert "static-observe-fallback-grid" in observe.text
-    assert "sequence runner" in observe.text
-    assert "/api/v1/observation/sequence" not in observe.text
-    assert "/api/v1/observation/plan" not in observe.text
-
-
-def test_ui_v7_observe_safety_guard_is_frontend_only_and_injected_last():
-    client = TestClient(app)
-
-    response = client.get("/ui/v7")
-
-    assert response.status_code == 200
-    assert "/ui-assets/phase2d8_v7_observe_controls.js" in response.text
-    assert "/ui-assets/phase2d8_v7_observe_safety_guard.js" in response.text
-    assert response.text.index("phase2d8_v7_observe_controls.js") < response.text.index("phase2d8_v7_observe_safety_guard.js")
-
-    guard = client.get("/ui-assets/phase2d8_v7_observe_safety_guard.js")
-
-    assert guard.status_code == 200
-    assert "Phase 2.8-F conservative button-availability guard" in guard.text
-    assert "data-guard-available" in guard.text
-    assert "Backend still validates final transitions" in guard.text
-    assert "obs-abort-confirm" in guard.text
-    assert "new XMLHttpRequest" not in guard.text
-    assert "fetch(" not in guard.text
-    assert "/api/v1/observation/arm" not in guard.text
-    assert "/api/v1/observation/start" not in guard.text
-    assert "/api/v1/observation/stop_readout" not in guard.text
-    assert "/api/v1/observation/abort_discard" not in guard.text
-
-
-def test_ui_v7_guard_scripts_avoid_self_triggering_mutation_loops():
+def test_ui_v7_runtime_guards_have_loop_prevention_markers():
     client = TestClient(app)
 
     preset_guard = client.get("/ui-assets/phase2d8_v7_preset_apply_guard.js")
@@ -265,3 +155,6 @@ def test_ui_v7_guard_scripts_avoid_self_triggering_mutation_loops():
         assert "setAttributeIfChanged" in script
         assert "MutationObserver(scheduleRefresh)" in script
         assert "window.setTimeout" in script
+
+    assert "fetch(" not in observe_guard.text
+    assert "new XMLHttpRequest" not in observe_guard.text

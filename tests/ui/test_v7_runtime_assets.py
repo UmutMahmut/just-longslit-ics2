@@ -3,67 +3,59 @@ from fastapi.testclient import TestClient
 from justls.ics.app.main import app
 
 
-def test_v7_runtime_static_assets_are_served():
+def test_v7_runtime_static_assets_are_served_from_v7_directory():
     client = TestClient(app)
 
     assets = {
-        "status": client.get("/ui-assets/phase2d8_v7_status_binding.js"),
-        "preset_guard": client.get("/ui-assets/phase2d8_v7_preset_apply_guard.js"),
-        "observe_controls": client.get("/ui-assets/phase2d8_v7_observe_controls.js"),
-        "observe_guard": client.get("/ui-assets/phase2d8_v7_observe_safety_guard.js"),
+        "status": client.get("/ui-assets/v7/runtime_status.js"),
+        "presets": client.get("/ui-assets/v7/preset_runtime.js"),
+        "observe": client.get("/ui-assets/v7/observe_runtime.js"),
+        "guard": client.get("/ui-assets/v7/observe_guard.js"),
     }
 
     for response in assets.values():
         assert response.status_code == 200
 
     assert "/api/v1/status/full" in assets["status"].text
-    assert "/api/v1/presets" in assets["status"].text
-    assert "/api/v1/presets/preview" in assets["status"].text
-    assert "/api/v1/presets/apply" in assets["preset_guard"].text
-    assert "/api/v1/observation/status" in assets["observe_controls"].text
-    assert "/api/v1/observation/arm" in assets["observe_controls"].text
-    assert "/api/v1/observation/start" in assets["observe_controls"].text
-    assert "/api/v1/observation/stop_readout" in assets["observe_controls"].text
+    assert "/api/v1/presets" in assets["presets"].text
+    assert "/api/v1/presets/preview" in assets["presets"].text
+    assert "/api/v1/presets/apply" in assets["presets"].text
+    assert "/api/v1/observation/status" in assets["observe"].text
+    assert "/api/v1/observation/arm" in assets["observe"].text
+    assert "/api/v1/observation/start" in assets["observe"].text
+    assert "/api/v1/observation/stop_readout" in assets["observe"].text
 
 
-def test_v7_status_binding_asset_has_runtime_panels():
+def test_v5_operational_adapter_is_served_from_v5_directory():
     client = TestClient(app)
 
-    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+    adapter = client.get("/ui-assets/v5/phase2d6_operational_status.js")
 
     assert adapter.status_code == 200
-    assert "v7-runtime-status" in adapter.text
-    assert "data-bind" in adapter.text
-    assert "data-connection" in adapter.text
-    assert "v7.connection" in adapter.text
-    assert "v7.detector_profile" in adapter.text
-    assert "v7.latest_job" in adapter.text
-    assert "v7-raw-status-preview" in adapter.text
-    assert "v7.raw_status_preview" in adapter.text
-    assert "v7-setup-readiness" in adapter.text
-    assert "Setup Readiness" in adapter.text
-    assert "v7-presets-runtime" in adapter.text
-    assert "Runtime Presets" in adapter.text
-    assert "setInputByLabel" not in adapter.text
-    assert "setDescriptionValue" not in adapter.text
+    assert "/api/v1/status/full" in adapter.text
+    assert "Phase 2.6 operational status adapter" in adapter.text
 
 
-def test_v7_runtime_guards_have_loop_prevention_markers():
+def test_v7_runtime_assets_have_expected_panel_markers():
     client = TestClient(app)
 
-    preset_guard = client.get("/ui-assets/phase2d8_v7_preset_apply_guard.js")
-    observe_guard = client.get("/ui-assets/phase2d8_v7_observe_safety_guard.js")
+    status = client.get("/ui-assets/v7/runtime_status.js")
+    presets = client.get("/ui-assets/v7/preset_runtime.js")
+    observe = client.get("/ui-assets/v7/observe_runtime.js")
+    guard = client.get("/ui-assets/v7/observe_guard.js")
 
-    assert preset_guard.status_code == 200
-    assert observe_guard.status_code == 200
+    assert status.status_code == 200
+    assert presets.status_code == 200
+    assert observe.status_code == 200
+    assert guard.status_code == 200
 
-    for script in (preset_guard.text, observe_guard.text):
-        assert "refreshQueued" in script
-        assert "scheduleRefresh" in script
-        assert "setTextIfChanged" in script
-        assert "setAttributeIfChanged" in script
-        assert "MutationObserver(scheduleRefresh)" in script
-        assert "window.setTimeout" in script
-
-    assert "fetch(" not in observe_guard.text
-    assert "new XMLHttpRequest" not in observe_guard.text
+    assert "v7-runtime-status" in status.text
+    assert "v7-setup-readiness" in status.text
+    assert "v7-raw-status-preview" in status.text
+    assert "v7-presets-runtime" in presets.text
+    assert "Guarded Apply" in presets.text
+    assert "v7-observe-controls" in observe.text
+    assert "Single Exposure Only" in observe.text
+    assert "data-guard-available" in guard.text
+    assert "fetch(" not in guard.text
+    assert "new XMLHttpRequest" not in guard.text

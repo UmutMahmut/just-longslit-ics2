@@ -103,6 +103,7 @@ UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
 UI_V7_ENTRY = UI_DIR / "ui_operational_v7.html"
 UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
 UI_PHASE_2D8_V7_ADAPTER = "/ui-assets/phase2d8_v7_status_binding.js"
+UI_PHASE_2D8_V7_PRESET_APPLY_GUARD = "/ui-assets/phase2d8_v7_preset_apply_guard.js"
 
 PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
 PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
@@ -207,4 +208,10 @@ def read_ui_v6():
 def read_ui_v7():
     if not phase_2d8_v7_enabled():
         raise HTTPException(status_code=404, detail="Operational UI v7 is disabled.")
-    return serve_html(UI_V7_ENTRY, extra_scripts=(UI_PHASE_2D8_V7_ADAPTER,))
+    return serve_html(
+        UI_V7_ENTRY,
+        extra_scripts=(
+            UI_PHASE_2D8_V7_ADAPTER,
+            UI_PHASE_2D8_V7_PRESET_APPLY_GUARD,
+        ),
+    )

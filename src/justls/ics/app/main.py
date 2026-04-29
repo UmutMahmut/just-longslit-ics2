@@ -110,6 +110,7 @@ UI_PHASE_2D8_V7_OBSERVE_SAFETY_GUARD = "/ui-assets/phase2d8_v7_observe_safety_gu
 PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
 PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
 PHASE_2D8_V7_ENABLED_ENV = "JUSTLS_UI_V7_ENABLED"
+PHASE_2D8_V7_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_RUNTIME_ENABLED"
 
 if UI_DIR.exists():
     app.mount("/ui-assets", StaticFiles(directory=UI_DIR), name="ui-assets")
@@ -118,9 +119,8 @@ if UI_DIR.exists():
 def env_flag(name: str, *, default: bool = True) -> bool:
     """Read a simple boolean environment flag.
 
-    The default remains enabled so normal local development keeps the Phase 2.6
-    review UI visible. Operators can set the variable to 0/false/no/off to
-    disable the feature without reverting code.
+    Operators can set the variable to 0/false/no/off to disable the feature, or
+    1/true/yes/on to enable it.
     """
     raw = os.getenv(name)
     if raw is None:
@@ -138,6 +138,23 @@ def phase_2d6_v6_enabled() -> bool:
 
 def phase_2d8_v7_enabled() -> bool:
     return env_flag(PHASE_2D8_V7_ENABLED_ENV, default=True)
+
+
+def phase_2d8_v7_runtime_enabled() -> bool:
+    # Keep the v7 static shell safe by default. The Phase 2.8 runtime add-ons
+    # can be enabled explicitly during targeted debugging/local testing.
+    return env_flag(PHASE_2D8_V7_RUNTIME_ENABLED_ENV, default=False)
+
+
+def phase_2d8_v7_runtime_scripts() -> tuple[str, ...]:
+    if not phase_2d8_v7_runtime_enabled():
+        return ()
+    return (
+        UI_PHASE_2D8_V7_ADAPTER,
+        UI_PHASE_2D8_V7_PRESET_APPLY_GUARD,
+        UI_PHASE_2D8_V7_OBSERVE_CONTROLS,
+        UI_PHASE_2D8_V7_OBSERVE_SAFETY_GUARD,
+    )
 
 
 def inject_script_tag(html: str, script_src: str) -> str:
@@ -190,6 +207,7 @@ def read_root() -> dict:
             "phase2d6_v5_adapter_enabled": phase_2d6_v5_adapter_enabled(),
             "phase2d6_v6_enabled": phase_2d6_v6_enabled(),
             "phase2d8_v7_enabled": phase_2d8_v7_enabled(),
+            "phase2d8_v7_runtime_enabled": phase_2d8_v7_runtime_enabled(),
         },
     }
 
@@ -210,12 +228,4 @@ def read_ui_v6():
 def read_ui_v7():
     if not phase_2d8_v7_enabled():
         raise HTTPException(status_code=404, detail="Operational UI v7 is disabled.")
-    return serve_html(
-        UI_V7_ENTRY,
-        extra_scripts=(
-            UI_PHASE_2D8_V7_ADAPTER,
-            UI_PHASE_2D8_V7_PRESET_APPLY_GUARD,
-            UI_PHASE_2D8_V7_OBSERVE_CONTROLS,
-            UI_PHASE_2D8_V7_OBSERVE_SAFETY_GUARD,
-        ),
-    )
+    return serve_html(UI_V7_ENTRY, extra_scripts=phase_2d8_v7_runtime_scripts())

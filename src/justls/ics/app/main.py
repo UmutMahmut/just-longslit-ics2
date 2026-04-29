@@ -105,6 +105,7 @@ UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
 UI_PHASE_2D8_V7_ADAPTER = "/ui-assets/phase2d8_v7_status_binding.js"
 UI_PHASE_2D8_V7_PRESET_APPLY_GUARD = "/ui-assets/phase2d8_v7_preset_apply_guard.js"
 UI_PHASE_2D8_V7_OBSERVE_CONTROLS = "/ui-assets/phase2d8_v7_observe_controls.js"
+UI_PHASE_2D8_V7_OBSERVE_SAFETY_GUARD = "/ui-assets/phase2d8_v7_observe_safety_guard.js"
 
 PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
 PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
@@ -215,5 +216,6 @@ def read_ui_v7():
             UI_PHASE_2D8_V7_ADAPTER,
             UI_PHASE_2D8_V7_PRESET_APPLY_GUARD,
             UI_PHASE_2D8_V7_OBSERVE_CONTROLS,
+            UI_PHASE_2D8_V7_OBSERVE_SAFETY_GUARD,
         ),
     )

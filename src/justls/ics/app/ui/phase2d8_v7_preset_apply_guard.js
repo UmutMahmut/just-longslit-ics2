@@ -17,6 +17,7 @@
   const state = {
     preview: null,
     applying: false,
+    refreshQueued: false,
   };
 
   function text(value, fallback) {
@@ -28,14 +29,40 @@
     return document.getElementById("v7-presets-runtime");
   }
 
+  function setTextIfChanged(node, value) {
+    const next = text(value, "");
+    if (node && node.textContent !== next) {
+      node.textContent = next;
+    }
+  }
+
+  function setAttributeIfChanged(node, name, value) {
+    const next = text(value, "");
+    if (node && node.getAttribute(name) !== next) {
+      node.setAttribute(name, next);
+    }
+  }
+
+  function setHiddenIfChanged(node, hidden) {
+    if (node && node.hidden !== hidden) {
+      node.hidden = hidden;
+    }
+  }
+
+  function setDisabledIfChanged(button, disabled) {
+    if (button && button.disabled !== disabled) {
+      button.disabled = disabled;
+    }
+  }
+
   function setPresetStatus(message) {
     const status = document.querySelector(STATUS_BIND_SELECTOR);
-    if (status) status.textContent = message;
+    setTextIfChanged(status, message);
   }
 
   function updateRail(message) {
     const railBody = document.querySelector(".rail span");
-    if (railBody) railBody.textContent = message;
+    setTextIfChanged(railBody, message);
   }
 
   function addStyles() {
@@ -163,8 +190,8 @@
 
     panel.querySelector('[data-action="apply-previewed-preset"]').addEventListener("click", applyPreviewedPreset);
     panel.querySelectorAll('[data-role="confirm-risk-checkbox"], [data-role="confirm-preset-name"]').forEach((node) => {
-      node.addEventListener("input", refreshGuardPanel);
-      node.addEventListener("change", refreshGuardPanel);
+      node.addEventListener("input", scheduleRefresh);
+      node.addEventListener("change", scheduleRefresh);
     });
 
     return panel;
@@ -174,7 +201,7 @@
     const panel = ensureGuardPanel();
     if (!panel) return;
     const node = panel.querySelector(`[data-bind="${bindName}"]`);
-    if (node) node.textContent = text(value, "unknown");
+    setTextIfChanged(node, text(value, "unknown"));
   }
 
   function parsePreviewPayload() {
@@ -203,6 +230,8 @@
   }
 
   function refreshGuardPanel() {
+    state.refreshQueued = false;
+
     const panel = ensureGuardPanel();
     if (!panel) return;
 
@@ -221,28 +250,34 @@
     setGuardText("v7.presets.apply_guard.blocked", preview ? (blocked ? text(preview.blocked_reason, "blocked") : "no") : "unknown");
 
     const confirmBlock = panel.querySelector('[data-role="high-risk-confirmation"]');
-    if (confirmBlock) confirmBlock.hidden = !requiresConfirmation;
+    setHiddenIfChanged(confirmBlock, !requiresConfirmation);
 
     const button = panel.querySelector('[data-action="apply-previewed-preset"]');
     if (button) {
-      button.disabled = !ready || state.applying;
-      button.textContent = state.applying ? "Applying..." : "Apply Previewed Preset";
-      button.setAttribute("data-ready", ready ? "true" : "false");
+      setDisabledIfChanged(button, !ready || state.applying);
+      setTextIfChanged(button, state.applying ? "Applying..." : "Apply Previewed Preset");
+      setAttributeIfChanged(button, "data-ready", ready ? "true" : "false");
     }
 
-    panel.setAttribute("data-ready", ready ? "true" : "false");
+    setAttributeIfChanged(panel, "data-ready", ready ? "true" : "false");
+  }
+
+  function scheduleRefresh() {
+    if (state.refreshQueued) return;
+    state.refreshQueued = true;
+    window.setTimeout(refreshGuardPanel, 0);
   }
 
   async function applyPreviewedPreset() {
     const panel = ensureGuardPanel();
     const preview = state.preview || parsePreviewPayload();
     if (!panel || !preview || !preview.preset || preview.blocked) {
-      refreshGuardPanel();
+      scheduleRefresh();
       return;
     }
 
     if (!currentConfirmationState(panel, preview)) {
-      refreshGuardPanel();
+      scheduleRefresh();
       return;
     }
 
@@ -250,9 +285,9 @@
     const resultNode = panel.querySelector('[data-bind="v7.presets.apply_result"]');
 
     state.applying = true;
-    refreshGuardPanel();
+    scheduleRefresh();
     setPresetStatus(`applying ${preview.preset} via ${PRESET_APPLY_ENDPOINT}...`);
-    if (resultNode) resultNode.textContent = "sending guarded apply request...";
+    setTextIfChanged(resultNode, "sending guarded apply request...");
 
     try {
       const response = await fetch(PRESET_APPLY_ENDPOINT, {
@@ -266,25 +301,25 @@
         body: JSON.stringify({ name: preview.preset, confirmed: confirmed }),
       });
       const payload = await response.json();
-      if (resultNode) resultNode.textContent = JSON.stringify(payload, null, 2);
+      setTextIfChanged(resultNode, JSON.stringify(payload, null, 2));
       setPresetStatus(response.ok ? `apply completed for ${preview.preset}` : `ERROR · apply HTTP ${response.status}`);
       updateRail(response.ok ? `Preset apply completed: ${preview.preset}.` : `Preset apply failed: ${preview.preset}.`);
     } catch (error) {
       const payload = { error: text(error && error.message, "preset apply failed"), preset: preview.preset };
-      if (resultNode) resultNode.textContent = JSON.stringify(payload, null, 2);
+      setTextIfChanged(resultNode, JSON.stringify(payload, null, 2));
       setPresetStatus(`ERROR · ${payload.error}`);
       updateRail(`Preset apply failed: ${preview.preset}.`);
     } finally {
       state.applying = false;
-      refreshGuardPanel();
+      scheduleRefresh();
     }
   }
 
   function start() {
     ensureGuardPanel();
-    refreshGuardPanel();
+    scheduleRefresh();
 
-    const observer = new MutationObserver(refreshGuardPanel);
+    const observer = new MutationObserver(scheduleRefresh);
     const host = runtimePanel() || document.body;
     observer.observe(host, { childList: true, subtree: true, characterData: true });
   }

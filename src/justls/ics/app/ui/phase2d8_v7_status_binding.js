@@ -1,4 +1,4 @@
-// Phase 2.8-C v7 status binding adapter.
+// Phase 2.8-C/D v7 status and setup binding adapter.
 // Scope:
 //   - bind the v7 operator console prototype to /api/v1/status/full;
 //   - keep the default /ui and /ui/v6 untouched;
@@ -6,8 +6,8 @@
 //   - preserve the live image preview area as a placeholder until a future
 //     image/quicklook/data-watcher backend is intentionally added.
 //
-// Phase 2.8-C cleanup note:
-//   This adapter owns a compact runtime status panel with explicit data-bind
+// Cleanup note:
+//   This adapter owns compact runtime/setup panels with explicit data-bind
 //   markers. It intentionally avoids binding by visible label text, so UI copy
 //   changes in the static shell do not silently break status updates.
 
@@ -132,6 +132,17 @@
         color: #a93333;
         font-weight: 700;
       }
+      .v7-setup-readiness {
+        margin-bottom: 12px;
+      }
+      .v7-setup-readiness .hint {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      .v7-setup-readiness code {
+        font-family: var(--mono);
+      }
       .v7-raw-status-preview {
         margin-top: 12px;
       }
@@ -182,6 +193,25 @@
     return cell;
   }
 
+  function kvRow(label, bindName, initialValue) {
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+
+    const dd = document.createElement("dd");
+    const valueNode = document.createElement("code");
+    valueNode.setAttribute("data-bind", bindName);
+    valueNode.textContent = initialValue;
+    dd.appendChild(valueNode);
+
+    return [dt, dd];
+  }
+
+  function appendKvRow(list, label, bindName, initialValue) {
+    const row = kvRow(label, bindName, initialValue);
+    list.appendChild(row[0]);
+    list.appendChild(row[1]);
+  }
+
   function ensureRuntimePanel() {
     const existing = document.getElementById("v7-runtime-status");
     if (existing) return existing;
@@ -221,6 +251,52 @@
     } else {
       document.body.appendChild(panel);
     }
+
+    return panel;
+  }
+
+  function ensureSetupReadinessPanel() {
+    const existing = document.getElementById("v7-setup-readiness");
+    if (existing) return existing;
+
+    addRuntimePanelStyles();
+
+    const setupPage = document.querySelector('[data-page-panel="setup"]');
+    if (!setupPage) return null;
+
+    const panel = document.createElement("section");
+    panel.id = "v7-setup-readiness";
+    panel.className = "panel v7-setup-readiness";
+    panel.setAttribute("aria-label", "v7 setup readiness summary");
+
+    const title = document.createElement("h2");
+    title.textContent = "Setup Readiness · Current Instrument Context";
+
+    const body = document.createElement("div");
+    body.className = "panel-body";
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "Read-only summary from /api/v1/status/full. Session form fields remain local placeholders in Phase 2.8-D.";
+
+    const list = document.createElement("dl");
+    list.className = "kv";
+    appendKvRow(list, "Connection", "v7.setup.connection", "connecting");
+    appendKvRow(list, "Run Mode", "v7.setup.run_mode", "unknown");
+    appendKvRow(list, "Operational", "v7.setup.operational", "unknown");
+    appendKvRow(list, "Observation State", "v7.setup.observation_state", "unknown");
+    appendKvRow(list, "Detector Profile", "v7.setup.detector_profile", "unknown");
+    appendKvRow(list, "Calibration", "v7.setup.calibration", "unknown");
+    appendKvRow(list, "Preset Context", "v7.setup.preset_context", "not linked");
+    appendKvRow(list, "Save Enabled", "v7.setup.save_enabled", "unknown");
+    appendKvRow(list, "Latest Job", "v7.setup.latest_job", "not available");
+    appendKvRow(list, "Request ID", "v7.setup.request_id", "not available");
+
+    body.appendChild(hint);
+    body.appendChild(list);
+    panel.appendChild(title);
+    panel.appendChild(body);
+    setupPage.insertBefore(panel, setupPage.firstChild);
 
     return panel;
   }
@@ -328,6 +404,20 @@
     return data && data.detector_config && data.detector_config.profile_name;
   }
 
+  function saveEnabledLabel(data) {
+    const detectorConfig = data && data.detector_config;
+    if (detectorConfig && detectorConfig.save_enabled !== undefined) {
+      return detectorConfig.save_enabled ? "yes" : "no";
+    }
+
+    const observation = data && data.observation;
+    if (observation && observation.save_enabled !== undefined) {
+      return observation.save_enabled ? "yes" : "no";
+    }
+
+    return "unknown";
+  }
+
   function calibrationLabel(data) {
     const calibration = data && data.calibration;
     if (!calibration) return "not available";
@@ -375,6 +465,37 @@
     railBody.textContent = message;
   }
 
+  function updateSetupReadiness(data, connection) {
+    ensureSetupReadinessPanel();
+
+    const observation = data && data.observation;
+    const runMode = data && data.run_mode;
+    const operational = operationalLabel(data);
+    const exposureState = observation && observation.state;
+    const detector = detectorProfile(data) || "not available";
+    const calibration = calibrationLabel(data);
+    const preset = presetLabel(data);
+    const latestJob = latestJobLabel(data);
+    const saveEnabled = saveEnabledLabel(data);
+
+    setBoundText("v7.setup.connection", connection && connection.label, "unknown");
+    setBoundText("v7.setup.run_mode", runMode, "unknown");
+    setBoundText("v7.setup.operational", operational, "unknown");
+    setBoundText("v7.setup.observation_state", exposureState, "unknown");
+    setBoundText("v7.setup.detector_profile", detector, "not available");
+    setBoundText("v7.setup.calibration", calibration, "not available");
+    setBoundText("v7.setup.preset_context", preset, "not linked");
+    setBoundText("v7.setup.save_enabled", saveEnabled, "unknown");
+    setBoundText("v7.setup.latest_job", latestJob, "not available");
+    setBoundText("v7.setup.request_id", state.lastRequestId, "not available");
+  }
+
+  function updateSetupReadinessError(connection) {
+    ensureSetupReadinessPanel();
+    setBoundText("v7.setup.connection", connection && connection.label, "error");
+    setBoundText("v7.setup.request_id", state.lastRequestId, "not available");
+  }
+
   function bindStatus(data) {
     ensureRuntimePanel();
 
@@ -409,6 +530,7 @@
     setBoundText("v7.last_error", lastError, "none");
     setBoundText("v7.status_source", STATUS_ENDPOINT, STATUS_ENDPOINT);
     setBoundText("v7.last_ok", formatClock(new Date(state.lastOkAt)), "not yet");
+    updateSetupReadiness(data, connection);
     updateRawStatusPreview(data);
 
     const exposureTime = exposure.exp_time_s !== undefined ? `${exposure.exp_time_s} s` : "not armed";
@@ -424,6 +546,7 @@
       node.setAttribute("data-level", connection.level);
     });
     setBoundText("v7.request_id", state.lastRequestId, "not available");
+    updateSetupReadinessError(connection);
     updateRawStatusError(detail);
     updateRail(connection.label);
   }
@@ -455,6 +578,7 @@
 
   function startPolling() {
     ensureRuntimePanel();
+    ensureSetupReadinessPanel();
     ensureRawStatusPreview();
 
     if (state.pollTimer) {

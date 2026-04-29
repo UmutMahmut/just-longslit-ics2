@@ -55,3 +55,17 @@ def test_ui_v7_status_binding_adapter_is_injected_and_served():
     assert adapter.status_code == 200
     assert "/api/v1/status/full" in adapter.text
     assert "Latest Exposure Preview" not in adapter.text
+
+
+def test_ui_v7_status_binding_uses_stable_data_bind_panel():
+    client = TestClient(app)
+
+    adapter = client.get("/ui-assets/phase2d8_v7_status_binding.js")
+
+    assert adapter.status_code == 200
+    assert "v7-runtime-status" in adapter.text
+    assert "data-bind" in adapter.text
+    assert "v7.detector_profile" in adapter.text
+    assert "v7.latest_job" in adapter.text
+    assert "setInputByLabel" not in adapter.text
+    assert "setDescriptionValue" not in adapter.text

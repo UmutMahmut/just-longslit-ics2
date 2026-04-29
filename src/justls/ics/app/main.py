@@ -100,10 +100,12 @@ app.include_router(presets_router)
 UI_DIR = Path(__file__).resolve().parent / "ui"
 UI_ENTRY = UI_DIR / "ui_alpha_skeleton_v5.html"
 UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
+UI_V7_ENTRY = UI_DIR / "ui_operational_v7.html"
 UI_PHASE_2D6_ADAPTER = "/ui-assets/phase2d6_operational_status.js"
 
 PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
 PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
+PHASE_2D8_V7_ENABLED_ENV = "JUSTLS_UI_V7_ENABLED"
 
 if UI_DIR.exists():
     app.mount("/ui-assets", StaticFiles(directory=UI_DIR), name="ui-assets")
@@ -128,6 +130,10 @@ def phase_2d6_v5_adapter_enabled() -> bool:
 
 def phase_2d6_v6_enabled() -> bool:
     return env_flag(PHASE_2D6_V6_ENABLED_ENV, default=True)
+
+
+def phase_2d8_v7_enabled() -> bool:
+    return env_flag(PHASE_2D8_V7_ENABLED_ENV, default=True)
 
 
 def inject_phase_2d6_ui_adapter(html: str) -> str:
@@ -164,9 +170,11 @@ def read_root() -> dict:
         "openapi": "/openapi.json",
         "ui": "/ui" if UI_ENTRY.exists() else None,
         "ui_v6": "/ui/v6" if UI_V6_ENTRY.exists() and phase_2d6_v6_enabled() else None,
+        "ui_v7": "/ui/v7" if UI_V7_ENTRY.exists() and phase_2d8_v7_enabled() else None,
         "ui_safety_switches": {
             "phase2d6_v5_adapter_enabled": phase_2d6_v5_adapter_enabled(),
             "phase2d6_v6_enabled": phase_2d6_v6_enabled(),
+            "phase2d8_v7_enabled": phase_2d8_v7_enabled(),
         },
     }
 
@@ -181,3 +189,10 @@ def read_ui_v6():
     if not phase_2d6_v6_enabled():
         raise HTTPException(status_code=404, detail="Operational UI v6 is disabled.")
     return serve_html(UI_V6_ENTRY)
+
+
+@app.get("/ui/v7", include_in_schema=False)
+def read_ui_v7():
+    if not phase_2d8_v7_enabled():
+        raise HTTPException(status_code=404, detail="Operational UI v7 is disabled.")
+    return serve_html(UI_V7_ENTRY)

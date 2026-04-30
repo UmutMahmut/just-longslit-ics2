@@ -4,6 +4,16 @@
 (function () {
   "use strict";
 
+  const GLOBAL_KEY = "__JUSTLS_V7_OBSERVE_GUARD__";
+
+  const runtime = window[GLOBAL_KEY] || {
+    started: false,
+    observer: null,
+    retryTimer: null,
+    lastAllowed: null,
+  };
+  window[GLOBAL_KEY] = runtime;
+
   function text(value, fallback) {
     if (value === null || value === undefined || value === "") return fallback;
     return String(value);
@@ -52,18 +62,43 @@
       setDisabled(button, !finalAllowed);
       if (button) button.setAttribute("data-guard-available", finalAllowed ? "true" : "false");
     });
+    runtime.lastAllowed = rules;
+  }
+
+  function bindCheckbox(host) {
+    const checkbox = host.querySelector('[data-role="obs-abort-confirm"]');
+    if (!checkbox || checkbox.dataset.guardBound) return;
+    checkbox.dataset.guardBound = "true";
+    checkbox.addEventListener("change", refresh);
   }
 
   function start() {
     const host = panel();
     if (!host) {
-      window.setTimeout(start, 250);
+      if (!runtime.retryTimer) {
+        runtime.retryTimer = window.setTimeout(() => {
+          runtime.retryTimer = null;
+          start();
+        }, 250);
+      }
       return;
     }
-    const checkbox = host.querySelector('[data-role="obs-abort-confirm"]');
-    if (checkbox) checkbox.addEventListener("change", refresh);
-    const observer = new MutationObserver(() => window.setTimeout(refresh, 0));
-    observer.observe(host, { childList: true, subtree: true, characterData: true });
+
+    bindCheckbox(host);
+
+    if (runtime.started) {
+      refresh();
+      return;
+    }
+
+    runtime.started = true;
+    window.addEventListener("justls:v7-observe-state", refresh);
+
+    // Keep a narrow observer as a fallback for skeleton replacement only. The
+    // observe runtime dispatches justls:v7-observe-state after status updates,
+    // so this observer should not be the primary state propagation path.
+    runtime.observer = new MutationObserver(() => window.setTimeout(refresh, 0));
+    runtime.observer.observe(host, { childList: true, subtree: false });
     refresh();
   }
 

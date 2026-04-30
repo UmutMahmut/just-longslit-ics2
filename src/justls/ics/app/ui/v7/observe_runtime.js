@@ -49,7 +49,7 @@
     panel.setAttribute("data-origin", "runtime-created-observe-skeleton");
     panel.setAttribute("data-phase", "2.8-runtime-opt-in");
     panel.innerHTML = `
-      <h2>Observe · Single Exposure Control</h2>
+      <h2>Observe · Single Exposure Control · Single Exposure Only</h2>
       <div class="panel-body grid">
         <div class="field-grid">
           <label>Exposure Time (s)<input type="number" min="0.001" step="0.001" value="30" data-role="obs-exp-time" /></label>

@@ -43,19 +43,17 @@
     return document.querySelector('[data-page-panel="presets"]');
   }
 
-  function ensurePanel() {
-    let panel = document.getElementById("v7-presets-runtime");
-    if (panel) return panel;
-
+  function createFallbackPanel() {
     const host = page();
     if (!host) return null;
 
-    panel = document.createElement("section");
+    const panel = document.createElement("section");
     panel.id = "v7-presets-runtime";
     panel.className = "panel";
+    panel.setAttribute("data-role", "v7-presets-panel");
     panel.setAttribute("data-phase", "2.8-runtime-opt-in");
     panel.innerHTML = `
-      <h2>Runtime Presets · Catalog / Preview / Guarded Apply</h2>
+      <h2>Presets · Catalog / Preview / Guarded Apply</h2>
       <div class="panel-body">
         <div class="badge demo" data-bind="v7.presets.status">loading preset catalog...</div>
         <dl class="kv">
@@ -78,7 +76,10 @@
         <pre data-bind="v7.presets.apply_result">No apply request sent.</pre>
       </div>`;
     host.insertBefore(panel, host.firstChild);
+    return panel;
+  }
 
+  function bindPanelEvents(panel) {
     const applyButton = panel.querySelector('[data-action="apply-previewed-preset"]');
     if (applyButton && !applyButton.dataset.bound) {
       applyButton.dataset.bound = "true";
@@ -91,7 +92,19 @@
       node.addEventListener("input", refreshApplyGuard);
       node.addEventListener("change", refreshApplyGuard);
     });
+  }
+
+  function enhancePanel(panel) {
+    panel.setAttribute("data-runtime", "enabled");
+    panel.setAttribute("data-phase", "2.8-runtime-opt-in");
+    bindPanelEvents(panel);
     return panel;
+  }
+
+  function ensurePanel() {
+    const existing = document.getElementById("v7-presets-runtime");
+    const panel = existing || createFallbackPanel();
+    return panel ? enhancePanel(panel) : null;
   }
 
   function bind(name) {

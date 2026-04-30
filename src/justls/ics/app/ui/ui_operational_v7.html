@@ -490,37 +490,35 @@
         </section>
 
         <section class="page" data-page-panel="presets">
-          <div class="grid grid-2">
-            <section class="panel">
-              <h2>Preset List</h2>
-              <div class="panel-body">
-                <table class="table">
-                  <thead><tr><th>Name</th><th>Category</th><th>Risk</th><th>Confirm</th></tr></thead>
-                  <tbody>
-                    <tr><td><code>science_default</code></td><td>science</td><td>low</td><td>no</td></tr>
-                    <tr><td><code>calib_flat_default</code></td><td>calibration</td><td>high</td><td>yes</td></tr>
-                    <tr><td><code>rgb_safe_default</code></td><td>detector</td><td>low</td><td>no</td></tr>
-                    <tr><td><code>engineering_all_channels_off</code></td><td>engineering</td><td>high</td><td>yes</td></tr>
-                  </tbody>
-                </table>
+          <section class="panel" id="v7-presets-runtime" data-role="v7-presets-panel" data-phase="static-fallback">
+            <h2>Presets · Catalog / Preview / Guarded Apply</h2>
+            <div class="panel-body grid">
+              <div class="badge demo" data-bind="v7.presets.status">Static fallback · preset runtime not enabled</div>
+              <dl class="kv">
+                <dt>Catalog Loaded</dt><dd><code data-bind="v7.presets.catalog_loaded_at">not loaded</code></dd>
+                <dt>Runtime State</dt><dd><code data-bind="v7.presets.runtime_state">static fallback</code></dd>
+                <dt>Last Error</dt><dd><code data-bind="v7.presets.last_error">none</code></dd>
+              </dl>
+              <table class="table">
+                <thead><tr><th>Name</th><th>Category</th><th>Risk</th><th>Confirm</th><th>Action</th></tr></thead>
+                <tbody data-bind="v7.presets.catalog">
+                  <tr data-phase="static-fallback"><td><code>science_default</code></td><td>science</td><td>normal</td><td>no</td><td><button class="btn" type="button" disabled>Preview</button></td></tr>
+                  <tr data-phase="static-fallback"><td><code>rgb_safe_default</code></td><td>science</td><td>normal</td><td>no</td><td><button class="btn" type="button" disabled>Preview</button></td></tr>
+                  <tr data-phase="static-fallback"><td><code>engineering_all_channels_off</code></td><td>engineering</td><td>engineering</td><td>yes</td><td><button class="btn" type="button" disabled>Preview</button></td></tr>
+                  <tr data-phase="static-fallback"><td><code>calib_flat_default</code></td><td>calibration</td><td>high_impact</td><td>yes</td><td><button class="btn" type="button" disabled>Preview</button></td></tr>
+                </tbody>
+              </table>
+              <h3>Preview Result</h3>
+              <pre data-bind="v7.presets.preview">Select Preview for a preset. Runtime preset binding is opt-in.</pre>
+              <h3>Guarded Apply</h3>
+              <div data-role="v7-preset-confirmation" hidden>
+                <label><input type="checkbox" data-role="confirm-risk-checkbox" /> I understand this preset requires confirmation.</label>
+                <input data-role="confirm-preset-name" placeholder="Type exact preset name" />
               </div>
-            </section>
-            <section class="panel">
-              <h2>Preview / Apply</h2>
-              <div class="panel-body grid">
-                <dl class="kv">
-                  <dt>Preview</dt><dd>detector / calibration / slit diff placeholder</dd>
-                  <dt>Blocked</dt><dd><code>false</code></dd>
-                  <dt>Apply Result</dt><dd><code>not available</code></dd>
-                  <dt>Job ID</dt><dd><code>not available</code></dd>
-                </dl>
-                <div class="badge-row">
-                  <button class="btn" type="button">Preview</button>
-                  <button class="btn primary" type="button">Apply</button>
-                </div>
-              </div>
-            </section>
-          </div>
+              <button class="btn primary" type="button" data-action="apply-previewed-preset" disabled>Apply Previewed Preset</button>
+              <pre data-bind="v7.presets.apply_result">No apply request sent.</pre>
+            </div>
+          </section>
         </section>
 
         <section class="page" data-page-panel="diagnostics">

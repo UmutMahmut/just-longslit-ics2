@@ -48,13 +48,22 @@ src/justls/ics/app/ui/
     observe_guard.js
 ```
 
-The v7 runtime assets are injected only when:
+The default `/ui/v7` page must remain static and clickable without runtime add-ons.
+
+The v7 runtime master gate is:
 
 ```text
 JUSTLS_UI_V7_RUNTIME_ENABLED=1
 ```
 
-The default `/ui/v7` page must remain static and clickable without runtime add-ons.
+Module-level v7 runtime gates are:
+
+```text
+JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED=1   # defaults on only when the master gate is enabled
+JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED=1   # opt-in
+JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED=1  # opt-in
+JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED=1    # opt-in
+```
 
 ## Revised Phase 2.8 roadmap
 
@@ -66,28 +75,58 @@ Phase 2.8-B v7 static shell
   DONE
 
 Phase 2.8-C v7 runtime status prototype
-  OPT-IN PROTOTYPE DONE
+  OPT-IN PROTOTYPE DONE / SINGLETON-SAFE
+
+Phase 2.8-C/D bridge: v5 to v7 parity inventory
+  DONE / MERGED INTO THIS DOCUMENT
+
+Remote hygiene guardrails
+  DONE / CONTINUING DISCIPLINE
 
 Phase 2.8-D v7 Setup static baseline
-  STATIC DONE / RUNTIME OPT-IN
+  STATIC DONE / RUNTIME STATUS CONTEXT OPT-IN
 
-Phase 2.8-E v7 Presets runtime prototype
-  OPT-IN PROTOTYPE DONE
+Phase 2.8-E v7 Presets page
+  STATIC SKELETON CONSOLIDATED / RUNTIME PRESET OPT-IN VERIFIED
 
-Phase 2.8-F v7 Observe runtime prototype
-  OPT-IN PROTOTYPE DONE
+Phase 2.8-F v7 Observe page
+  STATIC SKELETON CONSOLIDATED / SINGLE-EXPOSURE RUNTIME OPT-IN READY FOR LOCAL INTERACTION TEST
 
 Phase 2.8-G v7 runtime architecture stabilization
-  NEXT
+  IN PROGRESS / CORE DOM CONSOLIDATION MOSTLY DONE
 
 Phase 2.8-H v5 to v7 feature parity pass
   PLANNED
 
 Phase 2.8-I operator workflow polish
   PLANNED
+
+Phase 2.9 new backend contracts for final frontend
+  PLANNED
 ```
 
 Phase 2.8-G is no longer a broad frontend extraction task. It is a runtime-stabilization task. Module extraction is allowed only when it reduces risk, duplication, or runtime instability.
+
+## Phase 2.8-G current progress
+
+```text
+DONE
+  - v7 runtime master gate added.
+  - v7 module-level runtime gates added.
+  - /ui/v7 remains static by default.
+  - runtime_status.js is singleton-safe.
+  - preset_runtime.js is singleton-safe and in-flight guarded.
+  - observe_runtime.js is singleton-safe and skeleton-aware.
+  - observe_guard.js is singleton-safe and uses a narrow MutationObserver fallback.
+  - Presets static fallback was consolidated into one runtime-enhanceable skeleton.
+  - Observe static fallback was consolidated into one runtime-enhanceable skeleton.
+  - Presets runtime was locally verified with catalog and preview flow.
+
+NEXT
+  - Local interaction test for observe_runtime.js with observe_guard.js still separately gated.
+  - runtime_status.js should bind top status cards and Diagnostics slots, instead of relying mainly on extra injected panels.
+  - Decide whether observe_guard.js remains a separate module or folds into observe_runtime.js after local interaction testing.
+```
 
 ## Phase 2.8-G operating rules
 
@@ -99,6 +138,7 @@ Phase 2.8-G is no longer a broad frontend extraction task. It is a runtime-stabi
 5. Do not create parallel files when a durable file can be safely modified.
 6. If a new file replaces an old file, delete or explicitly retire the old file in the same cleanup pass.
 7. Keep /ui as v5 until v7 parity is explicitly approved.
+8. Runtime JS should enhance durable HTML skeletons before creating fallback panels.
 ```
 
 ## Repository hygiene checklist
@@ -110,6 +150,7 @@ UI assets
   - Are v5/v6/v7 assets still under versioned UI directories?
   - Are there any unused phase2d6_* or phase2d8_* files left in ui/ root?
   - Does /ui/v7 remain static by default?
+  - Does the v7 HTML own the durable skeleton, with runtime JS enhancing it?
 
 Tests
   - Are new tests placed under tests/ui/, tests/api/, or tests/kernel/ by domain?
@@ -172,6 +213,7 @@ id="..."
 data-bind="..."
 data-role="..."
 data-page-panel="..."
+data-action="..."
 ```
 
 Avoid binding by visible label text or translated copy.
@@ -217,7 +259,7 @@ Do not make local session form persistence look real until a backend contract ex
 Status:
 
 ```text
-PARTIAL / PHASE 2.8-F BASELINE DONE / RUNTIME OPT-IN
+PARTIAL / PHASE 2.8-F BASELINE DONE / PHASE 2.8-G SKELETON CONSOLIDATED / RUNTIME OPT-IN
 ```
 
 v7 current state:
@@ -226,15 +268,18 @@ v7 current state:
 - Observe page exists.
 - Latest Exposure Preview remains visible as a first-class placeholder.
 - B/G/R placeholders remain static.
+- Single Exposure Control is now a single runtime-enhanceable HTML skeleton: #v7-observe-controls.
 - Runtime single-exposure controls live in ui/v7/observe_runtime.js and are opt-in only.
+- observe_runtime.js is singleton-safe and skeleton-aware.
 - Frontend-only observe guard lives in ui/v7/observe_guard.js and is opt-in only.
-- No sequence runner, observation-plan editor, quicklook, or image backend is added in Phase 2.8-F.
+- observe_guard.js is singleton-safe and uses narrow observer fallback.
+- No sequence runner, observation-plan editor, quicklook, or image backend is added in Phase 2.8-G.
 ```
 
 Next action:
 
 ```text
-Future Observe cleanup should be driven by local testing of the single-exposure workflow.
+Local interaction test should enable observe_runtime.js first, then observe_guard.js separately.
 ```
 
 ### Presets
@@ -242,15 +287,18 @@ Future Observe cleanup should be driven by local testing of the single-exposure 
 Status:
 
 ```text
-PARTIAL / PHASE 2.8-E BASELINE DONE / RUNTIME OPT-IN
+PARTIAL / PHASE 2.8-E BASELINE DONE / PHASE 2.8-G SKELETON CONSOLIDATED / RUNTIME OPT-IN VERIFIED
 ```
 
 v7 current state:
 
 ```text
 - Presets page exists.
+- Presets page now has a single runtime-enhanceable HTML skeleton: #v7-presets-runtime.
 - Runtime catalog/preview/guarded-apply behavior lives in ui/v7/preset_runtime.js.
+- preset_runtime.js is singleton-safe and in-flight guarded.
 - Runtime preset behavior is opt-in only.
+- Catalog and preview flow have been locally verified.
 - Preview-before-apply and confirmation-required flows must not be bypassed.
 ```
 
@@ -273,13 +321,15 @@ v7 current state:
 ```text
 - Diagnostics page exists.
 - Runtime raw status preview lives in ui/v7/runtime_status.js.
+- runtime_status.js is singleton-safe.
 - Image feed diagnostics remain placeholders.
+- Top status cards and Diagnostics slots are not yet fully consolidated into durable HTML binding points.
 ```
 
 Next action:
 
 ```text
-Do not add quicklook/data watcher or image backend in Phase 2.8 without a separate backend contract.
+runtime_status.js should bind existing top status cards and durable Diagnostics slots before adding more status UI.
 ```
 
 ## Explicit non-goals

@@ -114,13 +114,13 @@ def test_v7_preset_runtime_is_singleton_safe_and_inflight_guarded():
     assert "v7.presets.last_error" in presets.text
 
 
-def test_v7_preset_runtime_replaces_static_fallback_when_enabled():
+def test_v7_preset_runtime_creates_single_fallback_panel_when_skeleton_is_missing():
     client = TestClient(app)
 
     presets = client.get("/ui-assets/v7/preset_runtime.js")
 
     assert presets.status_code == 200
-    assert "runtime-replaced-static-presets" in presets.text
+    assert "runtime-created-presets-skeleton" in presets.text
     assert "replaceChildren(panel)" in presets.text
     assert "competing Presets UIs" in presets.text
     assert "createFallbackPanel" in presets.text

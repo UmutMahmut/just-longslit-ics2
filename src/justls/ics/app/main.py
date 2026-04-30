@@ -111,6 +111,10 @@ PHASE_2D6_V5_ADAPTER_ENABLED_ENV = "JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED"
 PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
 PHASE_2D8_V7_ENABLED_ENV = "JUSTLS_UI_V7_ENABLED"
 PHASE_2D8_V7_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_RUNTIME_ENABLED"
+PHASE_2D8_V7_RUNTIME_STATUS_ENABLED_ENV = "JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED"
+PHASE_2D8_V7_PRESET_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED"
+PHASE_2D8_V7_OBSERVE_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED"
+PHASE_2D8_V7_OBSERVE_GUARD_ENABLED_ENV = "JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED"
 
 if UI_DIR.exists():
     app.mount("/ui-assets", StaticFiles(directory=UI_DIR), name="ui-assets")
@@ -146,15 +150,52 @@ def phase_2d8_v7_runtime_enabled() -> bool:
     return env_flag(PHASE_2D8_V7_RUNTIME_ENABLED_ENV, default=False)
 
 
-def phase_2d8_v7_runtime_scripts() -> tuple[str, ...]:
+def phase_2d8_v7_runtime_status_enabled() -> bool:
+    # When the v7 runtime master gate is enabled, status is the first and safest
+    # runtime module to restore during Phase 2.8-G.
+    return env_flag(PHASE_2D8_V7_RUNTIME_STATUS_ENABLED_ENV, default=True)
+
+
+def phase_2d8_v7_preset_runtime_enabled() -> bool:
+    return env_flag(PHASE_2D8_V7_PRESET_RUNTIME_ENABLED_ENV, default=False)
+
+
+def phase_2d8_v7_observe_runtime_enabled() -> bool:
+    return env_flag(PHASE_2D8_V7_OBSERVE_RUNTIME_ENABLED_ENV, default=False)
+
+
+def phase_2d8_v7_observe_guard_enabled() -> bool:
+    return env_flag(PHASE_2D8_V7_OBSERVE_GUARD_ENABLED_ENV, default=False)
+
+
+def phase_2d8_v7_runtime_module_flags() -> dict[str, bool]:
     if not phase_2d8_v7_runtime_enabled():
-        return ()
-    return (
-        UI_V7_RUNTIME_STATUS,
-        UI_V7_PRESET_RUNTIME,
-        UI_V7_OBSERVE_RUNTIME,
-        UI_V7_OBSERVE_GUARD,
-    )
+        return {
+            "status": False,
+            "presets": False,
+            "observe": False,
+            "observe_guard": False,
+        }
+    return {
+        "status": phase_2d8_v7_runtime_status_enabled(),
+        "presets": phase_2d8_v7_preset_runtime_enabled(),
+        "observe": phase_2d8_v7_observe_runtime_enabled(),
+        "observe_guard": phase_2d8_v7_observe_guard_enabled(),
+    }
+
+
+def phase_2d8_v7_runtime_scripts() -> tuple[str, ...]:
+    flags = phase_2d8_v7_runtime_module_flags()
+    scripts: list[str] = []
+    if flags["status"]:
+        scripts.append(UI_V7_RUNTIME_STATUS)
+    if flags["presets"]:
+        scripts.append(UI_V7_PRESET_RUNTIME)
+    if flags["observe"]:
+        scripts.append(UI_V7_OBSERVE_RUNTIME)
+    if flags["observe_guard"]:
+        scripts.append(UI_V7_OBSERVE_GUARD)
+    return tuple(scripts)
 
 
 def inject_script_tag(html: str, script_src: str) -> str:
@@ -204,6 +245,7 @@ def read_root() -> dict:
             "phase2d6_v6_enabled": phase_2d6_v6_enabled(),
             "phase2d8_v7_enabled": phase_2d8_v7_enabled(),
             "phase2d8_v7_runtime_enabled": phase_2d8_v7_runtime_enabled(),
+            "phase2d8_v7_runtime_modules": phase_2d8_v7_runtime_module_flags(),
         },
     }
 

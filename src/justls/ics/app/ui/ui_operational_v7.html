@@ -86,9 +86,7 @@
       gap: 8px;
     }
 
-    .status-strip {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
+    .status-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
     .status-cell {
       border: 1px solid var(--border-soft);
@@ -174,11 +172,7 @@
       letter-spacing: 0.10em;
     }
 
-    .workspace {
-      padding: 12px;
-      overflow: auto;
-    }
-
+    .workspace { padding: 12px; overflow: auto; }
     .page { display: none; }
     .page.active { display: block; }
 
@@ -467,23 +461,30 @@
               </div>
             </section>
 
-            <section class="panel">
-              <h2>Single Exposure Control</h2>
+            <section class="panel" id="v7-observe-controls" data-role="v7-observe-panel" data-phase="static-fallback">
+              <h2>Observe · Single Exposure Control · Single Exposure Only</h2>
               <div class="panel-body grid">
+                <div class="field-grid">
+                  <label>Exposure Time (s)<input type="number" min="0.001" step="0.001" value="30" data-role="obs-exp-time" /></label>
+                  <label>Frame Type<select data-role="obs-frame-type"><option value="science">science</option><option value="flat">flat</option><option value="arc">arc</option><option value="test">test</option></select></label>
+                  <label style="grid-column: 1 / -1;">Operator Note<textarea data-role="obs-operator-note" placeholder="Optional note"></textarea></label>
+                </div>
                 <dl class="kv">
-                  <dt>Observation State</dt><dd><code>ready_to_arm</code></dd>
-                  <dt>Exposure Time</dt><dd><code>30.0 s</code></dd>
-                  <dt>Frame Type</dt><dd><code>science</code></dd>
-                  <dt>Preset Context</dt><dd><code>science_default</code></dd>
-                  <dt>Latest Job</dt><dd><code>not available</code></dd>
+                  <dt>Status Endpoint</dt><dd><code>/api/v1/observation/status</code></dd>
+                  <dt>Observation State</dt><dd><code data-bind="v7.observe.state">ready_to_arm</code></dd>
+                  <dt>Armed Exposure</dt><dd><code data-bind="v7.observe.armed">not armed</code></dd>
+                  <dt>Last Command</dt><dd><code data-bind="v7.observe.last_command">none</code></dd>
+                  <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">static fallback</code></dd>
                 </dl>
                 <div class="badge-row">
-                  <button class="btn primary" type="button">Arm</button>
-                  <button class="btn primary" type="button">Start</button>
-                  <button class="btn" type="button">Stop & Readout</button>
-                  <button class="btn danger" type="button">Abort & Discard</button>
+                  <button class="btn primary" type="button" data-action="obs-arm" disabled>Arm</button>
+                  <button class="btn primary" type="button" data-action="obs-start" disabled>Start</button>
+                  <button class="btn" type="button" data-action="obs-stop-readout" disabled>Stop & Readout</button>
+                  <button class="btn danger" type="button" data-action="obs-abort-discard" disabled>Abort & Discard</button>
                 </div>
-                <span class="badge demo">Buttons are static until Phase 2.8-F binding</span>
+                <label><input type="checkbox" data-role="obs-abort-confirm" /> Enable abort/discard command</label>
+                <pre data-bind="v7.observe.result">No observation command sent. Runtime observe binding is opt-in.</pre>
+                <span class="badge demo">Static fallback · observe runtime not enabled</span>
               </div>
             </section>
           </div>

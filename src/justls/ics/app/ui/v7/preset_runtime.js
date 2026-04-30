@@ -51,7 +51,7 @@
     panel.id = "v7-presets-runtime";
     panel.className = "panel";
     panel.setAttribute("data-role", "v7-presets-panel");
-    panel.setAttribute("data-origin", "runtime-replaced-static-presets");
+    panel.setAttribute("data-origin", "runtime-created-presets-skeleton");
     panel.setAttribute("data-phase", "2.8-runtime-opt-in");
     panel.innerHTML = `
       <h2>Presets · Catalog / Preview / Guarded Apply</h2>
@@ -77,10 +77,10 @@
         <pre data-bind="v7.presets.apply_result">No apply request sent.</pre>
       </div>`;
 
-    // Current ui_operational_v7.html still contains a static Preset List plus
-    // Preview/Apply fallback. When this runtime module is explicitly enabled,
-    // replace that static fallback with this single enhanced panel to avoid two
-    // competing Presets UIs on the same page.
+    // The normal v7 shell owns #v7-presets-runtime. This fallback is only for a
+    // future or alternate shell missing that durable skeleton. In that case,
+    // replace the Presets page content with a single runtime-created panel so
+    // the operator never sees competing Presets UIs.
     host.replaceChildren(panel);
     return panel;
   }

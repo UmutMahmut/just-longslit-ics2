@@ -59,3 +59,17 @@ def test_v7_runtime_assets_have_expected_panel_markers():
     assert "data-guard-available" in guard.text
     assert "fetch(" not in guard.text
     assert "new XMLHttpRequest" not in guard.text
+
+
+def test_v7_status_runtime_is_singleton_safe():
+    client = TestClient(app)
+
+    status = client.get("/ui-assets/v7/runtime_status.js")
+
+    assert status.status_code == 200
+    assert "__JUSTLS_V7_RUNTIME_STATUS__" in status.text
+    assert "runtime.started" in status.text
+    assert "runtime.intervalId" in status.text
+    assert "runtime.refreshInFlight" in status.text
+    assert "window.setInterval(refresh, POLL_MS)" in status.text
+    assert "v7.runtime_status.refresh_count" in status.text

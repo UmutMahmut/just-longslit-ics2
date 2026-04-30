@@ -109,3 +109,44 @@ def test_v7_preset_runtime_replaces_static_fallback_when_enabled():
     assert "competing Presets UIs" in presets.text
     assert "createFallbackPanel" in presets.text
     assert "enhancePanel" in presets.text
+
+
+def test_v7_observe_runtime_is_singleton_safe_and_skeleton_aware():
+    client = TestClient(app)
+
+    observe = client.get("/ui-assets/v7/observe_runtime.js")
+
+    assert observe.status_code == 200
+    assert "__JUSTLS_V7_OBSERVE_RUNTIME__" in observe.text
+    assert "runtime.started" in observe.text
+    assert "runtime.busy" in observe.text
+    assert "runtime.statusLoading" in observe.text
+    assert "runtime.lastStatus" in observe.text
+    assert "runtime.lastCommand" in observe.text
+    assert "runtime.lastResult" in observe.text
+    assert "runtime.lastError" in observe.text
+    assert "runtime-created-observe-skeleton" in observe.text
+    assert "createFallbackPanel" in observe.text
+    assert "enhancePanel" in observe.text
+    assert "dataset.bound" in observe.text
+    assert "justls:v7-observe-state" in observe.text
+    assert "v7.observe.runtime_state" in observe.text
+
+
+def test_v7_observe_guard_is_singleton_safe_and_narrowly_observed():
+    client = TestClient(app)
+
+    guard = client.get("/ui-assets/v7/observe_guard.js")
+
+    assert guard.status_code == 200
+    assert "__JUSTLS_V7_OBSERVE_GUARD__" in guard.text
+    assert "runtime.started" in guard.text
+    assert "runtime.observer" in guard.text
+    assert "runtime.retryTimer" in guard.text
+    assert "runtime.lastAllowed" in guard.text
+    assert "dataset.guardBound" in guard.text
+    assert "justls:v7-observe-state" in guard.text
+    assert "observer.observe(host, { childList: true, subtree: false })" in guard.text
+    assert "subtree: true" not in guard.text
+    assert "fetch(" not in guard.text
+    assert "new XMLHttpRequest" not in guard.text

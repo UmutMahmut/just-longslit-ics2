@@ -73,3 +73,26 @@ def test_v7_status_runtime_is_singleton_safe():
     assert "runtime.refreshInFlight" in status.text
     assert "window.setInterval(refresh, POLL_MS)" in status.text
     assert "v7.runtime_status.refresh_count" in status.text
+
+
+def test_v7_preset_runtime_is_singleton_safe_and_inflight_guarded():
+    client = TestClient(app)
+
+    presets = client.get("/ui-assets/v7/preset_runtime.js")
+
+    assert presets.status_code == 200
+    assert "__JUSTLS_V7_PRESET_RUNTIME__" in presets.text
+    assert "runtime.started" in presets.text
+    assert "runtime.catalogLoading" in presets.text
+    assert "runtime.previewInFlight" in presets.text
+    assert "runtime.applying" in presets.text
+    assert "runtime.lastPreview" in presets.text
+    assert "runtime.lastApplyResult" in presets.text
+    assert "runtime.lastError" in presets.text
+    assert "if (runtime.started)" in presets.text
+    assert "if (runtime.catalogLoading) return" in presets.text
+    assert "if (runtime.previewInFlight || runtime.applying) return" in presets.text
+    assert "if (runtime.applying || runtime.previewInFlight) return" in presets.text
+    assert "dataset.bound" in presets.text
+    assert "v7.presets.runtime_state" in presets.text
+    assert "v7.presets.last_error" in presets.text

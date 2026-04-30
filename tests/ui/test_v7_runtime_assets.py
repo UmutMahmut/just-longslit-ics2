@@ -75,6 +75,22 @@ def test_v7_status_runtime_is_singleton_safe():
     assert "v7.runtime_status.refresh_count" in status.text
 
 
+def test_v7_status_runtime_binds_top_cards_and_diagnostics():
+    client = TestClient(app)
+
+    status = client.get("/ui-assets/v7/runtime_status.js")
+
+    assert status.status_code == 200
+    assert "setTopStatusText" in status.text
+    assert "bindTopStatusCards" in status.text
+    assert 'document.getElementById(id)' in status.text
+    assert 'setTopStatusText("run-mode"' in status.text
+    assert 'setTopStatusText("operational-level"' in status.text
+    assert 'setTopStatusText("exposure-state"' in status.text
+    assert 'panel("v7-runtime-status", "Runtime Status · /api/v1/status/full", \'[data-page-panel="diagnostics"]\')' in status.text
+    assert 'panel("v7-raw-status-preview", "Raw Status Preview · /api/v1/status/full", \'[data-page-panel="diagnostics"]\')' in status.text
+
+
 def test_v7_preset_runtime_is_singleton_safe_and_inflight_guarded():
     client = TestClient(app)
 

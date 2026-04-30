@@ -46,3 +46,28 @@ def test_v7_static_presets_page_has_single_runtime_enhanceable_skeleton():
     assert "Presets · Catalog / Preview / Guarded Apply" in response.text
     assert "<h2>Preset List</h2>" not in response.text
     assert "<h2>Preview / Apply</h2>" not in response.text
+
+
+def test_v7_static_observe_page_has_single_runtime_enhanceable_skeleton():
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    assert response.text.count('id="v7-observe-controls"') == 1
+    assert 'data-role="v7-observe-panel"' in response.text
+    assert 'data-bind="v7.observe.state"' in response.text
+    assert 'data-bind="v7.observe.armed"' in response.text
+    assert 'data-bind="v7.observe.last_command"' in response.text
+    assert 'data-bind="v7.observe.runtime_state"' in response.text
+    assert 'data-bind="v7.observe.result"' in response.text
+    assert 'data-role="obs-exp-time"' in response.text
+    assert 'data-role="obs-frame-type"' in response.text
+    assert 'data-role="obs-operator-note"' in response.text
+    assert 'data-role="obs-abort-confirm"' in response.text
+    assert 'data-action="obs-arm"' in response.text
+    assert 'data-action="obs-start"' in response.text
+    assert 'data-action="obs-stop-readout"' in response.text
+    assert 'data-action="obs-abort-discard"' in response.text
+    assert "Observe · Single Exposure Control · Single Exposure Only" in response.text
+    assert "Buttons are static until Phase 2.8-F binding" not in response.text

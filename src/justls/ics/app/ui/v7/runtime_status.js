@@ -25,11 +25,18 @@
     return String(value);
   }
 
+  function setNodeText(node, value, fallback) {
+    if (!node) return;
+    const next = text(value, fallback);
+    if (node.textContent !== next) node.textContent = next;
+  }
+
   function setText(selector, value, fallback) {
-    document.querySelectorAll(selector).forEach((node) => {
-      const next = text(value, fallback);
-      if (node.textContent !== next) node.textContent = next;
-    });
+    document.querySelectorAll(selector).forEach((node) => setNodeText(node, value, fallback));
+  }
+
+  function setTopStatusText(id, value, fallback) {
+    setNodeText(document.getElementById(id), value, fallback);
   }
 
   function panel(id, title, pageSelector) {
@@ -42,6 +49,7 @@
     const section = document.createElement("section");
     section.id = id;
     section.className = "panel";
+    section.setAttribute("data-role", id);
     section.setAttribute("data-phase", "2.8-runtime-opt-in");
     section.innerHTML = `<h2>${title}</h2><div class="panel-body"></div>`;
     host.insertBefore(section, host.firstChild);
@@ -49,7 +57,7 @@
   }
 
   function ensureRuntimePanel() {
-    const section = panel("v7-runtime-status", "Runtime Status · /api/v1/status/full", null);
+    const section = panel("v7-runtime-status", "Runtime Status · /api/v1/status/full", '[data-page-panel="diagnostics"]');
     if (!section) return null;
     const body = section.querySelector(".panel-body");
     if (!body.dataset.ready) {
@@ -102,6 +110,20 @@
     return [job.status, job.subsystem, job.action, job.job_id].filter(Boolean).join(" · ");
   }
 
+  function operationalLabel(operational) {
+    return operational.level || operational.state || operational.summary || "unknown";
+  }
+
+  function exposureLabel(observation) {
+    return observation.state || observation.observation_state || "unknown";
+  }
+
+  function bindTopStatusCards(data, operational, observation) {
+    setTopStatusText("run-mode", data.run_mode, "unknown");
+    setTopStatusText("operational-level", operationalLabel(operational), "unknown");
+    setTopStatusText("exposure-state", exposureLabel(observation), "unknown");
+  }
+
   function bind(data) {
     ensureRuntimePanel();
     ensureSetupPanel();
@@ -111,15 +133,16 @@
     const operational = data.operational_status || {};
     const detector = data.detector_config || {};
 
+    bindTopStatusCards(data, operational, observation);
     setText('[data-bind="v7.connection"]', "connected", "connected");
     setText('[data-bind="v7.run_mode"]', data.run_mode, "unknown");
-    setText('[data-bind="v7.operational"]', operational.level || operational.state || operational.summary, "unknown");
-    setText('[data-bind="v7.exposure_state"]', observation.state, "unknown");
+    setText('[data-bind="v7.operational"]', operationalLabel(operational), "unknown");
+    setText('[data-bind="v7.exposure_state"]', exposureLabel(observation), "unknown");
     setText('[data-bind="v7.detector_profile"]', detector.profile_name, "unknown");
     setText('[data-bind="v7.latest_job"]', latestJobLabel(data), "not available");
     setText('[data-bind="v7.setup.run_mode"]', data.run_mode, "unknown");
-    setText('[data-bind="v7.setup.operational"]', operational.level || operational.state || operational.summary, "unknown");
-    setText('[data-bind="v7.setup.observation_state"]', observation.state, "unknown");
+    setText('[data-bind="v7.setup.operational"]', operationalLabel(operational), "unknown");
+    setText('[data-bind="v7.setup.observation_state"]', exposureLabel(observation), "unknown");
     setText('[data-bind="v7.setup.detector_profile"]', detector.profile_name, "unknown");
     setText('[data-bind="v7.runtime_status.refresh_count"]', runtime.refreshCount, "0");
 

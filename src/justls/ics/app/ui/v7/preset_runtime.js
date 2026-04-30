@@ -51,6 +51,7 @@
     panel.id = "v7-presets-runtime";
     panel.className = "panel";
     panel.setAttribute("data-role", "v7-presets-panel");
+    panel.setAttribute("data-origin", "runtime-replaced-static-presets");
     panel.setAttribute("data-phase", "2.8-runtime-opt-in");
     panel.innerHTML = `
       <h2>Presets · Catalog / Preview / Guarded Apply</h2>
@@ -75,7 +76,12 @@
         <button class="btn primary" type="button" data-action="apply-previewed-preset" disabled>Apply Previewed Preset</button>
         <pre data-bind="v7.presets.apply_result">No apply request sent.</pre>
       </div>`;
-    host.insertBefore(panel, host.firstChild);
+
+    // Current ui_operational_v7.html still contains a static Preset List plus
+    // Preview/Apply fallback. When this runtime module is explicitly enabled,
+    // replace that static fallback with this single enhanced panel to avoid two
+    // competing Presets UIs on the same page.
+    host.replaceChildren(panel);
     return panel;
   }
 

@@ -37,6 +37,10 @@ src/justls/ics/app/ui/
   v5/
     phase2d6_operational_status.js
 
+  v6/
+    command_runtime.js
+    job_alignment.js
+
   v7/
     runtime_status.js
     preset_runtime.js
@@ -51,6 +55,76 @@ JUSTLS_UI_V7_RUNTIME_ENABLED=1
 ```
 
 The default `/ui/v7` page must remain static and clickable without runtime add-ons.
+
+## Revised Phase 2.8 roadmap
+
+```text
+Phase 2.8-A route stabilization
+  DONE
+
+Phase 2.8-B v7 static shell
+  DONE
+
+Phase 2.8-C v7 runtime status prototype
+  OPT-IN PROTOTYPE DONE
+
+Phase 2.8-D v7 Setup static baseline
+  STATIC DONE / RUNTIME OPT-IN
+
+Phase 2.8-E v7 Presets runtime prototype
+  OPT-IN PROTOTYPE DONE
+
+Phase 2.8-F v7 Observe runtime prototype
+  OPT-IN PROTOTYPE DONE
+
+Phase 2.8-G v7 runtime architecture stabilization
+  NEXT
+
+Phase 2.8-H v5 to v7 feature parity pass
+  PLANNED
+
+Phase 2.8-I operator workflow polish
+  PLANNED
+```
+
+Phase 2.8-G is no longer a broad frontend extraction task. It is a runtime-stabilization task. Module extraction is allowed only when it reduces risk, duplication, or runtime instability.
+
+## Phase 2.8-G operating rules
+
+```text
+1. Keep v7 runtime add-ons opt-in by default.
+2. Re-enable or revise one runtime module at a time.
+3. Test locally after each runtime module change.
+4. Do not add sequence runner, quicklook, image backend, or new hardware APIs in Phase 2.8-G.
+5. Do not create parallel files when a durable file can be safely modified.
+6. If a new file replaces an old file, delete or explicitly retire the old file in the same cleanup pass.
+7. Keep /ui as v5 until v7 parity is explicitly approved.
+```
+
+## Repository hygiene checklist
+
+Run this checklist before ending each Phase 2.8-G work batch:
+
+```text
+UI assets
+  - Are v5/v6/v7 assets still under versioned UI directories?
+  - Are there any unused phase2d6_* or phase2d8_* files left in ui/ root?
+  - Does /ui/v7 remain static by default?
+
+Tests
+  - Are new tests placed under tests/ui/, tests/api/, or tests/kernel/ by domain?
+  - Did any root-level test_stage_* file get reintroduced?
+  - Did the test count change for a deliberate reason?
+
+Docs
+  - Does docs/phase_2_8_ui_migration.md reflect the current route/runtime state?
+  - Were temporary planning notes either merged or deleted?
+
+Runtime safety
+  - Does any new frontend observer write to the same DOM subtree it observes?
+  - Are fetch loops bounded or deliberately polled?
+  - Can the page still open and click with runtime disabled?
+```
 
 ## Coding guardrails
 
@@ -105,9 +179,9 @@ Avoid binding by visible label text or translated copy.
 ### Keep tests close to their domain
 
 ```text
-tests/ui/   UI routes, static shell, static assets, runtime injection gates
-tests/api/  API behavior and response contracts
-tests/kernel/ kernel/runtime/domain behavior
+tests/ui/      UI routes, static shell, static assets, runtime injection gates
+tests/api/     API behavior and response contracts
+tests/kernel/  kernel/runtime/domain behavior
 ```
 
 Avoid reintroducing root-level `test_stage_*` files. Stage history belongs in commit messages and docs; test files should describe the domain they cover.

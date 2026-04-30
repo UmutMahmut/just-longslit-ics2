@@ -1,18 +1,28 @@
 // v7 opt-in preset runtime adapter.
-// Injected only when JUSTLS_UI_V7_RUNTIME_ENABLED=1.
+// Injected only when JUSTLS_UI_V7_RUNTIME_ENABLED=1 and
+// JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED=1.
 
 (function () {
   "use strict";
 
+  const GLOBAL_KEY = "__JUSTLS_V7_PRESET_RUNTIME__";
   const PRESETS_ENDPOINT = "/api/v1/presets";
   const PREVIEW_ENDPOINT = "/api/v1/presets/preview";
   const APPLY_ENDPOINT = "/api/v1/presets/apply";
 
-  const state = {
+  const runtime = window[GLOBAL_KEY] || {
+    started: false,
+    catalogLoading: false,
+    previewInFlight: false,
+    applying: false,
     items: [],
     preview: null,
-    applying: false,
+    lastPreview: null,
+    lastApplyResult: null,
+    lastError: null,
+    catalogLoadedAt: null,
   };
+  window[GLOBAL_KEY] = runtime;
 
   function text(value, fallback) {
     if (value === null || value === undefined || value === "") return fallback;
@@ -23,6 +33,10 @@
     if (!node) return;
     const next = text(value, "");
     if (node.textContent !== next) node.textContent = next;
+  }
+
+  function setDisabled(button, value) {
+    if (button && button.disabled !== value) button.disabled = value;
   }
 
   function page() {
@@ -44,6 +58,11 @@
       <h2>Runtime Presets · Catalog / Preview / Guarded Apply</h2>
       <div class="panel-body">
         <div class="badge demo" data-bind="v7.presets.status">loading preset catalog...</div>
+        <dl class="kv">
+          <dt>Catalog Loaded</dt><dd><code data-bind="v7.presets.catalog_loaded_at">not loaded</code></dd>
+          <dt>Runtime State</dt><dd><code data-bind="v7.presets.runtime_state">idle</code></dd>
+          <dt>Last Error</dt><dd><code data-bind="v7.presets.last_error">none</code></dd>
+        </dl>
         <table class="table" style="margin-top: 10px;">
           <thead><tr><th>Name</th><th>Category</th><th>Risk</th><th>Confirm</th><th>Action</th></tr></thead>
           <tbody data-bind="v7.presets.catalog"></tbody>
@@ -60,8 +79,15 @@
       </div>`;
     host.insertBefore(panel, host.firstChild);
 
-    panel.querySelector('[data-action="apply-previewed-preset"]').addEventListener("click", applyPreviewedPreset);
+    const applyButton = panel.querySelector('[data-action="apply-previewed-preset"]');
+    if (applyButton && !applyButton.dataset.bound) {
+      applyButton.dataset.bound = "true";
+      applyButton.addEventListener("click", applyPreviewedPreset);
+    }
+
     panel.querySelectorAll('[data-role="confirm-risk-checkbox"], [data-role="confirm-preset-name"]').forEach((node) => {
+      if (node.dataset.bound) return;
+      node.dataset.bound = "true";
       node.addEventListener("input", refreshApplyGuard);
       node.addEventListener("change", refreshApplyGuard);
     });
@@ -73,12 +99,25 @@
     return panel ? panel.querySelector(`[data-bind="${name}"]`) : null;
   }
 
+  function runtimeStateLabel() {
+    if (runtime.catalogLoading) return "loading catalog";
+    if (runtime.previewInFlight) return "loading preview";
+    if (runtime.applying) return "applying preset";
+    return runtime.started ? "ready" : "idle";
+  }
+
+  function refreshRuntimeState() {
+    setText(bind("v7.presets.catalog_loaded_at"), runtime.catalogLoadedAt || "not loaded");
+    setText(bind("v7.presets.runtime_state"), runtimeStateLabel());
+    setText(bind("v7.presets.last_error"), runtime.lastError || "none");
+  }
+
   function renderCatalog() {
     const body = bind("v7.presets.catalog");
     if (!body) return;
 
     body.innerHTML = "";
-    state.items.forEach((item) => {
+    runtime.items.forEach((item) => {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td><code>${item.name}</code></td>
@@ -86,25 +125,55 @@
         <td>${item.risk_level || "unknown"}</td>
         <td>${item.requires_confirmation ? "yes" : "no"}</td>
         <td><button class="btn" type="button" data-preset-name="${item.name}">Preview</button></td>`;
-      row.querySelector("button").addEventListener("click", () => previewPreset(item.name));
+      const button = row.querySelector("button");
+      button.addEventListener("click", () => previewPreset(item.name));
       body.appendChild(row);
     });
   }
 
+  function setCatalogButtonsDisabled(value) {
+    const panel = ensurePanel();
+    if (!panel) return;
+    panel.querySelectorAll("button[data-preset-name]").forEach((button) => {
+      setDisabled(button, value);
+    });
+  }
+
   async function fetchCatalog() {
+    if (runtime.catalogLoading) return;
+    if (runtime.catalogLoadedAt && runtime.items.length > 0) {
+      renderCatalog();
+      refreshRuntimeState();
+      return;
+    }
+
+    runtime.catalogLoading = true;
+    runtime.lastError = null;
+    refreshRuntimeState();
     setText(bind("v7.presets.status"), `loading ${PRESETS_ENDPOINT}...`);
     try {
       const response = await fetch(PRESETS_ENDPOINT, { cache: "no-store", headers: { Accept: "application/json" } });
       const payload = await response.json();
-      state.items = Array.isArray(payload.items) ? payload.items : [];
+      runtime.items = Array.isArray(payload.items) ? payload.items : [];
+      runtime.catalogLoadedAt = new Date().toISOString();
       renderCatalog();
-      setText(bind("v7.presets.status"), `loaded ${state.items.length} presets`);
+      setText(bind("v7.presets.status"), `loaded ${runtime.items.length} presets`);
     } catch (error) {
-      setText(bind("v7.presets.status"), `catalog error: ${text(error && error.message, "failed")}`);
+      runtime.lastError = text(error && error.message, "failed");
+      setText(bind("v7.presets.status"), `catalog error: ${runtime.lastError}`);
+    } finally {
+      runtime.catalogLoading = false;
+      refreshRuntimeState();
     }
   }
 
   async function previewPreset(name) {
+    if (runtime.previewInFlight || runtime.applying) return;
+
+    runtime.previewInFlight = true;
+    runtime.lastError = null;
+    setCatalogButtonsDisabled(true);
+    refreshRuntimeState();
     setText(bind("v7.presets.status"), `previewing ${name}...`);
     try {
       const response = await fetch(PREVIEW_ENDPOINT, {
@@ -114,21 +183,27 @@
         body: JSON.stringify({ name, confirmed: false }),
       });
       const payload = await response.json();
-      state.preview = payload;
+      runtime.preview = payload;
+      runtime.lastPreview = payload;
       setText(bind("v7.presets.preview"), JSON.stringify(payload, null, 2));
       setText(bind("v7.presets.status"), response.ok ? `preview loaded for ${name}` : `preview error ${response.status}`);
     } catch (error) {
-      state.preview = null;
-      setText(bind("v7.presets.preview"), JSON.stringify({ preset: name, error: text(error && error.message, "failed") }, null, 2));
+      runtime.preview = null;
+      runtime.lastError = text(error && error.message, "failed");
+      setText(bind("v7.presets.preview"), JSON.stringify({ preset: name, error: runtime.lastError }, null, 2));
+    } finally {
+      runtime.previewInFlight = false;
+      setCatalogButtonsDisabled(false);
+      refreshApplyGuard();
+      refreshRuntimeState();
     }
-    refreshApplyGuard();
   }
 
   function confirmationOk(panel) {
-    if (!state.preview || !state.preview.requires_confirmation) return true;
+    if (!runtime.preview || !runtime.preview.requires_confirmation) return true;
     const checkbox = panel.querySelector('[data-role="confirm-risk-checkbox"]');
     const input = panel.querySelector('[data-role="confirm-preset-name"]');
-    return Boolean(checkbox && checkbox.checked && input && input.value === state.preview.preset);
+    return Boolean(checkbox && checkbox.checked && input && input.value === runtime.preview.preset);
   }
 
   function refreshApplyGuard() {
@@ -136,38 +211,58 @@
     if (!panel) return;
     const confirmBlock = panel.querySelector('[data-role="v7-preset-confirmation"]');
     const button = panel.querySelector('[data-action="apply-previewed-preset"]');
-    const blocked = Boolean(state.preview && state.preview.blocked);
-    const hasPreview = Boolean(state.preview && state.preview.preset);
-    const needsConfirm = Boolean(state.preview && state.preview.requires_confirmation);
+    const blocked = Boolean(runtime.preview && runtime.preview.blocked);
+    const hasPreview = Boolean(runtime.preview && runtime.preview.preset);
+    const needsConfirm = Boolean(runtime.preview && runtime.preview.requires_confirmation);
     if (confirmBlock) confirmBlock.hidden = !needsConfirm;
-    if (button) button.disabled = state.applying || !hasPreview || blocked || !confirmationOk(panel);
+    if (button) {
+      setDisabled(button, runtime.applying || runtime.previewInFlight || !hasPreview || blocked || !confirmationOk(panel));
+      setText(button, runtime.applying ? "Applying..." : "Apply Previewed Preset");
+    }
   }
 
   async function applyPreviewedPreset() {
     const panel = ensurePanel();
-    if (!panel || !state.preview || !state.preview.preset || !confirmationOk(panel)) return;
-    state.applying = true;
+    if (!panel || !runtime.preview || !runtime.preview.preset || !confirmationOk(panel)) return;
+    if (runtime.applying || runtime.previewInFlight) return;
+
+    runtime.applying = true;
+    runtime.lastError = null;
     refreshApplyGuard();
+    refreshRuntimeState();
     setText(bind("v7.presets.apply_result"), "sending guarded apply request...");
     try {
       const response = await fetch(APPLY_ENDPOINT, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ name: state.preview.preset, confirmed: Boolean(state.preview.requires_confirmation) }),
+        body: JSON.stringify({ name: runtime.preview.preset, confirmed: Boolean(runtime.preview.requires_confirmation) }),
       });
       const payload = await response.json();
+      runtime.lastApplyResult = payload;
       setText(bind("v7.presets.apply_result"), JSON.stringify(payload, null, 2));
     } catch (error) {
-      setText(bind("v7.presets.apply_result"), JSON.stringify({ error: text(error && error.message, "failed") }, null, 2));
+      runtime.lastError = text(error && error.message, "failed");
+      runtime.lastApplyResult = { error: runtime.lastError };
+      setText(bind("v7.presets.apply_result"), JSON.stringify(runtime.lastApplyResult, null, 2));
     } finally {
-      state.applying = false;
+      runtime.applying = false;
       refreshApplyGuard();
+      refreshRuntimeState();
     }
   }
 
   function start() {
     ensurePanel();
+    refreshRuntimeState();
+
+    if (runtime.started) {
+      renderCatalog();
+      refreshApplyGuard();
+      return;
+    }
+
+    runtime.started = true;
     fetchCatalog();
   }
 

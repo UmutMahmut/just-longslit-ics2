@@ -5,9 +5,20 @@
 (function () {
   "use strict";
 
+  const GLOBAL_KEY = "__JUSTLS_V7_RUNTIME_STATUS__";
   const STATUS_ENDPOINT = "/api/v1/status/full";
   const POLL_MS = 2000;
   const RAW_MAX_CHARS = 12000;
+
+  const runtime = window[GLOBAL_KEY] || {
+    started: false,
+    intervalId: null,
+    refreshInFlight: false,
+    lastOkAt: null,
+    lastError: null,
+    refreshCount: 0,
+  };
+  window[GLOBAL_KEY] = runtime;
 
   function text(value, fallback) {
     if (value === null || value === undefined || value === "") return fallback;
@@ -51,6 +62,7 @@
           <dt>Exposure</dt><dd><code data-bind="v7.exposure_state">unknown</code></dd>
           <dt>Detector Profile</dt><dd><code data-bind="v7.detector_profile">unknown</code></dd>
           <dt>Latest Job</dt><dd><code data-bind="v7.latest_job">not available</code></dd>
+          <dt>Runtime Polls</dt><dd><code data-bind="v7.runtime_status.refresh_count">0</code></dd>
         </dl>`;
     }
     return section;
@@ -109,6 +121,7 @@
     setText('[data-bind="v7.setup.operational"]', operational.level || operational.state || operational.summary, "unknown");
     setText('[data-bind="v7.setup.observation_state"]', observation.state, "unknown");
     setText('[data-bind="v7.setup.detector_profile"]', detector.profile_name, "unknown");
+    setText('[data-bind="v7.runtime_status.refresh_count"]', runtime.refreshCount, "0");
 
     let raw = JSON.stringify(data, null, 2);
     if (raw.length > RAW_MAX_CHARS) raw = `${raw.slice(0, RAW_MAX_CHARS)}\n... truncated ...`;
@@ -116,13 +129,25 @@
   }
 
   async function refresh() {
+    if (runtime.refreshInFlight) return;
+    runtime.refreshInFlight = true;
     try {
       const response = await fetch(STATUS_ENDPOINT, { cache: "no-store", headers: { Accept: "application/json" } });
       const data = await response.json();
-      if (response.ok) bind(data);
-      else setText('[data-bind="v7.connection"]', `error ${response.status}`, "error");
+      runtime.refreshCount += 1;
+      if (response.ok) {
+        runtime.lastOkAt = new Date().toISOString();
+        runtime.lastError = null;
+        bind(data);
+      } else {
+        runtime.lastError = `HTTP ${response.status}`;
+        setText('[data-bind="v7.connection"]', `error ${response.status}`, "error");
+      }
     } catch (error) {
-      setText('[data-bind="v7.connection"]', `error: ${text(error && error.message, "fetch failed")}`, "error");
+      runtime.lastError = text(error && error.message, "fetch failed");
+      setText('[data-bind="v7.connection"]', `error: ${runtime.lastError}`, "error");
+    } finally {
+      runtime.refreshInFlight = false;
     }
   }
 
@@ -130,8 +155,15 @@
     ensureRuntimePanel();
     ensureSetupPanel();
     ensureRawPreview();
+
+    if (runtime.started) {
+      refresh();
+      return;
+    }
+
+    runtime.started = true;
     refresh();
-    window.setInterval(refresh, POLL_MS);
+    runtime.intervalId = window.setInterval(refresh, POLL_MS);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });

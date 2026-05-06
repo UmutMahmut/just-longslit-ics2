@@ -10,6 +10,8 @@ This file is intentionally an audit/checklist, not a runtime implementation plan
 
 ## Sources inspected
 
+Repository sources:
+
 ```text
 src/justls/ics/app/main.py
 src/justls/ics/app/ui/ui_alpha_skeleton_v5.html
@@ -20,6 +22,16 @@ src/justls/ics/app/ui/v7/preset_runtime.js
 src/justls/ics/app/ui/v7/observe_runtime.js
 src/justls/ics/app/ui/v7/observe_guard.js
 ```
+
+External/reference sources used for the H4 architecture decision:
+
+```text
+MODS Instrument Manual, Section 4 Observing with MODS
+BFOSC operating manual
+P0 PDF hardware/design material for JUST long-slit spectrograph
+```
+
+The external sources are design inputs and constraints. They do not imply that the corresponding software behavior is already implemented in this repository.
 
 Known current route policy from `main.py`:
 
@@ -93,6 +105,109 @@ Characteristics:
 
 ---
 
+## External reference conclusion: MODS dashboard structure
+
+The MODS manual directly informs the H4 placement decision. It describes four user-visible MODS observing components: the MODS Control Panel GUI, modsDisp raw image display, acqMODS/execMODS scripting engines, and modsAlign. It also states that routine observers generally use the Setup and Dashboard screens, while support astronomers have access to engineering programs for health and problem handling.
+
+MODS Setup is not the main instrument-control page. It mainly handles observer/project metadata and the next FITS filename context. These values are written into FITS headers or saved as defaults.
+
+MODS Dashboard is the main operational control surface. Its layout follows the photon path through the instrument. It includes:
+
+```text
+Calibration and AGw Unit
+  - Calibration / Observing mode
+  - hatch open/closed
+  - calibration projector in/out
+  - calibration lamps on/off
+  - all-lamps-off control
+  - guide probe / guide filter / home controls
+
+Telescope Preset Control Panel
+  - target and guide-star coordinates
+  - rotator / preset mode
+  - telescope offsets in sky or slit-plane coordinates
+
+Instrument Configuration
+  - slit mask selection
+  - dichroic selection
+  - blue-channel mode
+  - red-channel mode
+  - Commit / Clear action model
+
+Blue and Red Instrument Channel Control Panels
+  - disperser / filter selection
+  - focus and actuator information
+  - exposure type, exposure time, image count
+  - binning and CCD readout mode
+  - GO / Pause / Stop / Abort controls
+  - exposure and readout progress
+  - channel status and IMCS controls
+
+Interactive Command Entry
+  - by-hand command execution for commands also available to scripts
+
+Other Controls
+  - Refresh
+  - View Log
+```
+
+MODS also separates engineering detail:
+
+```text
+Housekeeping
+  - power, temperature, pressure, and system housekeeping status
+  - mainly useful to support astronomers or telescope operators
+
+Utilities
+  - engineering functions and instrument power management
+  - regular observers should treat this area as read-only
+  - unlocking/operation belongs to qualified support or instrument team members
+```
+
+Implication for ICS2.0:
+
+```text
+Setup should not become a catch-all instrument-control page.
+Routine slit, calibration, and detector/channel configuration should not be buried in Engineer.
+A v7 operator-facing Instrument / Configure / Dashboard-like area is justified.
+Engineering-only and dangerous controls should remain in Housekeeping / Engineer / Diagnostics.
+```
+
+---
+
+## JUST hardware facts that constrain software design
+
+The P0 JUST long-slit spectrograph material is a binding design input for software architecture. The following facts must be considered before proposing v7 UI/API/workflow solutions:
+
+```text
+- JUST long-slit spectrograph targets 370 nm to 980 nm science spectroscopy.
+- The spectrograph is a three-channel B/G/R system, not a two-channel MODS-like system.
+- Nominal channel coverage:
+    B: 365 nm to 573 nm
+    G: 546 nm to 772 nm
+    R: 747 nm to 985 nm
+- Long-slit direction field requirement is >= 10 arcmin.
+- Multiple slit widths are required, approximately 0.5 arcsec to 5 arcsec.
+- Spectral resolution is adjustable and specified around R >= 1000 at 1 arcsec slit, with broader target range around 500 to 4500.
+- Calibration includes flat-field and wavelength calibration functions.
+- Calibration sources include flat-field source and wavelength lamps such as Hg(Ar), Ne, and possible ThAr/FeAr style sources.
+- Slit monitoring camera is part of the instrument concept and is used to monitor/guide the target onto the slit.
+- The slit camera/monitoring concept also intersects with guiding and slit-width measurement.
+- The control system includes slit drive, B/G/R camera focus, B/G/R camera exposure/readout, slit-monitor camera readout and slit-width measurement, fast photometry channel, calibration lamp switching, and whole-instrument derotation.
+- EtherCAT distributed control is part of the current electrical/control design direction.
+```
+
+Software implication:
+
+```text
+Do not copy MODS' two-channel Blue/Red model literally.
+Use MODS as a layout and responsibility-separation reference, while modeling JUST as a B/G/R three-channel system.
+Do not introduce UI or backend assumptions that contradict the P0 hardware/design material.
+If a required hardware behavior is not yet implemented in the backend, mark it as deferred/backend-contract rather than faking it in frontend copy.
+```
+
+---
+
 ## Parity classification summary
 
 ```text
@@ -122,6 +237,9 @@ Deferred backend contract:
   D4 persistent observation log / audit trail
   D5 role separation and permissions
   D6 final FITS/data-product metadata contract
+  D7 full B/G/R channel hardware-control contract
+  D8 slit-monitor camera / guider / slit-width measurement contract
+  D9 derotator / instrument-rotation control contract
 ```
 
 ---
@@ -245,7 +363,7 @@ Deferred:
 
 ---
 
-## P3: slit, calibration, and detector controls
+## P3: slit, calibration, and detector/channel controls
 
 v5 capability:
 
@@ -268,29 +386,64 @@ v7 current state:
 Decision:
 
 ```text
-must-have, with page placement decision required
+must-have, with page placement decision now directionally resolved
 ```
 
-Open design decision:
+MODS-informed direction:
 
 ```text
-Should routine slit/calibration/detector controls live in Setup, Observe, Presets, or a new/renamed Instrument area?
+- v7 should add or reserve an operator-facing Instrument / Configure page.
+- Routine observing controls belong there, not in Setup and not hidden under Engineer.
+- This area should be Dashboard-like in responsibility, but not a literal MODS copy.
 ```
 
-Recommended direction:
+Recommended v7 Instrument / Configure scope:
 
 ```text
-- Keep routine observing controls visible to operators, not buried in Engineer.
-- Put dangerous/low-level engineering actions in Engineer or Diagnostics.
-- Consider a v7 "Instrument" or "Configure" page only if Setup becomes too broad.
+Routine operator controls and visibility:
+  - slit width and slit angle
+  - calibration/science mode state
+  - calibration lamp state and safe lamp off action
+  - detector profile and save/trigger/readout mode summary
+  - B/G/R channel enable state and role mapping
+  - B/G/R focus/status placeholders where backend contracts are not ready
+  - clear links to Presets for common configuration actions
+  - clear links to Diagnostics for raw status and request troubleshooting
+
+Do not include as routine operator controls yet:
+  - power management
+  - low-level motor/drive engineering controls
+  - direct EtherCAT node controls
+  - unsafe maintenance actions
+  - role-protected engineering operations without permission design
+```
+
+JUST-specific correction to MODS analogy:
+
+```text
+MODS has Blue and Red instrument channel panels.
+JUST must be modeled as B/G/R three-channel control, with independent or coordinated status for all three channels.
+Any v7 channel panel, table, or API vocabulary should use B/G/R and avoid hard-coding Blue/Red assumptions.
+```
+
+Instrument Channel Control Panels reference:
+
+```text
+MODS channel panels are useful as a responsibility model:
+  - per-channel configuration
+  - per-channel exposure settings
+  - per-channel readout/status/progress
+  - per-channel feedback during acquisition
+
+For ICS2.0, this suggests a future B/G/R channel section, but the backend is not ready for a full per-channel control implementation. Phase 2.8-H should preserve visible B/G/R structure and classify detailed channel configuration as a backend-contract gap where needed.
 ```
 
 Need user/team confirmation before implementation:
 
 ```text
-- Which slit controls are routine observer controls versus support/engineer controls?
-- Which calibration lamp/mirror actions should be directly operator-accessible?
-- Whether detector B/G/R config belongs in Observe or a dedicated configuration page.
+- Final name: Instrument, Configure, or Dashboard.
+- Which slit/calibration controls are routine observer controls versus support controls.
+- Whether B/G/R detector configuration belongs entirely in Instrument/Configure, or whether exposure execution remains in Observe with configuration summary in Instrument.
 ```
 
 ---
@@ -484,7 +637,7 @@ Recommendation:
 
 ---
 
-## D1-D6 backend-contract backlog
+## D1-D9 backend-contract backlog
 
 Do not implement these as frontend-only illusions:
 
@@ -495,6 +648,9 @@ D3 sequence runner / observing plan model
 D4 persistent observation log / audit trail
 D5 role separation / authentication / permission boundaries
 D6 final FITS/data-product metadata contract
+D7 full B/G/R channel hardware-control contract
+D8 slit-monitor camera / guider / slit-width measurement contract
+D9 derotator / instrument-rotation control contract
 ```
 
 These should be designed under Phase 2.9 or later after the Phase 2.8-H parity and Phase 2.8-I workflow gaps are clearer.
@@ -534,10 +690,13 @@ Status: **not started**
 
 ### H4: slit/calibration/detector placement decision
 
-Status: **requires user/team decision**
+Status: **directionally resolved; implementation not started**
 
 ```text
-- Decide whether v7 needs an Instrument page or whether controls are split across Setup/Observe/Presets/Engineer.
+- v7 should have an operator-facing Instrument / Configure page or equivalent area.
+- It should cover routine slit, calibration, and detector/channel configuration.
+- It must model JUST as B/G/R, not MODS Blue/Red.
+- Dangerous/engineering controls remain in Housekeeping / Engineer / Diagnostics.
 ```
 
 ### H5: Presets preview UX polish
@@ -559,14 +718,27 @@ Status: **not started**
 - Defer real image backend.
 ```
 
+### H7: v7 Instrument / Configure static placement proposal
+
+Status: **new / next candidate**
+
+```text
+- Propose the static IA for routine instrument configuration.
+- Keep it static-first and honest.
+- Do not wire new backend behavior in the first pass.
+- Include B/G/R channel structure as placeholder/summary where backend contracts are incomplete.
+```
+
 ---
 
 ## Current audit conclusion
 
 v7 is on the right structural path, but it is not yet a default replacement for v5. The largest remaining parity question is not Presets or Observe skeleton safety; those now have reasonable opt-in prototypes. The largest functional gap is where v7 should place the broad v5 Instrument capabilities: slit, calibration, detector configuration, and their operator-vs-engineer boundaries.
 
+MODS supports the conclusion that routine instrument configuration belongs in an operator dashboard/configuration area, while housekeeping, utilities, logs, and unsafe controls belong elsewhere. JUST-specific hardware facts require a B/G/R three-channel interpretation rather than a literal MODS Blue/Red channel copy.
+
 Next recommended action:
 
 ```text
-Resolve H4 placement decision first, then implement H2/H3/H5 in small reviewable batches.
+Draft a v7 Instrument / Configure static page proposal, then implement it in a small static-only batch if approved.
 ```

@@ -6,25 +6,65 @@ This document is the durable Phase 2.8 record for migrating from the current fea
 
 The goal is not to copy v5 wholesale. The goal is to preserve validated operator-facing capability while reorganizing it into a cleaner, safer v7 information architecture.
 
-## Route roles
+This file now also absorbs the earlier `phase_2_8_v5_v7_relationship.md` decision note. Keep future Phase 2.8 route, parity, and migration decisions here instead of creating parallel planning notes.
+
+---
+
+## Current strategic conclusion
 
 ```text
-/ui
-  Stable default UI.
-  Backed by ui_alpha_skeleton_v5.html.
-  Treat as the capability baseline.
-
-/ui/v6
-  Operational-status review shell.
-  Keep available for Phase 2.6/2.7 review.
-
-/ui/v7
-  Phase 2.8 operator console prototype.
-  Static shell is available by default.
-  Runtime add-ons are opt-in only.
+/ui      -> v5 stable default capability baseline
+/ui/v6   -> v6 operational-status review shell
+/ui/v7   -> future operator console prototype, static by default
 ```
 
-Do not change `/ui` to v7 until a documented parity decision says v7 is ready.
+Do **not** switch `/ui` to v7 yet.
+
+v7 is structurally healthier than the earlier prototype: it has a stable static shell, versioned runtime assets, opt-in runtime gates, singleton-safe runtime modules, and consolidated Presets / Observe DOM skeletons. It is still not the final default operator UI.
+
+The next mainline is:
+
+```text
+Phase 2.8-H: v5 to v7 feature parity pass
+```
+
+Avoid more scattered runtime expansion before the parity pass is complete.
+
+---
+
+## Route roles
+
+### `/ui`
+
+Stable default UI.
+
+```text
+src/justls/ics/app/ui/ui_alpha_skeleton_v5.html
+```
+
+Treat this as the current operator-facing capability baseline. It is the richest frontend currently available and remains the safest default route for daily local development and demonstration.
+
+### `/ui/v6`
+
+Operational-status review shell.
+
+```text
+src/justls/ics/app/ui/ui_operational_v6.html
+```
+
+Keep available for Phase 2.6/2.7 review and continuity.
+
+### `/ui/v7`
+
+Future operator console prototype.
+
+```text
+src/justls/ics/app/ui/ui_operational_v7.html
+```
+
+Static shell is available by default. Runtime add-ons are opt-in only. v7 should become the product direction only after staged parity and validation.
+
+---
 
 ## Current UI asset layout
 
@@ -50,20 +90,44 @@ src/justls/ics/app/ui/
 
 The default `/ui/v7` page must remain static and clickable without runtime add-ons.
 
-The v7 runtime master gate is:
+---
+
+## v7 runtime gate policy
+
+Master gate:
 
 ```text
 JUSTLS_UI_V7_RUNTIME_ENABLED=1
 ```
 
-Module-level v7 runtime gates are:
+Module-level gates:
 
 ```text
-JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED=1   # defaults on only when the master gate is enabled
-JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED=1   # opt-in
-JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED=1  # opt-in
-JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED=1    # opt-in
+JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED=1   # status module; effectively defaults on when master gate is enabled
+JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED=1   # presets module
+JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED=1  # observe module
+JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED=1    # frontend-only observe guard
 ```
+
+Recommended cleanup before starting a local server:
+
+```powershell
+Remove-Item Env:JUSTLS_UI_V7_RUNTIME_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED -ErrorAction SilentlyContinue
+```
+
+Important runtime rule:
+
+```text
+HTML owns durable structure.
+Runtime JS enhances durable HTML skeletons.
+Runtime JS should not create competing duplicate UI panels unless it is a fallback for a missing skeleton.
+```
+
+---
 
 ## Revised Phase 2.8 roadmap
 
@@ -75,7 +139,7 @@ Phase 2.8-B v7 static shell
   DONE
 
 Phase 2.8-C v7 runtime status prototype
-  OPT-IN PROTOTYPE DONE / SINGLETON-SAFE
+  OPT-IN PROTOTYPE DONE / SINGLETON-SAFE / VERIFIED
 
 Phase 2.8-C/D bridge: v5 to v7 parity inventory
   DONE / MERGED INTO THIS DOCUMENT
@@ -90,13 +154,13 @@ Phase 2.8-E v7 Presets page
   STATIC SKELETON CONSOLIDATED / RUNTIME PRESET OPT-IN VERIFIED
 
 Phase 2.8-F v7 Observe page
-  STATIC SKELETON CONSOLIDATED / SINGLE-EXPOSURE RUNTIME OPT-IN READY FOR LOCAL INTERACTION TEST
+  STATIC SKELETON CONSOLIDATED / SINGLE-EXPOSURE RUNTIME + GUARD OPT-IN VERIFIED
 
 Phase 2.8-G v7 runtime architecture stabilization
-  IN PROGRESS / CORE DOM CONSOLIDATION MOSTLY DONE
+  CORE STABILIZATION DONE / CURRENT BATCH CLOSED
 
 Phase 2.8-H v5 to v7 feature parity pass
-  PLANNED
+  PLANNED / NEXT
 
 Phase 2.8-I operator workflow polish
   PLANNED
@@ -105,9 +169,13 @@ Phase 2.9 new backend contracts for final frontend
   PLANNED
 ```
 
-Phase 2.8-G is no longer a broad frontend extraction task. It is a runtime-stabilization task. Module extraction is allowed only when it reduces risk, duplication, or runtime instability.
+---
 
-## Phase 2.8-G current progress
+## Phase 2.8-G closure record
+
+Phase 2.8-G should no longer expand in scope. Its core purpose was to stabilize the v7 runtime architecture before any default-route decision or deeper operator workflow polish.
+
+Actual result:
 
 ```text
 DONE
@@ -120,30 +188,214 @@ DONE
   - observe_guard.js is singleton-safe and uses a narrow MutationObserver fallback.
   - Presets static fallback was consolidated into one runtime-enhanceable skeleton.
   - Observe static fallback was consolidated into one runtime-enhanceable skeleton.
+  - runtime_status.js binds top status cards and Diagnostics detail slots.
   - Presets runtime was locally verified with catalog and preview flow.
-
-NEXT
-  - Local interaction test for observe_runtime.js with observe_guard.js still separately gated.
-  - runtime_status.js should bind top status cards and Diagnostics slots, instead of relying mainly on extra injected panels.
-  - Decide whether observe_guard.js remains a separate module or folds into observe_runtime.js after local interaction testing.
+  - Observe runtime was locally verified.
+  - Observe guard was locally verified.
+  - Latest reported local test status: 144 passed.
 ```
 
-## Phase 2.8-G operating rules
+Explicitly not included in Phase 2.8-G:
 
 ```text
-1. Keep v7 runtime add-ons opt-in by default.
-2. Re-enable or revise one runtime module at a time.
-3. Test locally after each runtime module change.
-4. Do not add sequence runner, quicklook, image backend, or new hardware APIs in Phase 2.8-G.
-5. Do not create parallel files when a durable file can be safely modified.
-6. If a new file replaces an old file, delete or explicitly retire the old file in the same cleanup pass.
-7. Keep /ui as v5 until v7 parity is explicitly approved.
-8. Runtime JS should enhance durable HTML skeletons before creating fallback panels.
+- default-enable v7 runtime
+- switch /ui to v7
+- add sequence runner
+- add image backend
+- add quicklook / data watcher
+- finish production preset UX
+- add durable setup/session backend
 ```
+
+---
+
+## Phase 2.8-H parity pass
+
+### Goal
+
+Systematically compare v5 capabilities against v7 and decide which operator-facing functions must migrate into the final operator console.
+
+This is a capability and workflow audit, not a blind HTML-copying exercise.
+
+### Method
+
+For each item found in v5:
+
+```text
+1. Identify the v5 operator-facing capability.
+2. Identify the current v7 home: Setup, Observe, Presets, Diagnostics, Housekeeping, or Engineer.
+3. Classify the parity decision.
+4. Decide whether implementation needs only frontend restructuring or a Phase 2.9 backend contract.
+5. Record a test expectation before changing runtime behavior.
+```
+
+### Classification vocabulary
+
+```text
+must-have
+  Required before v7 can become the default operator console.
+
+nice-to-have
+  Useful but not required for default-route promotion.
+
+engineer-only
+  Should move to Diagnostics, Housekeeping, or Engineer areas rather than main operator flow.
+
+deferred backend contract
+  Requires new or clarified backend/API/data contracts before frontend work can be honest.
+
+not carried forward
+  Intentionally retired after review.
+```
+
+### Minimum parity before `/ui` can become v7
+
+```text
+- status/full visibility
+- observation state and single-exposure controls
+- preset list, preview, confirmation, and apply result
+- detector profile and B/G/R channel state visibility
+- calibration mode and lamp status visibility
+- diagnostics / raw status visibility
+- latest_job and request_id feedback
+- live image / latest exposure preview region
+- clear placeholder treatment for not-yet-wired session/image/quicklook capabilities
+```
+
+### Initial page-by-page audit checklist
+
+#### Setup
+
+Compare:
+
+```text
+- observer/session context
+- project / PI / support / note fields
+- file/data/root-name context
+- local placeholder vs backend-persisted state labeling
+- data-product context and FITS/header implications
+```
+
+Likely decisions:
+
+```text
+- keep Setup fields honest as local placeholders until backend persistence exists
+- defer durable session metadata API to Phase 2.9
+```
+
+#### Observe
+
+Compare:
+
+```text
+- observation lifecycle controls
+- arm/start/finish/stop_readout/abort_discard visibility
+- current exposure state
+- frame result / latest exposure visibility
+- command feedback
+- latest_job / request_id / error presentation
+- live preview region
+- B/G/R channel visibility
+```
+
+Likely decisions:
+
+```text
+- preserve single-exposure workflow before adding sequence runner
+- defer live image backend / quicklook / data watcher to Phase 2.9 or later
+```
+
+#### Presets
+
+Compare:
+
+```text
+- preset catalog
+- preset preview
+- high-risk confirmation path
+- apply result feedback
+- affected subsystem explanation
+- blocked reason display
+- latest status refresh after apply
+```
+
+Likely decisions:
+
+```text
+- preserve preview-before-apply and confirmation-required semantics
+- improve operator-facing diff views before calling preset UX production-ready
+```
+
+#### Diagnostics
+
+Compare:
+
+```text
+- raw JSON/status visibility
+- subsystem status
+- request-id and error visibility
+- communications / event-log direction
+- image/feed diagnostics placeholders
+```
+
+Likely decisions:
+
+```text
+- keep raw JSON and engineering detail in Diagnostics
+- avoid pushing raw backend shape into main Observe workflow
+```
+
+#### Housekeeping / Engineer
+
+Compare:
+
+```text
+- health and safety status
+- environment and engineering telemetry placeholders
+- future power / utility / locked controls
+- real hardware adapter health
+```
+
+Likely decisions:
+
+```text
+- do not expose dangerous engineering controls as routine operator controls
+- defer role separation and permission boundaries until contracts are clearer
+```
+
+---
+
+## Migration principles
+
+### 1. Preserve v5 capability before redesigning it
+
+If a v5 feature is useful to operators, v7 should either implement it or intentionally defer it with a visible placeholder.
+
+Do not silently drop v5 functionality just because v7 has a cleaner layout.
+
+### 2. Do not make v7 default prematurely
+
+`/ui/v7` should not become the default `/ui` route until it has enough parity for daily operator use.
+
+### 3. Use v5 as the checklist for v7 pages
+
+For each v7 page, compare against v5 before considering it acceptable.
+
+### 4. Productize, do not merely copy
+
+v7 should not copy v5 wholesale into a new file. The value of v7 is better information architecture and maintainability.
+
+Where v5 is functionally richer but structurally crowded, v7 should preserve the capability but move it into clearer sections or reusable runtime/components.
+
+### 5. Keep the live image area as a first-class feature
+
+The live image / latest exposure preview capability is part of the product identity. It must remain visible in v7 even if the first implementation is a placeholder.
+
+---
 
 ## Repository hygiene checklist
 
-Run this checklist before ending each Phase 2.8-G work batch:
+Run this checklist before ending each Phase 2.8 work batch:
 
 ```text
 UI assets
@@ -158,7 +410,7 @@ Tests
   - Did the test count change for a deliberate reason?
 
 Docs
-  - Does docs/phase_2_8_ui_migration.md reflect the current route/runtime state?
+  - Does this document reflect the current route/runtime/parity state?
   - Were temporary planning notes either merged or deleted?
 
 Runtime safety
@@ -166,6 +418,8 @@ Runtime safety
   - Are fetch loops bounded or deliberately polled?
   - Can the page still open and click with runtime disabled?
 ```
+
+---
 
 ## Coding guardrails
 
@@ -228,17 +482,17 @@ tests/kernel/  kernel/runtime/domain behavior
 
 Avoid reintroducing root-level `test_stage_*` files. Stage history belongs in commit messages and docs; test files should describe the domain they cover.
 
-## v5 to v7 parity status
+---
+
+## Current v7 parity status
 
 ### Setup
-
-Status:
 
 ```text
 PARTIAL / PHASE 2.8-D BASELINE DONE
 ```
 
-v7 current state:
+Current state:
 
 ```text
 - Setup page exists.
@@ -248,53 +502,35 @@ v7 current state:
 - No durable Setup backend persistence contract exists yet.
 ```
 
-Next action:
-
-```text
-Do not make local session form persistence look real until a backend contract exists.
-```
-
 ### Observe
 
-Status:
-
 ```text
-PARTIAL / PHASE 2.8-F BASELINE DONE / PHASE 2.8-G SKELETON CONSOLIDATED / RUNTIME OPT-IN
+PARTIAL / PHASE 2.8-F BASELINE DONE / PHASE 2.8-G SKELETON CONSOLIDATED / RUNTIME OPT-IN VERIFIED
 ```
 
-v7 current state:
+Current state:
 
 ```text
 - Observe page exists.
 - Latest Exposure Preview remains visible as a first-class placeholder.
 - B/G/R placeholders remain static.
-- Single Exposure Control is now a single runtime-enhanceable HTML skeleton: #v7-observe-controls.
-- Runtime single-exposure controls live in ui/v7/observe_runtime.js and are opt-in only.
+- Single Exposure Control is one runtime-enhanceable HTML skeleton: #v7-observe-controls.
 - observe_runtime.js is singleton-safe and skeleton-aware.
-- Frontend-only observe guard lives in ui/v7/observe_guard.js and is opt-in only.
-- observe_guard.js is singleton-safe and uses narrow observer fallback.
+- observe_guard.js is singleton-safe and uses a narrow observer fallback.
 - No sequence runner, observation-plan editor, quicklook, or image backend is added in Phase 2.8-G.
 ```
 
-Next action:
-
-```text
-Local interaction test should enable observe_runtime.js first, then observe_guard.js separately.
-```
-
 ### Presets
-
-Status:
 
 ```text
 PARTIAL / PHASE 2.8-E BASELINE DONE / PHASE 2.8-G SKELETON CONSOLIDATED / RUNTIME OPT-IN VERIFIED
 ```
 
-v7 current state:
+Current state:
 
 ```text
 - Presets page exists.
-- Presets page now has a single runtime-enhanceable HTML skeleton: #v7-presets-runtime.
+- Presets page has one runtime-enhanceable HTML skeleton: #v7-presets-runtime.
 - Runtime catalog/preview/guarded-apply behavior lives in ui/v7/preset_runtime.js.
 - preset_runtime.js is singleton-safe and in-flight guarded.
 - Runtime preset behavior is opt-in only.
@@ -302,53 +538,44 @@ v7 current state:
 - Preview-before-apply and confirmation-required flows must not be bypassed.
 ```
 
-Next action:
-
-```text
-Do not add new preset endpoints. Keep guarded apply semantics aligned with backend confirmation rules.
-```
-
 ### Diagnostics
 
-Status:
-
 ```text
-PARTIAL / PHASE 2.8-C BASELINE DONE / RUNTIME OPT-IN
+PARTIAL / PHASE 2.8-C BASELINE DONE / RUNTIME OPT-IN VERIFIED
 ```
 
-v7 current state:
+Current state:
 
 ```text
 - Diagnostics page exists.
 - Runtime raw status preview lives in ui/v7/runtime_status.js.
 - runtime_status.js is singleton-safe.
+- Runtime Status / Setup Readiness / Raw Status Preview are consolidated under Diagnostics, not unrelated top-level clutter.
 - Image feed diagnostics remain placeholders.
-- Top status cards and Diagnostics slots are not yet fully consolidated into durable HTML binding points.
 ```
 
-Next action:
-
-```text
-runtime_status.js should bind existing top status cards and durable Diagnostics slots before adding more status UI.
-```
+---
 
 ## Explicit non-goals
 
 ```text
 - Do not replace /ui with /ui/v7.
 - Do not delete v5.
-- Do not add new hardware APIs.
-- Do not add quicklook/data watcher.
-- Do not add sequence runner.
+- Do not default-enable v7 runtime.
+- Do not add new hardware APIs in Phase 2.8-H.
+- Do not add quicklook/data watcher in Phase 2.8-H.
+- Do not add sequence runner in Phase 2.8-H.
 - Do not copy v5 wholesale into v7.
 ```
+
+---
 
 ## Current conclusion
 
 v5 remains the capability baseline. v7 is the target structure.
 
-Phase 2.8 should continue by measured migration:
+Phase 2.8 continues by measured migration:
 
 ```text
-v5 richness -> v7 structure -> local validation -> stable operator console
+v5 richness -> v7 structure -> parity audit -> local validation -> stable operator console
 ```

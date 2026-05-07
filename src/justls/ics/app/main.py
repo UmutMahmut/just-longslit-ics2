@@ -245,12 +245,42 @@ def expand_v7_feedback_rail(html: str) -> str:
     return html.replace(compact_footer, expanded_footer)
 
 
+def expand_v7_observe_command_panel(html: str) -> str:
+    """Ensure /ui/v7 exposes durable H3 Observe command-result bindings.
+
+    H3 keeps Observe focused on the existing single-exposure backend contract
+    while making the Finish command and structured command-result fields visible
+    in the served v7.1 shell.
+    """
+    if 'data-action="obs-finish"' not in html:
+        html = html.replace(
+            '                  <button class="btn primary" type="button" data-action="obs-start" disabled>Start</button>\n'
+            '                  <button class="btn" type="button" data-action="obs-stop-readout" disabled>Stop & Readout</button>',
+            '                  <button class="btn primary" type="button" data-action="obs-start" disabled>Start</button>\n'
+            '                  <button class="btn" type="button" data-action="obs-finish" disabled>Finish</button>\n'
+            '                  <button class="btn" type="button" data-action="obs-stop-readout" disabled>Stop & Readout</button>',
+        )
+
+    if 'data-bind="v7.observe.request_id"' not in html:
+        html = html.replace(
+            '                  <dt>Last Command</dt><dd><code data-bind="v7.observe.last_command">none</code></dd>\n'
+            '                  <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">static fallback</code></dd>',
+            '                  <dt>Last Command</dt><dd><code data-bind="v7.observe.last_command">none</code></dd>\n'
+            '                  <dt>Request ID</dt><dd><code data-bind="v7.observe.request_id">not available</code></dd>\n'
+            '                  <dt>Latest Job</dt><dd><code data-bind="v7.observe.latest_job">not available</code></dd>\n'
+            '                  <dt>Last Error</dt><dd><code data-bind="v7.observe.last_error">none</code></dd>\n'
+            '                  <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">static fallback</code></dd>',
+        )
+    return html
+
+
 def serve_html(
     path: Path,
     *,
     inject_adapter: bool = False,
     extra_scripts: tuple[str, ...] = (),
     expand_v7_feedback: bool = False,
+    expand_v7_observe: bool = False,
 ):
     if path.exists():
         html = path.read_text(encoding="utf-8")
@@ -258,6 +288,8 @@ def serve_html(
             html = inject_phase_2d6_ui_adapter(html)
         if expand_v7_feedback:
             html = expand_v7_feedback_rail(html)
+        if expand_v7_observe:
+            html = expand_v7_observe_command_panel(html)
         for script_src in extra_scripts:
             html = inject_script_tag(html, script_src)
         return HTMLResponse(html)
@@ -306,4 +338,5 @@ def read_ui_v7():
         UI_V7_ENTRY,
         extra_scripts=phase_2d8_v7_runtime_scripts(),
         expand_v7_feedback=True,
+        expand_v7_observe=True,
     )

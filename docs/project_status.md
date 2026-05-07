@@ -1,34 +1,29 @@
-# JUST Long-Slit ICS 2.0 project status
+# Project status
 
-This is the durable project-status document for the ICS 2.0 repository. It intentionally replaces the former collection of phase-specific audit notes. Keep this file focused on decisions that still guide current work.
+## Purpose
+
+This is the durable project-status document for JUST Long-Slit ICS 2.0. It replaces the previous collection of phase-specific audit notes in `docs/`.
+
+Keep this document focused on current direction, phase boundaries, completed milestones, open decisions, and close criteria. Do not use it as a scratchpad for every temporary idea.
+
+---
 
 ## Project goal
 
-ICS 2.0 is intended to become the software control backbone for the JUST Telescope long-slit spectrograph. It is not merely a web UI project. The system must evolve into a simulation-first, API-driven, test-protected instrument control stack that can later connect to real hardware safely.
+JUST Long-Slit ICS 2.0 is the control-system backbone for the JUST Telescope long-slit spectrograph. It is not merely a web UI project.
 
-Core long-term responsibilities:
-
-```text
-- observation lifecycle control;
-- slit control;
-- calibration mode and lamp control;
-- detector and B/G/R channel status/configuration;
-- preset preview/apply/audit;
-- diagnostics, request-id, latest-job, and error visibility;
-- future quicklook/data watcher integration;
-- future OCS/operator workflow integration;
-- future real hardware adapter integration.
-```
-
-## Current route policy
+The system is being developed around:
 
 ```text
-/ui      -> v5 stable default capability baseline
-/ui/v6   -> v6 operational-status review shell
-/ui/v7   -> v7.1 operator-console prototype, static by default
+- simulation-first backend development;
+- clear API/domain/kernel/application boundaries;
+- operator-safe control surfaces;
+- explicit diagnostics and request tracing;
+- staged migration from the current v5 UI capability baseline to a cleaner v7.1 operator console;
+- later real-hardware integration.
 ```
 
-Do not switch `/ui` to v7 until Phase 2.8-H parity and the following workflow-polish phase are accepted.
+---
 
 ## Current phase
 
@@ -36,198 +31,243 @@ Do not switch `/ui` to v7 until Phase 2.8-H parity and the following workflow-po
 Current phase:
   Phase 2.8-H: v5 to v7 feature parity pass
 
-Completed in H:
-  H7 v7.1 Instrument / Configure static shell
-  H8 v7.1 runtime compatibility check
-  H2 v7 operator feedback rail baseline
-  H3 Observe Finish + structured-result baseline, locally validated by user
-
-Immediate H work:
-  H-reconcile: backend/API capability -> v7.1 visibility/control alignment
-  H9 decision: whether minimal Instrument runtime belongs in Phase 2.8-H
-
-Not doing in the current version:
-  N1 night/day theme strategy
-  further H3 polish
-  Presets diff polish
-  workflow-level unification
-
-After H:
-  Phase 2.8-I operator workflow polish
+Current validation baseline reported by user:
+  pytest -q
+  156 passed in 0.97s
 ```
 
-Latest user-reported validation after H3 baseline:
+Current UI route strategy:
 
 ```text
-pytest -q
-156 passed in 0.97s
+/ui      -> v5 stable default capability baseline
+/ui/v6   -> v6 operational-status review shell
+/ui/v7   -> v7.1 operator-console prototype, static by default
 ```
 
-## Phase summary
+Do **not** switch `/ui` to v7 yet.
+
+---
+
+## Completed milestone summary
+
+### Phase 2.6: GUI and runtime operational maturity foundation
+
+Closed.
+
+Key durable outcomes:
 
 ```text
-Phase 2.6 GUI/runtime operational maturity
-  Closed. Established operational-status concepts, UI safety switches, request-id visibility direction, and v6 review shell.
-  Important decision: do not promote v6 to default /ui.
-
-Phase 2.7 preset operational hardening
-  Closed. Presets became auditable operations with metadata, preview/diff endpoint, confirmation enforcement, structured apply result, latest-job audit linkage, and observation metadata linkage.
-  Important decision: preset workflow is a foundation for future operator workflow, not a sequence runner.
-
-Phase 2.8 frontend modularization and operator-console migration
-  Active. v5 remains the default capability baseline. v7.1 is the target operator-console structure and remains static/runtime-gated by default.
-
-Phase 2.8-H v5-to-v7 parity pass
-  Active. Ensure capabilities are placed and minimally visible/usable in v7.1 before entering workflow polish.
-
-Phase 2.8-I operator workflow polish
-  Planned. Make Setup -> Instrument/Presets -> Observe -> Diagnostics feel like one coherent operator workflow.
-
-Phase 2.9+ backend contracts
-  Planned. Add or clarify backend contracts for final frontend capabilities such as image feed, quicklook, data products, persistent logs, permissions, and real hardware adapters.
+- `/api/v1/status/full` gained GUI-facing operational status.
+- `/ui` remained the stable default entrypoint.
+- `/ui/v6` was added as a review shell, not a default UI.
+- UI safety switches were added for v5 adapter and v6 route exposure.
+- X-Request-ID / latest-job / status-summary thinking entered the UI direction.
 ```
 
-## v7 runtime gates
-
-The v7 runtime architecture is opt-in.
-
-Master gate:
-
-```powershell
-$env:JUSTLS_UI_V7_RUNTIME_ENABLED="1"
-```
-
-Module gates:
-
-```powershell
-$env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED="1"
-$env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED="1"
-$env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED="1"
-$env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED="1"
-```
-
-Recommended cleanup before starting a static-shell check:
-
-```powershell
-Remove-Item Env:JUSTLS_UI_V7_RUNTIME_ENABLED -ErrorAction SilentlyContinue
-Remove-Item Env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED -ErrorAction SilentlyContinue
-Remove-Item Env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED -ErrorAction SilentlyContinue
-Remove-Item Env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED -ErrorAction SilentlyContinue
-Remove-Item Env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED -ErrorAction SilentlyContinue
-```
-
-Runtime rule:
+Durable lesson:
 
 ```text
-HTML owns durable structure.
-Runtime JS enhances durable HTML skeletons.
-Runtime JS must not create competing duplicate UI panels unless it is a fallback for a missing skeleton.
+Do not promote a technically healthy review shell to the default operator UI before it is more usable than the current default.
 ```
 
-## Current v7.1 status
+### Phase 2.7: Preset operational hardening
+
+Closed.
+
+Key durable outcomes:
 
 ```text
-Setup
-  Present. Local session/project fields are placeholders. Durable session backend is deferred.
-
-Instrument / Configure
-  Present. Correct placement for routine slit/calibration/detector visibility.
-  Current gap: slit/lamp/calibration controls are structurally placed but not yet directly controllable in v7.1 runtime.
-
-Observe
-  Present. Single-exposure lifecycle baseline exists: arm, start, finish, stop_readout, abort_discard.
-  H3 baseline adds request_id/latest_job/last_error binding points.
-  Further command-result polish belongs to Phase 2.8-I unless required for minimal parity.
-
-Presets
-  Present. Catalog, preview, confirmation, and apply runtime exist.
-  Operator-facing diff view belongs to Phase 2.8-I.
-
-Diagnostics
-  Present. Raw status, feedback rail, request-id/error direction, and runtime diagnostics exist.
-
-Housekeeping / Engineer
-  Reserved. Unsafe/low-level controls should not enter the routine operator flow without role and safety contracts.
+- presets gained category / risk_level / requires_confirmation metadata;
+- side-effect-free preset preview endpoint exists;
+- high-impact/engineering presets require confirmation at the API boundary;
+- apply result became structured and auditable;
+- successful preset apply produces latest-job audit linkage;
+- observation arm can attach the latest successful preset-apply summary.
 ```
 
-## Current H9 decision point
-
-The key Phase 2.8-H gap is Instrument API alignment.
-
-Backend/API support exists for slit and calibration/lamp operations, and those operations are routine operator configuration rather than hidden engineering-only concepts. v7.1 currently provides the correct Instrument / Configure placement, but not direct runtime controls.
-
-Candidate H9 scope:
+Durable lesson:
 
 ```text
-H9: minimal v7 Instrument runtime for existing slit/calibration APIs
-
-Possible endpoints:
-  POST /api/v1/slit
-  POST /api/v1/slit_angle
-  GET  /api/v1/calibration/status
-  POST /api/v1/calibration/mode
-  POST /api/v1/calibration/lamp
-
-Possible read-only visibility:
-  GET /api/v1/detector/config
-
-Likely deferred from H9:
-  POST /api/v1/detector/config
-  full B/G/R hardware-control contract
-  EtherCAT / power / low-level engineering controls
+Presets are not just configuration shortcuts. They are auditable operations and future workflow building blocks.
 ```
 
-If H9 is accepted, it must remain a parity-restoration baseline, not workflow polish and not new hardware-contract work.
+### Phase 2.8-G: v7 runtime architecture stabilization
 
-## Phase 2.8-H close criteria
+Closed.
 
-Before closing H, the project should have:
+Key durable outcomes:
 
 ```text
-- v7.1 IA completed and tested;
-- runtime compatibility completed and tested;
-- feedback rail baseline completed and tested;
-- Observe lifecycle baseline completed and tested;
-- backend/API capability visibility alignment completed;
-- explicit decision on H9 minimal Instrument runtime;
-- if H9 accepted, minimal slit/calibration controls implemented and tested;
-- if H9 rejected, direct slit/lamp control gap explicitly carried forward.
+- v7 runtime master gate added;
+- v7 module-level runtime gates added;
+- `/ui/v7` remains static by default;
+- runtime_status.js, preset_runtime.js, observe_runtime.js, and observe_guard.js became singleton-safe/skeleton-aware;
+- Presets and Observe each use one durable runtime-enhanceable skeleton;
+- runtime JS enhances durable HTML instead of creating duplicate panels by default.
 ```
 
-Only then should the project enter Phase 2.8-I.
-
-## Phase 2.8-I planned scope
-
-Phase 2.8-I is operator workflow polish, not raw parity placement.
-
-Recommended work:
+Durable rule:
 
 ```text
-- Make Setup -> Instrument/Presets -> Observe -> Diagnostics feel natural.
-- Convert Presets raw preview into operator-facing diff/risk views.
-- Standardize Observe command result/state transition/error display.
-- Standardize latest_job / request_id / error presentation.
-- Standardize busy/blocked/confirmation/button availability rules.
-- Keep raw JSON and deep troubleshooting in Diagnostics.
+HTML owns durable structure. Runtime JS enhances it.
 ```
 
-## Deferred backend contracts
+### Phase 2.8-H work completed so far
 
-Do not fake these in frontend-only work:
+Current completed H work:
 
 ```text
-- durable setup/session metadata;
-- live image feed / quicklook / data watcher;
+H7: v7.1 Instrument / Configure static shell
+  DONE
+  v7.1 IA is now Setup / Instrument / Observe / Presets / Diagnostics / Housekeeping / Engineer.
+
+H8: v7.1 runtime compatibility check
+  DONE
+  Existing v7 runtime modules target the v7.1 durable skeletons.
+
+H2: v7 operator feedback rail baseline
+  DONE
+  v7 status runtime now tracks request_id, RTT, last OK, connection state, severity, poll count, and freshness.
+
+H3: Observe Finish + structured-result baseline
+  DONE / baseline only
+  v7 Observe now exposes Finish and structured request_id/latest_job/last_error fields.
+```
+
+H3 is not currently being polished further. Full command-feedback unification belongs to Phase 2.8-I.
+
+---
+
+## Current Phase 2.8-H mainline
+
+The active H mainline is now:
+
+```text
+1. H-reconcile: true v5/v7.1 parity and backend-capability visibility check.
+2. Decide H9: whether minimal Instrument runtime belongs in Phase 2.8-H.
+3. If accepted, implement only minimal routine Instrument controls backed by existing APIs.
+4. Close H only after capability visibility/parity gaps are explicitly classified.
+```
+
+Current H9 recommendation:
+
+```text
+H9: backend capability visibility and Instrument API alignment
+```
+
+H9 should consider:
+
+```text
+- POST /api/v1/slit
+- POST /api/v1/slit_angle
+- GET  /api/v1/calibration/status
+- POST /api/v1/calibration/mode
+- POST /api/v1/calibration/lamp
+- GET  /api/v1/detector/config
+```
+
+Likely minimal H9 scope:
+
+```text
+- direct routine controls for slit width and slit angle;
+- direct routine controls for calibration/science mode;
+- direct routine controls for flat / arc_hgar / arc_ne lamp enable state;
+- read-only detector config visibility;
+- no full detector write UI unless explicitly approved.
+```
+
+---
+
+## Current non-goals
+
+Do not do these in the current H version:
+
+```text
+- N1 night/day theme strategy;
+- further H3 Observe polish;
+- Presets diff polish;
+- workflow-level unification;
+- sequence runner;
+- observation plan editor;
+- quicklook/data watcher backend;
+- real hardware adapter integration;
+- low-level EtherCAT / power / engineering controls;
+- `/ui` -> v7 route switch.
+```
+
+---
+
+## Phase 2.8-I: operator workflow polish
+
+Planned after Phase 2.8-H.
+
+Goal:
+
+```text
+Make Setup -> Presets -> Observe -> Diagnostics feel like a natural operator flow.
+```
+
+Recommended I work:
+
+```text
+- clarify which Setup fields are local placeholders and which are runtime-derived;
+- convert Presets JSON preview into operator-facing diff views;
+- standardize Observe command result / state transition / error display;
+- make Diagnostics the home for raw JSON and deeper debugging;
+- clarify roles of top status cards, feedback rail, and runtime panels;
+- unify latest_job / request_id / error detail presentation;
+- unify button availability rules;
+- unify visual language for runtime state / busy / blocked / confirmation.
+```
+
+Do not mix I polish into H unless it is required for minimal parity.
+
+---
+
+## Phase 2.9+ deferred backend contracts
+
+Deferred until after H/I clarify the operator surface:
+
+```text
+- durable setup/session metadata API;
+- image feed / latest exposure backend / quicklook / data watcher;
 - sequence runner / observing plan model;
 - persistent observation log / audit trail;
-- final FITS/data-product contract;
+- role separation / authentication / permission boundaries;
+- final FITS/data-product metadata contract;
 - full B/G/R channel hardware-control contract;
 - slit-monitor camera / guider / slit-width measurement contract;
 - derotator / instrument-rotation control contract;
-- role separation, authentication, and permission boundaries;
 - real hardware adapter validation.
 ```
 
-## Documentation hygiene
+---
 
-Long-lived docs should remain few and durable. Avoid adding one-off phase notes. Append durable decisions here or to `operator_console_requirements.md` instead.
+## Route and runtime invariants
+
+These must remain true unless explicitly changed by a major decision:
+
+```text
+- `/ui` remains v5 default.
+- `/ui/v7` remains static and clickable by default.
+- v7 runtime is opt-in through `JUSTLS_UI_V7_RUNTIME_ENABLED=1`.
+- v7 module-level runtime gates remain opt-in or master-gated.
+- runtime JS must enhance durable skeletons and avoid duplicate competing panels.
+- raw JSON belongs in Diagnostics, not in the main Observe/Presets flow.
+- unsafe engineering actions belong in Engineer/Housekeeping/Diagnostics, not routine operator flow.
+```
+
+---
+
+## Documentation policy
+
+`docs/` should remain small and durable.
+
+Current durable docs:
+
+```text
+docs/project_status.md
+docs/operator_console_requirements.md
+```
+
+Avoid reintroducing one-off phase notes. If a decision remains useful, fold it into one of these two files.

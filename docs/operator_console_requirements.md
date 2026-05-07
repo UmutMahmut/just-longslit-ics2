@@ -1,6 +1,12 @@
-# JUST Long-Slit ICS 2.0 operator console requirements
+# Operator console requirements
 
-This document records durable operator-console requirements for the v7.1 and later UI. It replaces detailed phase-specific parity notes and temporary design memos.
+## Purpose
+
+This is the durable operator-console requirements document for v7.1 and later. It replaces detailed phase-specific parity notes and temporary design memos.
+
+Keep this document focused on requirements, capability visibility, hardware constraints, and long-lived UI responsibility boundaries.
+
+---
 
 ## Core principle
 
@@ -13,6 +19,8 @@ Engineering / unsafe / incomplete capability must be visible but gated, deferred
 ```
 
 The frontend must not silently drop an existing backend capability. It also must not pretend that a placeholder is real hardware telemetry.
+
+---
 
 ## Reference sources and how to use them
 
@@ -56,6 +64,8 @@ JUST-specific correction:
 JUST is a B/G/R three-channel spectrograph, not a MODS Blue/Red two-channel instrument.
 ```
 
+---
+
 ## v7.1 information architecture
 
 Current v7.1 target structure:
@@ -95,6 +105,8 @@ Engineer
   Low-level hardware/maintenance/unsafe controls, role-gated later.
 ```
 
+---
+
 ## Capability classification
 
 Each backend or legacy-intent capability should be classified as one of:
@@ -118,6 +130,8 @@ DEFERRED_BACKEND_CONTRACT
 NOT_CARRIED_FORWARD
   The capability is intentionally retired with a recorded reason.
 ```
+
+---
 
 ## Current backend/API capability visibility requirements
 
@@ -238,6 +252,8 @@ v7.1 requirements:
 - Operator-facing diff/risk/affected-subsystem presentation belongs to Phase 2.8-I.
 ```
 
+---
+
 ## Live image and preview requirement
 
 The live/latest exposure preview is a first-class operator-console requirement.
@@ -261,6 +277,8 @@ Deferred backend contracts:
 - frame freshness and last-frame metadata.
 ```
 
+---
+
 ## JUST hardware constraints
 
 The v7 operator console must respect these design constraints:
@@ -281,6 +299,8 @@ The v7 operator console must respect these design constraints:
 ```
 
 Do not introduce UI copy or code assumptions that contradict these facts.
+
+---
 
 ## Current H9 candidate
 
@@ -311,6 +331,8 @@ Non-goals for H9:
 - no Presets diff UX polish;
 - no night/day theme work.
 ```
+
+---
 
 ## Documentation policy
 

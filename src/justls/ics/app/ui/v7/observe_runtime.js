@@ -9,6 +9,7 @@
   const STATUS_ENDPOINT = "/api/v1/observation/status";
   const ARM_ENDPOINT = "/api/v1/observation/arm";
   const START_ENDPOINT = "/api/v1/observation/start";
+  const FINISH_ENDPOINT = "/api/v1/observation/finish";
   const STOP_READOUT_ENDPOINT = "/api/v1/observation/stop_readout";
   const ABORT_DISCARD_ENDPOINT = "/api/v1/observation/abort_discard";
 
@@ -20,6 +21,7 @@
     lastCommand: null,
     lastResult: null,
     lastError: null,
+    lastRequestId: null,
   };
   window[GLOBAL_KEY] = runtime;
 
@@ -61,11 +63,15 @@
           <dt>Observation State</dt><dd><code data-bind="v7.observe.state">unknown</code></dd>
           <dt>Armed Exposure</dt><dd><code data-bind="v7.observe.armed">not armed</code></dd>
           <dt>Last Command</dt><dd><code data-bind="v7.observe.last_command">none</code></dd>
+          <dt>Request ID</dt><dd><code data-bind="v7.observe.request_id">not available</code></dd>
+          <dt>Latest Job</dt><dd><code data-bind="v7.observe.latest_job">not available</code></dd>
+          <dt>Last Error</dt><dd><code data-bind="v7.observe.last_error">none</code></dd>
           <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">idle</code></dd>
         </dl>
         <div class="badge-row">
           <button class="btn primary" type="button" data-action="obs-arm">Arm</button>
           <button class="btn primary" type="button" data-action="obs-start">Start</button>
+          <button class="btn" type="button" data-action="obs-finish">Finish</button>
           <button class="btn" type="button" data-action="obs-stop-readout">Stop & Readout</button>
           <button class="btn danger" type="button" data-action="obs-abort-discard">Abort & Discard</button>
         </div>
@@ -80,6 +86,7 @@
     const bindings = [
       ["obs-arm", arm],
       ["obs-start", () => postCommand("start", START_ENDPOINT)],
+      ["obs-finish", () => postCommand("finish", FINISH_ENDPOINT)],
       ["obs-stop-readout", () => postCommand("stop_readout", STOP_READOUT_ENDPOINT)],
       ["obs-abort-discard", abortDiscard],
     ];
@@ -144,6 +151,19 @@
     };
   }
 
+  function latestJobLabel(payload) {
+    const job = payload && payload.latest_job;
+    if (!job) return "not available";
+    return [job.status, job.subsystem, job.action, job.job_id].filter(Boolean).join(" · ");
+  }
+
+  function bindStructuredResult(command, payload, error) {
+    setText(bind("v7.observe.last_command"), command || "none");
+    setText(bind("v7.observe.request_id"), runtime.lastRequestId || "not available");
+    setText(bind("v7.observe.latest_job"), latestJobLabel(payload));
+    setText(bind("v7.observe.last_error"), error ? text(error, "failed") : "none");
+  }
+
   function renderStatus(payload) {
     runtime.lastStatus = payload || {};
     const armed = runtime.lastStatus.armed_exposure || runtime.lastStatus.last_exposure || null;
@@ -158,14 +178,20 @@
     runtime.lastResult = payload;
     runtime.lastError = null;
     setText(bind("v7.observe.last_command"), command);
-    setText(bind("v7.observe.result"), JSON.stringify(payload, null, 2));
+    bindStructuredResult(command, payload, null);
+    setText(bind("v7.observe.result"), JSON.stringify({ command, request_id: runtime.lastRequestId, payload }, null, 2));
   }
 
   function renderError(command, error) {
     runtime.lastCommand = command;
     runtime.lastError = text(error, "failed");
     setText(bind("v7.observe.last_command"), command);
-    setText(bind("v7.observe.result"), JSON.stringify({ command, error: runtime.lastError }, null, 2));
+    bindStructuredResult(command, runtime.lastResult, runtime.lastError);
+    setText(bind("v7.observe.result"), JSON.stringify({ command, request_id: runtime.lastRequestId, error: runtime.lastError }, null, 2));
+  }
+
+  function requestIdFrom(response) {
+    return response.headers.get("x-request-id") || response.headers.get("X-Request-ID") || runtime.lastRequestId;
   }
 
   async function refreshStatus() {
@@ -175,9 +201,12 @@
     refreshRuntimeState();
     try {
       const response = await fetch(STATUS_ENDPOINT, { cache: "no-store", headers: { Accept: "application/json" } });
+      runtime.lastRequestId = requestIdFrom(response);
       const payload = await response.json();
-      if (response.ok) renderStatus(payload);
-      else renderError("status", `HTTP ${response.status}`);
+      if (response.ok) {
+        renderStatus(payload);
+        bindStructuredResult(runtime.lastCommand, payload, null);
+      } else renderError("status", `HTTP ${response.status}`);
     } catch (error) {
       renderError("status", error && error.message);
     } finally {
@@ -196,6 +225,7 @@
         cache: "no-store",
         body: body ? JSON.stringify(body) : undefined,
       });
+      runtime.lastRequestId = requestIdFrom(response);
       const payload = await response.json();
       if (response.ok) renderResult(command, payload);
       else renderError(command, `HTTP ${response.status}: ${JSON.stringify(payload)}`);

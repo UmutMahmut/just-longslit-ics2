@@ -110,13 +110,34 @@ def test_v7_observe_runtime_and_guard_assets_target_existing_observe_skeleton():
     assert 'data-role="obs-abort-confirm"' in runtime_js
     assert 'data-action="obs-arm"' in runtime_js
     assert 'data-action="obs-start"' in runtime_js
+    assert 'data-action="obs-finish"' in runtime_js
     assert 'data-action="obs-stop-readout"' in runtime_js
     assert 'data-action="obs-abort-discard"' in runtime_js
+    assert "FINISH_ENDPOINT" in runtime_js
+    assert "/api/v1/observation/finish" in runtime_js
+    assert "v7.observe.request_id" in runtime_js
+    assert "v7.observe.latest_job" in runtime_js
+    assert "v7.observe.last_error" in runtime_js
+    assert "requestIdFrom" in runtime_js
     assert "__JUSTLS_V7_OBSERVE_GUARD__" in guard_js
     assert 'document.getElementById("v7-observe-controls")' in guard_js
     assert 'data-role="obs-abort-confirm"' in guard_js
     assert "obs-arm" in guard_js
     assert "obs-start" in guard_js
+    assert "obs-finish" in guard_js
     assert "obs-stop_readout" not in guard_js
     assert "obs-stop-readout" in guard_js
     assert "obs-abort-discard" in guard_js
+
+
+def test_v7_served_observe_shell_exposes_h3_finish_and_structured_result_fields():
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    html = response.text
+    assert 'data-action="obs-finish"' in html
+    assert 'data-bind="v7.observe.request_id"' in html
+    assert 'data-bind="v7.observe.latest_job"' in html
+    assert 'data-bind="v7.observe.last_error"' in html

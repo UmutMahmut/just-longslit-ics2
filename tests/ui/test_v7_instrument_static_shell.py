@@ -36,6 +36,28 @@ def test_v7_static_shell_preserves_stable_runtime_binding_ids():
     assert 'id="v7-presets-runtime"' in html
 
 
+def test_v7_static_shell_exposes_operator_feedback_rail_fields():
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
+    html = response.text
+    assert 'data-role="v7-message-rail"' in html
+    assert "Operator Feedback" in html
+    assert 'data-severity="info"' in html
+    assert 'data-connection="static"' in html
+    assert 'data-bind="v7.message.text"' in html
+    assert 'data-bind="v7.message.phase"' in html
+    assert 'data-bind="v7.message.severity"' in html
+    assert 'data-bind="v7.message.connection"' in html
+    assert 'data-bind="v7.message.rtt_ms"' in html
+    assert 'data-bind="v7.message.last_ok_at"' in html
+    assert 'data-bind="v7.message.request_id"' in html
+    assert 'data-bind="v7.message.poll_count"' in html
+    assert 'data-bind="v7.message.freshness"' in html
+
+
 def test_v7_static_shell_models_just_as_bgr_not_mods_blue_red():
     client = TestClient(app)
 

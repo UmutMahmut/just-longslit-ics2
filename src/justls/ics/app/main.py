@@ -212,16 +212,52 @@ def inject_phase_2d6_ui_adapter(html: str) -> str:
     return inject_script_tag(html, UI_PHASE_2D6_ADAPTER)
 
 
+def expand_v7_feedback_rail(html: str) -> str:
+    """Ensure /ui/v7 exposes durable H2 feedback rail binding points.
+
+    This keeps the served v7.1 shell compatible with the H2 feedback baseline
+    even when older static files still contain the compact footer rail.
+    """
+    if 'data-bind="v7.message.severity"' in html:
+        return html
+
+    compact_footer = """    <footer class="rail" data-role="v7-message-rail">
+      <strong>Message Rail</strong>
+      <span data-bind="v7.message.text">v7.1 shell ready. Instrument / Configure is static-first; runtime modules remain opt-in.</span>
+      <code data-bind="v7.message.phase">Phase 2.8-H</code>
+    </footer>"""
+    expanded_footer = """    <footer class="rail" data-role="v7-message-rail" data-severity="info" data-connection="static">
+      <strong>Operator Feedback</strong>
+      <div data-role="v7-feedback-summary">
+        <span data-bind="v7.message.text">v7.1 shell ready. Instrument / Configure is static-first; runtime modules remain opt-in.</span>
+        <div class="badge-row" aria-label="operator feedback telemetry">
+          <span class="badge demo">Severity <code data-bind="v7.message.severity">INFO</code></span>
+          <span class="badge future">Connection <code data-bind="v7.message.connection">static</code></span>
+          <span class="badge future">RTT <code data-bind="v7.message.rtt_ms">not measured</code></span>
+          <span class="badge future">Last OK <code data-bind="v7.message.last_ok_at">not available</code></span>
+          <span class="badge future">Request <code data-bind="v7.message.request_id">not available</code></span>
+          <span class="badge future">Poll <code data-bind="v7.message.poll_count">0</code></span>
+          <span class="badge future">Freshness <code data-bind="v7.message.freshness">not available</code></span>
+        </div>
+      </div>
+      <code data-bind="v7.message.phase">Phase 2.8-H</code>
+    </footer>"""
+    return html.replace(compact_footer, expanded_footer)
+
+
 def serve_html(
     path: Path,
     *,
     inject_adapter: bool = False,
     extra_scripts: tuple[str, ...] = (),
+    expand_v7_feedback: bool = False,
 ):
     if path.exists():
         html = path.read_text(encoding="utf-8")
         if inject_adapter:
             html = inject_phase_2d6_ui_adapter(html)
+        if expand_v7_feedback:
+            html = expand_v7_feedback_rail(html)
         for script_src in extra_scripts:
             html = inject_script_tag(html, script_src)
         return HTMLResponse(html)
@@ -266,4 +302,8 @@ def read_ui_v6():
 def read_ui_v7():
     if not phase_2d8_v7_enabled():
         raise HTTPException(status_code=404, detail="Operational UI v7 is disabled.")
-    return serve_html(UI_V7_ENTRY, extra_scripts=phase_2d8_v7_runtime_scripts())
+    return serve_html(
+        UI_V7_ENTRY,
+        extra_scripts=phase_2d8_v7_runtime_scripts(),
+        expand_v7_feedback=True,
+    )

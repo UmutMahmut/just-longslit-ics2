@@ -50,6 +50,30 @@ def test_v7_runtime_status_asset_targets_v7_1_instrument_and_diagnostics_skeleto
     assert "v7.message.text" in js
 
 
+def test_v7_runtime_status_asset_tracks_feedback_rail_telemetry():
+    client = TestClient(app)
+
+    response = client.get("/ui-assets/v7/runtime_status.js")
+
+    assert response.status_code == 200
+    js = response.text
+    assert "lastRequestId" in js
+    assert "lastRttMs" in js
+    assert "lastOkAt" in js
+    assert "connectionState" in js
+    assert "requestIdFrom" in js
+    assert "X-Request-ID" in js
+    assert "x-request-id" in js
+    assert "performance.now" in js
+    assert "data-severity" in js
+    assert "data-connection" in js
+    assert "data-request-id" in js
+    assert "v7.message.severity" in js
+    assert "v7.connection.rtt_ms" in js
+    assert "v7.connection.last_ok_at" in js
+    assert "v7.request_id" in js
+
+
 def test_v7_preset_runtime_asset_targets_existing_presets_skeleton():
     client = TestClient(app)
 

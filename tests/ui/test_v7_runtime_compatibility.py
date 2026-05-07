@@ -59,10 +59,10 @@ def test_v7_preset_runtime_asset_targets_existing_presets_skeleton():
     js = response.text
     assert "__JUSTLS_V7_PRESET_RUNTIME__" in js
     assert 'document.getElementById("v7-presets-runtime")' in js
-    assert 'data-bind=\\"v7.presets.catalog\\"' in js
-    assert 'data-bind=\\"v7.presets.preview\\"' in js
-    assert 'data-role=\\"v7-preset-confirmation\\"' in js
-    assert 'data-action=\\"apply-previewed-preset\\"' in js
+    assert 'data-bind="v7.presets.catalog"' in js
+    assert 'data-bind="v7.presets.preview"' in js
+    assert 'data-role="v7-preset-confirmation"' in js
+    assert 'data-action="apply-previewed-preset"' in js
     assert "/api/v1/presets" in js
     assert "/api/v1/presets/preview" in js
     assert "/api/v1/presets/apply" in js
@@ -80,18 +80,19 @@ def test_v7_observe_runtime_and_guard_assets_target_existing_observe_skeleton():
     guard_js = guard_response.text
     assert "__JUSTLS_V7_OBSERVE_RUNTIME__" in runtime_js
     assert 'document.getElementById("v7-observe-controls")' in runtime_js
-    assert 'data-role=\\"obs-exp-time\\"' in runtime_js
-    assert 'data-role=\\"obs-frame-type\\"' in runtime_js
-    assert 'data-role=\\"obs-operator-note\\"' in runtime_js
-    assert 'data-role=\\"obs-abort-confirm\\"' in runtime_js
-    assert 'data-action=\\"obs-arm\\"' in runtime_js
-    assert 'data-action=\\"obs-start\\"' in runtime_js
-    assert 'data-action=\\"obs-stop-readout\\"' in runtime_js
-    assert 'data-action=\\"obs-abort-discard\\"' in runtime_js
+    assert 'data-role="obs-exp-time"' in runtime_js
+    assert 'data-role="obs-frame-type"' in runtime_js
+    assert 'data-role="obs-operator-note"' in runtime_js
+    assert 'data-role="obs-abort-confirm"' in runtime_js
+    assert 'data-action="obs-arm"' in runtime_js
+    assert 'data-action="obs-start"' in runtime_js
+    assert 'data-action="obs-stop-readout"' in runtime_js
+    assert 'data-action="obs-abort-discard"' in runtime_js
     assert "__JUSTLS_V7_OBSERVE_GUARD__" in guard_js
     assert 'document.getElementById("v7-observe-controls")' in guard_js
-    assert 'data-role=\\"obs-abort-confirm\\"' in guard_js
+    assert 'data-role="obs-abort-confirm"' in guard_js
     assert "obs-arm" in guard_js
     assert "obs-start" in guard_js
+    assert "obs-stop_readout" not in guard_js
     assert "obs-stop-readout" in guard_js
     assert "obs-abort-discard" in guard_js

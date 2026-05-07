@@ -2,87 +2,61 @@
 
 Instrument Control System (ICS) for the JUST Telescope **Long-Slit Spectrograph**.
 
-ICS 2.0 is intended to become the software control backbone for the JUST long-slit spectrograph. It is not only a web UI project. The repository currently contains a simulation-first, API-driven control stack and a staged operator-console frontend that are being developed toward later real-hardware integration.
+ICS 2.0 is intended to become the software control backbone for the JUST long-slit spectrograph. It is not only a web UI project. The repository currently contains a simulation-first, API-driven control stack and a staged operator-console frontend being developed toward later real-hardware integration.
 
 ---
 
 ## Current status
 
-The project has moved beyond the early skeleton/prototype stage. The current stable baseline is a simulator-backed ICS with a usable backend/API backbone, a stable v5 default UI, and a productizing v7 operator-console prototype.
-
-Latest reported local validation:
-
-```text
-pytest -q
-144 passed
-```
+The current stable baseline is a simulator-backed ICS with a usable backend/API backbone, a stable v5 default UI, and a productizing v7.1 operator-console prototype.
 
 Current strategic UI decision:
 
 ```text
 /ui      -> v5 stable default capability baseline
 /ui/v6   -> v6 operational-status review shell
-/ui/v7   -> future operator console prototype, static by default
+/ui/v7   -> v7.1 operator-console prototype, static by default
 ```
 
 Do **not** switch `/ui` to v7 yet.
 
-v7 has a healthier runtime architecture than before: static shell first, versioned runtime assets, opt-in runtime gates, singleton-safe runtime modules, and consolidated durable HTML skeletons for Presets and Observe. The next mainline is a systematic **v5-to-v7 feature parity pass**, not ad-hoc runtime expansion.
+Current mainline:
+
+```text
+Phase 2.8-H: v5 to v7 feature parity pass
+```
+
+Recent local validation reported by the user:
+
+```text
+pytest -q
+156 passed in 0.97s
+```
+
+For the durable current-status record, see:
+
+```text
+docs/project_status.md
+```
+
+For operator-console requirements and backend-capability visibility rules, see:
+
+```text
+docs/operator_console_requirements.md
+```
 
 ---
 
 ## What this repository currently provides
 
-- A layered Python backend organized around **domain / kernel / application / API** boundaries.
-- A **FastAPI** control and status interface under `/api/v1/*`.
+- A layered Python backend organized around domain / kernel / application / API boundaries.
+- A FastAPI control and status interface under `/api/v1/*`.
 - A simulation-first runtime for end-to-end development before full hardware availability.
 - Backend-served static frontends for zero-CORS local integration.
 - A stable v5 default UI used as the current capability baseline.
-- A v7 operator-console prototype with static default behavior and opt-in runtime enhancement.
-- Runtime-status, preset, observe, and observe-guard prototypes for v7.
-- Regression tests covering API behavior, UI route/static asset behavior, runtime gates, preset safety, and observe/status behavior.
-
----
-
-## Current phase summary
-
-```text
-Phase 2.8-A: DONE
-  Route stabilization. /ui remains v5; /ui/v6 and /ui/v7 keep separate roles.
-
-Phase 2.8-B: DONE
-  v7 static shell established and clickable by default without runtime JS.
-
-Phase 2.8-C: OPT-IN PROTOTYPE DONE / VERIFIED
-  v7 runtime status binding exists, is gated, and is singleton-safe.
-
-Phase 2.8-C/D bridge: DONE / MERGED
-  Earlier v5-to-v7 parity notes were consolidated into the Phase 2.8 UI migration record.
-
-Remote hygiene guardrails: DONE / CONTINUING DISCIPLINE
-  UI assets, tests, and docs have clearer durable homes.
-
-Phase 2.8-D: STATIC DONE / RUNTIME CONTEXT OPT-IN
-  v7 Setup static baseline exists; durable setup/session backend is not started.
-
-Phase 2.8-E: STATIC SKELETON CONSOLIDATED / RUNTIME PRESET VERIFIED
-  Presets skeleton and runtime are consolidated, gated, and locally verified.
-
-Phase 2.8-F: STATIC SKELETON CONSOLIDATED / OBSERVE RUNTIME + GUARD VERIFIED
-  Observe single-exposure controls and frontend guard are gated and locally verified.
-
-Phase 2.8-G: CORE STABILIZATION DONE / CURRENT BATCH CLOSED
-  v7 runtime architecture stabilization is closed enough for the next mainline.
-
-Phase 2.8-H: PLANNED / NEXT
-  v5-to-v7 feature parity pass.
-
-Phase 2.8-I: PLANNED
-  Operator workflow polish after parity decisions.
-
-Phase 2.9: PLANNED
-  New backend contracts for final frontend capabilities.
-```
+- A v7.1 operator-console prototype with static default behavior and opt-in runtime enhancement.
+- Runtime-status, preset, observe, and observe-guard prototypes for v7.1.
+- Regression tests covering API behavior, UI route/static asset behavior, runtime gates, preset safety, observe/status behavior, and operator-console shell invariants.
 
 ---
 
@@ -98,14 +72,9 @@ Core design priorities:
 - Make raw status and JSON available in Diagnostics, not in the main observing path.
 - Keep simulation-first development while leaving a clean path for real hardware adapters.
 - Avoid pretending that static placeholders are real telemetry or persisted backend state.
+- Ensure backend capabilities are at least visible in the frontend, even when not directly controllable.
 
-The current design has been informed by mature spectrograph-control patterns, especially:
-
-- MODS-style separation of setup, dashboard operation, raw image display, scripting, alignment, and engineering utilities.
-- BFOSC-style attention to practical observer workflow, wheel/configuration control, focusing, CCD acquisition, calibration, guiding, and data reduction constraints.
-- JUST long-slit spectrograph requirements for B/G/R channel operation, calibration, slit monitoring, guiding, data storage, and future OCS/operator-console integration.
-
-These references are design inputs, not finished implementation claims.
+The current design has been informed by mature spectrograph-control patterns and by earlier JUST ICS experience. The legacy ICS 1.0 repository is useful as an intent reference, especially for the minimal closed loop, SimHAL, capabilities map, slit/lamp control, SlitCam, B/G/R placeholders, and backend-served static UI. It is not the implementation source of truth for ICS 2.0.
 
 ---
 
@@ -147,15 +116,17 @@ src/justls/ics/app/ui/ui_operational_v7.html
 
 Default behavior must remain static and clickable without runtime JS.
 
-v7 currently organizes the future console around:
+v7.1 currently organizes the future console around:
 
-- Setup
-- Observe
-- Presets
-- Diagnostics
-- top-level status cards
-- live image / latest exposure preview placeholders
-- B/G/R channel placeholders
+```text
+Setup
+Instrument / Configure
+Observe
+Presets
+Diagnostics
+Housekeeping
+Engineer
+```
 
 ---
 
@@ -182,10 +153,10 @@ $env:JUSTLS_UI_V7_RUNTIME_ENABLED="1"
 Module gates:
 
 ```powershell
-$env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED="1"   # status module; effectively defaults on when master gate is enabled
-$env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED="1"   # presets module
-$env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED="1"  # observe module
-$env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED="1"    # frontend-only observe guard
+$env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED="1"
+$env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED="1"
+$env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED="1"
+$env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED="1"
 ```
 
 Runtime assets:
@@ -226,28 +197,18 @@ src/justls/ics/
 │   │   └── v7/
 │   └── main.py
 ├── application/
-│   ├── services/
-│   └── usecases/
 ├── domain/
-│   ├── detector/
-│   ├── health/
-│   ├── lamps/
-│   ├── observation/
-│   ├── slit/
-│   └── system/
 ├── drivers/
-│   ├── real/
-│   └── sim/
 ├── infra/
 └── kernel/
 
 tests/
 ├── api/
-├── ui/
-└── test_stage_validation.py
+└── ui/
 
 docs/
-└── phase_2_8_ui_migration.md
+├── project_status.md
+└── operator_console_requirements.md
 ```
 
 ---
@@ -341,7 +302,6 @@ Current test homes:
 ```text
 tests/api/  API behavior and response contracts
 tests/ui/   UI routes, static shells, static assets, runtime injection gates
-tests/      remaining staged validation coverage
 ```
 
 Avoid adding new root-level `test_stage_*` files. Prefer domain-specific test locations such as `tests/api/`, `tests/ui/`, or future `tests/kernel/` as appropriate.
@@ -354,43 +314,33 @@ ICS 2.0 is still under active development.
 
 At the current stage:
 
-- the project remains **simulation-first**
-- many real drivers are still placeholders or early stubs
-- v7 is not yet the default UI
-- v7 runtime remains opt-in, not default-on
-- durable setup/session metadata persistence is not started
-- live image backend / quicklook / data watcher is not started
-- sequence runner and durable observing plan model are deferred
-- production preset UX still needs operator-facing diff tables and clearer risk presentation
-- FITS/data-product pipeline and persistent observation log need future backend contracts
-- role separation, authentication, and engineering/operator permission boundaries are future work
+- the project remains simulation-first;
+- many real drivers are still placeholders or early stubs;
+- v7 is not yet the default UI;
+- v7 runtime remains opt-in, not default-on;
+- durable setup/session metadata persistence is not started;
+- live image backend / quicklook / data watcher is not started;
+- sequence runner and durable observing plan model are deferred;
+- production preset UX still needs operator-facing diff tables and clearer risk presentation;
+- FITS/data-product pipeline and persistent observation log need future backend contracts;
+- role separation, authentication, and engineering/operator permission boundaries are future work.
 
 ---
 
-## Next mainline
+## Documentation policy
 
-The next mainline is **Phase 2.8-H: v5 to v7 feature parity pass**.
+Keep repository docs few and durable. Current source of truth:
 
-Recommended sequence:
+```text
+docs/project_status.md
+docs/operator_console_requirements.md
+```
 
-1. Audit real v5 capabilities.
-2. Compare v5 against current v7 Setup / Presets / Observe / Diagnostics.
-3. Produce a parity checklist.
-4. Classify each item as:
-   - must-have
-   - nice-to-have
-   - engineer-only
-   - deferred backend contract
-5. Decide what belongs in the final operator console.
-6. Identify which gaps require Phase 2.9 backend contracts.
-
-Do not continue expanding v7 runtime ad hoc before the parity pass is complete.
+Avoid adding one-off phase notes. Update the two durable docs when the decision remains useful.
 
 ---
 
 ## Historical note
-
-This repository is intended to become the main codebase for the new ICS 2.0 effort.
 
 Earlier historical repositories and external instrument manuals remain useful as reference material, but current implementation work is centered here.
 

@@ -42,6 +42,7 @@
     return {
       "obs-arm": ready && !active && !reading,
       "obs-start": armed && !active && !reading,
+      "obs-finish": active,
       "obs-stop-readout": armed || active || reading,
       "obs-abort-discard": armed || active || reading,
     };

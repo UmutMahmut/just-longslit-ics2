@@ -16,6 +16,9 @@
     refreshInFlight: false,
     lastOkAt: null,
     lastError: null,
+    lastRequestId: null,
+    lastRttMs: null,
+    connectionState: "static",
     refreshCount: 0,
   };
   window[GLOBAL_KEY] = runtime;
@@ -80,6 +83,9 @@
           <dt>Exposure</dt><dd><code data-bind="v7.exposure_state">unknown</code></dd>
           <dt>Detector Profile</dt><dd><code data-bind="v7.detector_profile">unknown</code></dd>
           <dt>Latest Job</dt><dd><code data-bind="v7.latest_job">not available</code></dd>
+          <dt>X-Request-ID</dt><dd><code data-bind="v7.request_id">not available</code></dd>
+          <dt>RTT</dt><dd><code data-bind="v7.connection.rtt_ms">not measured</code></dd>
+          <dt>Last OK</dt><dd><code data-bind="v7.connection.last_ok_at">not available</code></dd>
           <dt>Runtime Polls</dt><dd><code data-bind="v7.runtime_status.refresh_count">0</code></dd>
         </dl>`);
     return section;
@@ -137,6 +143,28 @@
     return text(roles[channel] || roles[channel.toLowerCase()], fallback);
   }
 
+  function requestIdFrom(response) {
+    return response.headers.get("X-Request-ID") || response.headers.get("x-request-id") || null;
+  }
+
+  function rttLabel() {
+    return runtime.lastRttMs === null || runtime.lastRttMs === undefined ? "not measured" : `${runtime.lastRttMs} ms`;
+  }
+
+  function connectionLabel() {
+    const parts = [runtime.connectionState || "unknown"];
+    if (runtime.lastRttMs !== null && runtime.lastRttMs !== undefined) parts.push(rttLabel());
+    if (runtime.lastOkAt) parts.push(`last OK ${runtime.lastOkAt}`);
+    return parts.join(" · ");
+  }
+
+  function severityForState() {
+    if (runtime.connectionState === "connected") return "success";
+    if (runtime.connectionState === "degraded") return "warning";
+    if (runtime.connectionState === "error") return "error";
+    return "info";
+  }
+
   function bindTopStatusCards(data, operational, observation) {
     setTopStatusText("run-mode", data.run_mode, "unknown");
     setTopStatusText("operational-level", operationalLabel(operational), "unknown");
@@ -180,20 +208,36 @@
     setText('[data-bind="v7.instrument.channel.R.role"]', roleValue(detector, "R", "science_r"), "science_r");
   }
 
+  function bindConnectionDiagnostics() {
+    setText('[data-bind="v7.connection"]', connectionLabel(), "unknown");
+    setText('[data-bind="v7.connection.state"]', runtime.connectionState, "unknown");
+    setText('[data-bind="v7.connection.rtt_ms"]', rttLabel(), "not measured");
+    setText('[data-bind="v7.connection.last_ok_at"]', runtime.lastOkAt || "not available", "not available");
+    setText('[data-bind="v7.request_id"]', runtime.lastRequestId || "not available", "not available");
+    setText('[data-bind="v7.last_error"]', runtime.lastError || "none", "none");
+  }
+
   function bindDiagnostics(data) {
-    setText('[data-bind="v7.connection"]', "connected", "connected");
     setText('[data-bind="v7.run_mode"]', data.run_mode, "unknown");
     setText('[data-bind="v7.runtime_status.refresh_count"]', runtime.refreshCount, "0");
     setText('[data-bind="v7.latest_job"]', latestJobLabel(data), "not available");
-    setText('[data-bind="v7.last_error"]', runtime.lastError || "none", "none");
+    bindConnectionDiagnostics();
     let raw = JSON.stringify(data, null, 2);
     if (raw.length > RAW_MAX_CHARS) raw = `${raw.slice(0, RAW_MAX_CHARS)}\n... truncated ...`;
     setText('[data-bind="v7.raw_status_preview"]', raw, raw);
   }
 
-  function bindMessage(message, phase) {
+  function bindMessage(message, phase, severity) {
+    const resolvedSeverity = severity || severityForState();
     setText('[data-bind="v7.message.text"]', message, message);
     setText('[data-bind="v7.message.phase"]', phase, phase);
+    setText('[data-bind="v7.message.severity"]', resolvedSeverity, resolvedSeverity);
+    document.querySelectorAll('[data-role="v7-message-rail"]').forEach((rail) => {
+      rail.setAttribute("data-severity", resolvedSeverity);
+      rail.setAttribute("data-connection", runtime.connectionState || "unknown");
+      if (runtime.lastRequestId) rail.setAttribute("data-request-id", runtime.lastRequestId);
+      if (runtime.lastRttMs !== null && runtime.lastRttMs !== undefined) rail.setAttribute("data-rtt-ms", String(runtime.lastRttMs));
+    });
   }
 
   function bind(data) {
@@ -210,29 +254,38 @@
     bindSetup(data, operational, observation, detector);
     bindInstrument(data, detector);
     bindDiagnostics(data);
-    bindMessage(`Runtime status connected · poll ${runtime.refreshCount}`, "Phase 2.8-H");
+    bindMessage(`Runtime status connected · ${rttLabel()} · request ${runtime.lastRequestId || "not available"}`, "Phase 2.8-H", "success");
   }
 
   async function refresh() {
     if (runtime.refreshInFlight) return;
     runtime.refreshInFlight = true;
+    const startedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
     try {
       const response = await fetch(STATUS_ENDPOINT, { cache: "no-store", headers: { Accept: "application/json" } });
+      const finishedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+      runtime.lastRttMs = Math.max(0, Math.round(finishedAt - startedAt));
+      runtime.lastRequestId = requestIdFrom(response) || runtime.lastRequestId;
       const data = await response.json();
       runtime.refreshCount += 1;
       if (response.ok) {
+        runtime.connectionState = "connected";
         runtime.lastOkAt = new Date().toISOString();
         runtime.lastError = null;
         bind(data);
       } else {
+        runtime.connectionState = "degraded";
         runtime.lastError = `HTTP ${response.status}`;
-        setText('[data-bind="v7.connection"]', `error ${response.status}`, "error");
-        bindMessage(`Runtime status error ${response.status}`, "Diagnostics");
+        bindConnectionDiagnostics();
+        bindMessage(`Runtime status degraded · HTTP ${response.status} · ${rttLabel()}`, "Diagnostics", "warning");
       }
     } catch (error) {
+      const finishedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+      runtime.lastRttMs = Math.max(0, Math.round(finishedAt - startedAt));
+      runtime.connectionState = "error";
       runtime.lastError = text(error && error.message, "fetch failed");
-      setText('[data-bind="v7.connection"]', `error: ${runtime.lastError}`, "error");
-      bindMessage(`Runtime status fetch failed: ${runtime.lastError}`, "Diagnostics");
+      bindConnectionDiagnostics();
+      bindMessage(`Runtime status fetch failed: ${runtime.lastError}`, "Diagnostics", "error");
     } finally {
       runtime.refreshInFlight = false;
     }
@@ -242,6 +295,8 @@
     ensureRuntimePanel();
     ensureSetupPanel();
     ensureRawPreview();
+    bindConnectionDiagnostics();
+    bindMessage("Runtime status initializing...", "Phase 2.8-H", "info");
     window.addEventListener("justls:v7-local-refresh", refresh);
     if (runtime.started) {
       refresh();

@@ -103,6 +103,7 @@ UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
 UI_V7_ENTRY = UI_DIR / "ui_operational_v7.html"
 UI_PHASE_2D6_ADAPTER = "/ui-assets/v5/phase2d6_operational_status.js"
 UI_V7_RUNTIME_STATUS = "/ui-assets/v7/runtime_status.js"
+UI_V7_INSTRUMENT_RUNTIME = "/ui-assets/v7/instrument_runtime.js"
 UI_V7_PRESET_RUNTIME = "/ui-assets/v7/preset_runtime.js"
 UI_V7_OBSERVE_RUNTIME = "/ui-assets/v7/observe_runtime.js"
 UI_V7_OBSERVE_GUARD = "/ui-assets/v7/observe_guard.js"
@@ -112,6 +113,7 @@ PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
 PHASE_2D8_V7_ENABLED_ENV = "JUSTLS_UI_V7_ENABLED"
 PHASE_2D8_V7_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_RUNTIME_ENABLED"
 PHASE_2D8_V7_RUNTIME_STATUS_ENABLED_ENV = "JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED"
+PHASE_2D8_V7_INSTRUMENT_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_INSTRUMENT_RUNTIME_ENABLED"
 PHASE_2D8_V7_PRESET_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED"
 PHASE_2D8_V7_OBSERVE_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED"
 PHASE_2D8_V7_OBSERVE_GUARD_ENABLED_ENV = "JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED"
@@ -156,6 +158,10 @@ def phase_2d8_v7_runtime_status_enabled() -> bool:
     return env_flag(PHASE_2D8_V7_RUNTIME_STATUS_ENABLED_ENV, default=True)
 
 
+def phase_2d8_v7_instrument_runtime_enabled() -> bool:
+    return env_flag(PHASE_2D8_V7_INSTRUMENT_RUNTIME_ENABLED_ENV, default=False)
+
+
 def phase_2d8_v7_preset_runtime_enabled() -> bool:
     return env_flag(PHASE_2D8_V7_PRESET_RUNTIME_ENABLED_ENV, default=False)
 
@@ -172,12 +178,14 @@ def phase_2d8_v7_runtime_module_flags() -> dict[str, bool]:
     if not phase_2d8_v7_runtime_enabled():
         return {
             "status": False,
+            "instrument": False,
             "presets": False,
             "observe": False,
             "observe_guard": False,
         }
     return {
         "status": phase_2d8_v7_runtime_status_enabled(),
+        "instrument": phase_2d8_v7_instrument_runtime_enabled(),
         "presets": phase_2d8_v7_preset_runtime_enabled(),
         "observe": phase_2d8_v7_observe_runtime_enabled(),
         "observe_guard": phase_2d8_v7_observe_guard_enabled(),
@@ -189,6 +197,8 @@ def phase_2d8_v7_runtime_scripts() -> tuple[str, ...]:
     scripts: list[str] = []
     if flags["status"]:
         scripts.append(UI_V7_RUNTIME_STATUS)
+    if flags["instrument"]:
+        scripts.append(UI_V7_INSTRUMENT_RUNTIME)
     if flags["presets"]:
         scripts.append(UI_V7_PRESET_RUNTIME)
     if flags["observe"]:
@@ -245,6 +255,58 @@ def expand_v7_feedback_rail(html: str) -> str:
     return html.replace(compact_footer, expanded_footer)
 
 
+def expand_v7_instrument_controls(html: str) -> str:
+    """Ensure /ui/v7 exposes durable H9 Instrument API alignment bindings.
+
+    H9 is a parity-restoration baseline: existing slit/calibration/detector
+    backend capabilities become visible from Instrument / Configure, and safe
+    routine slit/calibration operations get opt-in runtime controls.
+    """
+    if 'id="v7-instrument-controls"' in html:
+        return html
+
+    controls = """            <section class="panel" id="v7-instrument-controls" data-role="v7-instrument-controls" data-phase="runtime-enhanceable">
+              <h2>Instrument API Controls · Existing Backend Capabilities</h2>
+              <div class="panel-body grid">
+                <div class="phase-note"><strong>H9:</strong> This panel exposes existing slit and calibration APIs in v7.1. Runtime remains opt-in; backend state-machine guards remain authoritative.</div>
+                <div class="field-grid">
+                  <label>Slit Width (um)<input type="number" min="0.001" step="0.001" value="100" data-role="instrument-slit-width-um" /></label>
+                  <label>Slit Angle (deg)<input type="number" min="-90" max="90" step="0.001" value="0" data-role="instrument-slit-angle-deg" /></label>
+                  <button class="btn" type="button" data-action="instrument-set-slit-width" disabled>Set Slit Width</button>
+                  <button class="btn" type="button" data-action="instrument-set-slit-angle" disabled>Set Slit Angle</button>
+                  <label>Calibration Mode<select data-role="instrument-calibration-mode"><option value="science">science</option><option value="calibration">calibration</option></select></label>
+                  <label>Calibration Lamp<select data-role="instrument-calibration-lamp"><option value="flat">flat</option><option value="arc_hgar">arc_hgar</option><option value="arc_ne">arc_ne</option></select></label>
+                  <button class="btn" type="button" data-action="instrument-set-calibration-mode" disabled>Set Calibration Mode</button>
+                  <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" checked /> Enable selected calibration lamp</label>
+                  <button class="btn" type="button" data-action="instrument-set-calibration-lamp" disabled>Set Calibration Lamp</button>
+                  <button class="btn" type="button" data-action="instrument-refresh-calibration" disabled>Refresh Calibration</button>
+                  <button class="btn" type="button" data-action="instrument-refresh-detector-config" disabled>Refresh Detector Config</button>
+                </div>
+                <dl class="kv">
+                  <dt>Slit Endpoint</dt><dd><code>/api/v1/slit</code> · <code>/api/v1/slit_angle</code></dd>
+                  <dt>Calibration Endpoint</dt><dd><code>/api/v1/calibration/status</code> · <code>/api/v1/calibration/mode</code> · <code>/api/v1/calibration/lamp</code></dd>
+                  <dt>Detector Visibility</dt><dd><code>/api/v1/detector/config</code> read-only baseline</dd>
+                  <dt>Last Command</dt><dd><code data-bind="v7.instrument.last_command">none</code></dd>
+                  <dt>Request ID</dt><dd><code data-bind="v7.instrument.request_id">not available</code></dd>
+                  <dt>Last Error</dt><dd><code data-bind="v7.instrument.last_error">none</code></dd>
+                  <dt>Runtime State</dt><dd><code data-bind="v7.instrument.runtime_state">static fallback</code></dd>
+                </dl>
+                <pre data-bind="v7.instrument.result">Instrument runtime is opt-in. Existing backend capabilities are visible here; controls are disabled until runtime is enabled.</pre>
+                <div class="badge-row">
+                  <span class="badge live">routine slit/calibration controls</span>
+                  <span class="badge future">detector config read-only</span>
+                  <span class="badge future">full B/G/R hardware control deferred</span>
+                </div>
+              </div>
+            </section>
+
+"""
+    marker = '            <section class="panel" data-role="instrument-safety-boundary">'
+    if marker in html:
+        return html.replace(marker, controls + marker)
+    return html
+
+
 def expand_v7_observe_command_panel(html: str) -> str:
     """Ensure /ui/v7 exposes durable H3 Observe command-result bindings.
 
@@ -280,6 +342,7 @@ def serve_html(
     inject_adapter: bool = False,
     extra_scripts: tuple[str, ...] = (),
     expand_v7_feedback: bool = False,
+    expand_v7_instrument: bool = False,
     expand_v7_observe: bool = False,
 ):
     if path.exists():
@@ -288,6 +351,8 @@ def serve_html(
             html = inject_phase_2d6_ui_adapter(html)
         if expand_v7_feedback:
             html = expand_v7_feedback_rail(html)
+        if expand_v7_instrument:
+            html = expand_v7_instrument_controls(html)
         if expand_v7_observe:
             html = expand_v7_observe_command_panel(html)
         for script_src in extra_scripts:
@@ -338,5 +403,6 @@ def read_ui_v7():
         UI_V7_ENTRY,
         extra_scripts=phase_2d8_v7_runtime_scripts(),
         expand_v7_feedback=True,
+        expand_v7_instrument=True,
         expand_v7_observe=True,
     )

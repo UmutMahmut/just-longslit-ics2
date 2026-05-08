@@ -239,7 +239,7 @@ def expand_v7_feedback_rail(html: str) -> str:
     expanded_footer = """    <footer class="rail" data-role="v7-message-rail" data-severity="info" data-connection="static">
       <strong>Operator Feedback</strong>
       <div data-role="v7-feedback-summary">
-        <span data-bind="v7.message.text">v7.1 shell ready. Instrument / Configure is static-first; runtime modules remain opt-in.</span>
+        <span data-bind="v7.message.text">v7.1 default operator-console prototype ready. Runtime modules remain opt-in.</span>
         <div class="badge-row" aria-label="operator feedback telemetry">
           <span class="badge demo">Severity <code data-bind="v7.message.severity">INFO</code></span>
           <span class="badge future">Connection <code data-bind="v7.message.connection">static</code></span>
@@ -250,7 +250,7 @@ def expand_v7_feedback_rail(html: str) -> str:
           <span class="badge future">Freshness <code data-bind="v7.message.freshness">not available</code></span>
         </div>
       </div>
-      <code data-bind="v7.message.phase">Phase 2.8-H</code>
+      <code data-bind="v7.message.phase">Phase 2.8-J default route</code>
     </footer>"""
     return html.replace(compact_footer, expanded_footer)
 
@@ -330,6 +330,7 @@ def expand_v7_instrument_controls(html: str) -> str:
                     <dl class="kv">
                       <dt>Last Command</dt><dd><code data-bind="v7.instrument.last_command">none</code></dd>
                       <dt>Request ID</dt><dd><code data-bind="v7.instrument.request_id">not available</code></dd>
+                      <dt>Latest Job</dt><dd><code data-bind="v7.instrument.latest_job">not available</code></dd>
                       <dt>Last Error</dt><dd><code data-bind="v7.instrument.last_error">none</code></dd>
                       <dt>Runtime State</dt><dd><code data-bind="v7.instrument.runtime_state">static fallback</code></dd>
                       <dt>Summary</dt><dd><code data-bind="v7.instrument.result_summary">runtime not enabled</code></dd>
@@ -375,9 +376,90 @@ def expand_v7_observe_command_panel(html: str) -> str:
             '                  <dt>Request ID</dt><dd><code data-bind="v7.observe.request_id">not available</code></dd>\n'
             '                  <dt>Latest Job</dt><dd><code data-bind="v7.observe.latest_job">not available</code></dd>\n'
             '                  <dt>Last Error</dt><dd><code data-bind="v7.observe.last_error">none</code></dd>\n'
+            '                  <dt>Result Summary</dt><dd><code data-bind="v7.observe.result_summary">runtime not enabled</code></dd>\n'
+            '                  <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">static fallback</code></dd>',
+        )
+    elif 'data-bind="v7.observe.result_summary"' not in html:
+        html = html.replace(
+            '                  <dt>Last Error</dt><dd><code data-bind="v7.observe.last_error">none</code></dd>\n'
+            '                  <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">static fallback</code></dd>',
+            '                  <dt>Last Error</dt><dd><code data-bind="v7.observe.last_error">none</code></dd>\n'
+            '                  <dt>Result Summary</dt><dd><code data-bind="v7.observe.result_summary">runtime not enabled</code></dd>\n'
             '                  <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">static fallback</code></dd>',
         )
     return html
+
+
+def expand_v7_presets_command_panel(html: str) -> str:
+    """Add Phase 2.8-I preset command feedback bindings to the v7 shell.
+
+    Presets already exposes preview/apply raw JSON. I1 adds the same operator
+    command-summary vocabulary used by Instrument and Observe, while keeping the
+    deeper JSON detail in the Presets/Diagnostics detail areas.
+    """
+    if 'data-role="presets-command-summary"' in html:
+        return html
+
+    marker = '              <h3>Preview Result</h3>'
+    summary = """              <section class="panel" data-role="presets-command-summary">
+                <h3>Command Summary</h3>
+                <div class="panel-body">
+                  <dl class="kv">
+                    <dt>Last Command</dt><dd><code data-bind="v7.presets.last_command">none</code></dd>
+                    <dt>Request ID</dt><dd><code data-bind="v7.presets.request_id">not available</code></dd>
+                    <dt>Latest Job</dt><dd><code data-bind="v7.presets.latest_job">not available</code></dd>
+                    <dt>Last Error</dt><dd><code data-bind="v7.presets.last_error">none</code></dd>
+                    <dt>Result Summary</dt><dd><code data-bind="v7.presets.result_summary">runtime not enabled</code></dd>
+                  </dl>
+                </div>
+              </section>
+"""
+    if marker in html:
+        return html.replace(marker, summary + marker)
+    return html
+
+
+def expand_v7_diagnostics_feedback_panel(html: str) -> str:
+    """Expose a durable Phase 2.8-I diagnostics home for command feedback.
+
+    This keeps raw JSON and low-level troubleshooting under Diagnostics instead
+    of letting it dominate the routine Presets / Instrument / Observe pages.
+    """
+    if 'data-role="diagnostics-command-feedback"' in html:
+        return html
+
+    marker = '        <section class="page" data-page-panel="housekeeping"'
+    diagnostics_panel = """          <section class="panel" data-role="diagnostics-command-feedback" data-phase="2.8-I-command-feedback">
+            <h2>Command Feedback · Request / Result / Error</h2>
+            <div class="panel-body">
+              <dl class="kv">
+                <dt>Feedback Vocabulary</dt><dd><code>last_command / request_id / latest_job / last_error / result_summary / raw_json</code></dd>
+                <dt>Instrument</dt><dd><code data-bind="v7.instrument.request_id">not available</code> · <code data-bind="v7.instrument.result_summary">runtime not enabled</code></dd>
+                <dt>Observe</dt><dd><code data-bind="v7.observe.request_id">not available</code> · <code data-bind="v7.observe.result_summary">runtime not enabled</code></dd>
+                <dt>Presets</dt><dd><code data-bind="v7.presets.request_id">not available</code> · <code data-bind="v7.presets.result_summary">runtime not enabled</code></dd>
+                <dt>Raw JSON Policy</dt><dd>Routine pages show summaries first; raw payloads stay in page details and Diagnostics.</dd>
+              </dl>
+            </div>
+          </section>
+
+"""
+    if marker in html:
+        return html.replace(marker, diagnostics_panel + marker)
+    return html
+
+
+def serve_v7_html() -> HTMLResponse | dict[str, str]:
+    if not phase_2d8_v7_enabled():
+        raise HTTPException(status_code=404, detail="Operational UI v7 is disabled.")
+    return serve_html(
+        UI_V7_ENTRY,
+        extra_scripts=phase_2d8_v7_runtime_scripts(),
+        expand_v7_feedback=True,
+        expand_v7_instrument=True,
+        expand_v7_observe=True,
+        expand_v7_presets=True,
+        expand_v7_diagnostics=True,
+    )
 
 
 def serve_html(
@@ -388,6 +470,8 @@ def serve_html(
     expand_v7_feedback: bool = False,
     expand_v7_instrument: bool = False,
     expand_v7_observe: bool = False,
+    expand_v7_presets: bool = False,
+    expand_v7_diagnostics: bool = False,
 ):
     if path.exists():
         html = path.read_text(encoding="utf-8")
@@ -399,6 +483,10 @@ def serve_html(
             html = expand_v7_instrument_controls(html)
         if expand_v7_observe:
             html = expand_v7_observe_command_panel(html)
+        if expand_v7_presets:
+            html = expand_v7_presets_command_panel(html)
+        if expand_v7_diagnostics:
+            html = expand_v7_diagnostics_feedback_panel(html)
         for script_src in extra_scripts:
             html = inject_script_tag(html, script_src)
         return HTMLResponse(html)
@@ -414,9 +502,13 @@ def read_root() -> dict:
         "message": "JUST Long-Slit ICS 2.0 is running.",
         "docs": "/docs",
         "openapi": "/openapi.json",
-        "ui": "/ui" if UI_ENTRY.exists() else None,
+        "ui": "/ui" if UI_V7_ENTRY.exists() and phase_2d8_v7_enabled() else ("/ui/v5" if UI_ENTRY.exists() else None),
+        "ui_v5": "/ui/v5" if UI_ENTRY.exists() else None,
+        "ui_legacy": "/ui/legacy" if UI_ENTRY.exists() else None,
         "ui_v6": "/ui/v6" if UI_V6_ENTRY.exists() and phase_2d6_v6_enabled() else None,
         "ui_v7": "/ui/v7" if UI_V7_ENTRY.exists() and phase_2d8_v7_enabled() else None,
+        "ui_default": "v7" if UI_V7_ENTRY.exists() and phase_2d8_v7_enabled() else "v5",
+        "ui_default_note": "v7 is the default operator-console prototype; v5 remains available at /ui/v5 and /ui/legacy.",
         "ui_safety_switches": {
             "phase2d6_v5_adapter_enabled": phase_2d6_v5_adapter_enabled(),
             "phase2d6_v6_enabled": phase_2d6_v6_enabled(),
@@ -429,6 +521,16 @@ def read_root() -> dict:
 
 @app.get("/ui", include_in_schema=False)
 def read_ui():
+    return serve_v7_html()
+
+
+@app.get("/ui/v5", include_in_schema=False)
+def read_ui_v5():
+    return serve_html(UI_ENTRY, inject_adapter=phase_2d6_v5_adapter_enabled())
+
+
+@app.get("/ui/legacy", include_in_schema=False)
+def read_ui_legacy():
     return serve_html(UI_ENTRY, inject_adapter=phase_2d6_v5_adapter_enabled())
 
 
@@ -441,12 +543,4 @@ def read_ui_v6():
 
 @app.get("/ui/v7", include_in_schema=False)
 def read_ui_v7():
-    if not phase_2d8_v7_enabled():
-        raise HTTPException(status_code=404, detail="Operational UI v7 is disabled.")
-    return serve_html(
-        UI_V7_ENTRY,
-        extra_scripts=phase_2d8_v7_runtime_scripts(),
-        expand_v7_feedback=True,
-        expand_v7_instrument=True,
-        expand_v7_observe=True,
-    )
+    return serve_v7_html()

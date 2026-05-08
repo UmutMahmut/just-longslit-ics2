@@ -104,6 +104,27 @@ def test_v7_instrument_runtime_asset_targets_existing_instrument_api_surface():
     assert "Red Channel" not in js
 
 
+def test_v7_instrument_runtime_preserves_p0_slit_unit_contract():
+    client = TestClient(app)
+
+    response = client.get("/ui-assets/v7/instrument_runtime.js")
+
+    assert response.status_code == 200
+    js = response.text
+    assert "SLIT_UM_PER_ARCSEC = 128.34" in js
+    assert "COMMON_SLIT_WIDTH_ARCSEC = [1.0, 1.5, 2.0, 3.0]" in js
+    assert "instrument-slit-width-arcsec" in js
+    assert "instrument-slit-width-um" in js
+    assert "umFromArcsec" in js
+    assert "arcsecFromUm" in js
+    assert 'data-arcsec="1.0"' in js
+    assert 'data-arcsec="1.5"' in js
+    assert 'data-arcsec="2.0"' in js
+    assert 'data-arcsec="3.0"' in js
+    assert 'data-arcsec="0.1"' not in js
+    assert "0.1 arcsec" not in js
+
+
 def test_v7_preset_runtime_asset_targets_existing_presets_skeleton():
     client = TestClient(app)
 

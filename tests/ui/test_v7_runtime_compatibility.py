@@ -5,6 +5,7 @@ from justls.ics.app.main import app
 
 def test_v7_1_all_runtime_modules_inject_against_single_durable_skeletons(monkeypatch):
     monkeypatch.setenv("JUSTLS_UI_V7_RUNTIME_ENABLED", "1")
+    monkeypatch.setenv("JUSTLS_UI_V7_INSTRUMENT_RUNTIME_ENABLED", "1")
     monkeypatch.setenv("JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED", "1")
     monkeypatch.setenv("JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED", "1")
     monkeypatch.setenv("JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED", "1")
@@ -17,6 +18,7 @@ def test_v7_1_all_runtime_modules_inject_against_single_durable_skeletons(monkey
     assert html.count('id="v7-runtime-status"') == 1
     assert html.count('id="v7-raw-status-preview"') == 1
     assert html.count('id="v7-setup-readiness"') == 1
+    assert html.count('id="v7-instrument-controls"') == 1
     assert html.count('id="v7-observe-controls"') == 1
     assert html.count('id="v7-presets-runtime"') == 1
     assert 'data-page-panel="instrument"' in html
@@ -26,6 +28,7 @@ def test_v7_1_all_runtime_modules_inject_against_single_durable_skeletons(monkey
     assert 'data-bind="v7.instrument.channel.R.enabled"' in html
     assert 'data-bind="v7.message.text"' in html
     assert "/ui-assets/v7/runtime_status.js" in html
+    assert "/ui-assets/v7/instrument_runtime.js" in html
     assert "/ui-assets/v7/preset_runtime.js" in html
     assert "/ui-assets/v7/observe_runtime.js" in html
     assert "/ui-assets/v7/observe_guard.js" in html
@@ -72,6 +75,33 @@ def test_v7_runtime_status_asset_tracks_feedback_rail_telemetry():
     assert "v7.connection.rtt_ms" in js
     assert "v7.connection.last_ok_at" in js
     assert "v7.request_id" in js
+
+
+def test_v7_instrument_runtime_asset_targets_existing_instrument_api_surface():
+    client = TestClient(app)
+
+    response = client.get("/ui-assets/v7/instrument_runtime.js")
+
+    assert response.status_code == 200
+    js = response.text
+    assert "__JUSTLS_V7_INSTRUMENT_RUNTIME__" in js
+    assert "SLIT_ENDPOINT" in js
+    assert "SLIT_ANGLE_ENDPOINT" in js
+    assert "CALIBRATION_STATUS_ENDPOINT" in js
+    assert "CALIBRATION_MODE_ENDPOINT" in js
+    assert "CALIBRATION_LAMP_ENDPOINT" in js
+    assert "DETECTOR_CONFIG_ENDPOINT" in js
+    assert "/api/v1/slit" in js
+    assert "/api/v1/slit_angle" in js
+    assert "/api/v1/calibration/status" in js
+    assert "/api/v1/calibration/mode" in js
+    assert "/api/v1/calibration/lamp" in js
+    assert "/api/v1/detector/config" in js
+    assert "v7.instrument.request_id" in js
+    assert "v7.instrument.last_command" in js
+    assert "v7.instrument.last_error" in js
+    assert "Blue Channel" not in js
+    assert "Red Channel" not in js
 
 
 def test_v7_preset_runtime_asset_targets_existing_presets_skeleton():

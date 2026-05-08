@@ -31,11 +31,14 @@ The system is being developed around:
 
 ```text
 Current phase:
-  Phase 2.8-H: v5 to v7 feature parity pass
+  Phase 2.8-H: functionally closed, pending final user acceptance
 
-Current validation baseline reported by user:
-  pytest -q
-  157 passed in 0.92s
+Next planned phase:
+  Phase 2.8-I: operator workflow polish
+  Status: not started
+
+Latest validation reported by user:
+  pytest -q passed after H9.2 served-shell alignment
 ```
 
 Current UI route strategy:
@@ -114,9 +117,11 @@ Durable rule:
 HTML owns durable structure. Runtime JS enhances it.
 ```
 
-### Phase 2.8-H work completed so far
+### Phase 2.8-H: v5 to v7 feature parity pass
 
-Current completed H work:
+Functionally closed, pending final user acceptance.
+
+Completed H work:
 
 ```text
 H7: v7.1 Instrument / Configure static shell
@@ -137,68 +142,40 @@ H3: Observe Finish + structured-result baseline
 
 H9: Instrument API alignment baseline
   DONE / baseline only
-  v7 now has an opt-in Instrument runtime gate and minimal slit/calibration/detector-read capability exposure.
-```
+  v7 has an opt-in Instrument runtime gate and minimal slit/calibration/detector-read capability exposure.
 
-H3 is not currently being polished further. Full command-feedback unification belongs to Phase 2.8-I.
-
----
-
-## Current Phase 2.8-H mainline
-
-The active H mainline is now:
-
-```text
-1. H9.1: correct Instrument panel usability and slit dual-unit fidelity.
-2. Keep v7.1 aligned with P0 and v5 hard constraints.
-3. Close H only after capability visibility/parity gaps are explicitly classified.
-```
-
-Current H9.1 requirement:
-
-```text
 H9.1: Instrument panel layout and slit dual-unit correction
+  DONE
+  v7 Instrument exposes arcsec and um slit-width fields, uses 128.34 um/arcsec, and provides 1.0 / 1.5 / 2.0 / 3.0 arcsec shortcuts.
+
+H9.2: served-shell alignment check
+  DONE
+  The default served /ui/v7 static shell now reflects the H9.1 structure even before runtime enhancement.
 ```
 
-H9.1 must use:
+Phase 2.8-H close criteria met:
 
 ```text
-SLIT_UM_PER_ARCSEC = 128.34
-Common slit shortcuts: 1.0, 1.5, 2.0, 3.0 arcsec
-No 0.1 arcsec shortcut
-```
-
----
-
-## Current non-goals
-
-Do not do these in the current H version:
-
-```text
-- N1 night/day theme strategy;
-- further H3 Observe polish;
-- Presets diff polish;
-- workflow-level unification;
-- sequence runner;
-- observation plan editor;
-- quicklook/data watcher backend;
-- real hardware adapter integration;
-- low-level EtherCAT / power / engineering controls;
-- detector config write UI;
-- full B/G/R hardware control;
-- `/ui` -> v7 route switch.
+- v7.1 IA has a durable Instrument / Configure page.
+- Existing runtime modules remain opt-in and skeleton-aware.
+- v7.1 default route stays static and safe.
+- H2 feedback rail baseline exists.
+- H3 Observe lifecycle baseline exists.
+- H9 Instrument API visibility/control baseline exists for routine slit/calibration plus detector read-only visibility.
+- P0/v5 slit-width unit contract is preserved in code and tests.
+- Docs are consolidated into project_status.md and operator_console_requirements.md.
 ```
 
 ---
 
 ## Phase 2.8-I: operator workflow polish
 
-Planned after Phase 2.8-H.
+Planned after final H acceptance. Not started.
 
 Goal:
 
 ```text
-Make Setup -> Presets -> Observe -> Diagnostics feel like a natural operator flow.
+Make Setup -> Presets -> Instrument -> Observe -> Diagnostics feel like a natural operator flow.
 ```
 
 Recommended I work:
@@ -214,7 +191,28 @@ Recommended I work:
 - unify visual language for runtime state / busy / blocked / confirmation.
 ```
 
-Do not mix I polish into H unless it is required for minimal parity.
+Do not start Phase 2.8-I until explicitly approved.
+
+---
+
+## Items intentionally not included in Phase 2.8-H
+
+These were intentionally held out of H, either because they are Phase 2.8-I workflow polish or later backend/hardware contracts:
+
+```text
+- N1 night/day theme strategy;
+- further H3 Observe polish;
+- Presets diff polish;
+- workflow-level unification;
+- sequence runner;
+- observation plan editor;
+- quicklook/data watcher backend;
+- real hardware adapter integration;
+- low-level EtherCAT / power / engineering controls;
+- detector config write UI;
+- full B/G/R hardware control;
+- `/ui` -> v7 route switch.
+```
 
 ---
 

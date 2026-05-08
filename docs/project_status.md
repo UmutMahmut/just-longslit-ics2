@@ -6,6 +6,8 @@ This is the durable project-status document for JUST Long-Slit ICS 2.0. It repla
 
 Keep this document focused on current direction, phase boundaries, completed milestones, open decisions, and close criteria. Do not use it as a scratchpad for every temporary idea.
 
+Durable hardware, P0, v5 baseline, and operator-console requirements are maintained in `docs/operator_console_requirements.md`.
+
 ---
 
 ## Project goal
@@ -33,7 +35,7 @@ Current phase:
 
 Current validation baseline reported by user:
   pytest -q
-  156 passed in 0.97s
+  157 passed in 0.92s
 ```
 
 Current UI route strategy:
@@ -132,6 +134,10 @@ H2: v7 operator feedback rail baseline
 H3: Observe Finish + structured-result baseline
   DONE / baseline only
   v7 Observe now exposes Finish and structured request_id/latest_job/last_error fields.
+
+H9: Instrument API alignment baseline
+  DONE / baseline only
+  v7 now has an opt-in Instrument runtime gate and minimal slit/calibration/detector-read capability exposure.
 ```
 
 H3 is not currently being polished further. Full command-feedback unification belongs to Phase 2.8-I.
@@ -143,37 +149,23 @@ H3 is not currently being polished further. Full command-feedback unification be
 The active H mainline is now:
 
 ```text
-1. H-reconcile: true v5/v7.1 parity and backend-capability visibility check.
-2. Decide H9: whether minimal Instrument runtime belongs in Phase 2.8-H.
-3. If accepted, implement only minimal routine Instrument controls backed by existing APIs.
-4. Close H only after capability visibility/parity gaps are explicitly classified.
+1. H9.1: correct Instrument panel usability and slit dual-unit fidelity.
+2. Keep v7.1 aligned with P0 and v5 hard constraints.
+3. Close H only after capability visibility/parity gaps are explicitly classified.
 ```
 
-Current H9 recommendation:
+Current H9.1 requirement:
 
 ```text
-H9: backend capability visibility and Instrument API alignment
+H9.1: Instrument panel layout and slit dual-unit correction
 ```
 
-H9 should consider:
+H9.1 must use:
 
 ```text
-- POST /api/v1/slit
-- POST /api/v1/slit_angle
-- GET  /api/v1/calibration/status
-- POST /api/v1/calibration/mode
-- POST /api/v1/calibration/lamp
-- GET  /api/v1/detector/config
-```
-
-Likely minimal H9 scope:
-
-```text
-- direct routine controls for slit width and slit angle;
-- direct routine controls for calibration/science mode;
-- direct routine controls for flat / arc_hgar / arc_ne lamp enable state;
-- read-only detector config visibility;
-- no full detector write UI unless explicitly approved.
+SLIT_UM_PER_ARCSEC = 128.34
+Common slit shortcuts: 1.0, 1.5, 2.0, 3.0 arcsec
+No 0.1 arcsec shortcut
 ```
 
 ---
@@ -192,6 +184,8 @@ Do not do these in the current H version:
 - quicklook/data watcher backend;
 - real hardware adapter integration;
 - low-level EtherCAT / power / engineering controls;
+- detector config write UI;
+- full B/G/R hardware control;
 - `/ui` -> v7 route switch.
 ```
 

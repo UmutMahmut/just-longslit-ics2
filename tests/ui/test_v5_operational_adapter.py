@@ -25,13 +25,14 @@ def test_v5_ui_injection_is_idempotent():
     assert once.index(V5_ADAPTER_PATH) < once.index("</body>")
 
 
-def test_v5_ui_serves_operational_adapter():
+def test_v5_fallback_routes_serve_operational_adapter():
     client = TestClient(app)
 
-    response = client.get("/ui")
+    for route in ("/ui/v5", "/ui/legacy"):
+        response = client.get(route)
 
-    assert response.status_code == 200
-    assert V5_ADAPTER_PATH in response.text
+        assert response.status_code == 200
+        assert V5_ADAPTER_PATH in response.text
 
 
 def test_v6_route_available_and_uses_v5_operational_adapter():
@@ -77,10 +78,11 @@ def test_v5_adapter_can_be_disabled_by_env(monkeypatch):
     monkeypatch.setenv("JUSTLS_UI_PHASE2D6_ADAPTER_ENABLED", "0")
     client = TestClient(app)
 
-    response = client.get("/ui")
+    for route in ("/ui/v5", "/ui/legacy"):
+        response = client.get(route)
 
-    assert response.status_code == 200
-    assert V5_ADAPTER_PATH not in response.text
+        assert response.status_code == 200
+        assert V5_ADAPTER_PATH not in response.text
 
 
 def test_v6_can_be_disabled_by_env(monkeypatch):

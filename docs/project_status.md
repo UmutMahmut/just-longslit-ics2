@@ -30,15 +30,16 @@ The system is being developed around:
 ## Current phase
 
 ```text
-Current work:
+Current completed work:
   Phase 2.8-I: light operator command-feedback unification
   Phase 2.8-J: v7 default route switch
 
 Status:
-  In progress on branch phase-2.8-i-j-v7-default
+  Implemented in PR #10 and locally validated.
 
-Latest prior validation reported by user:
-  pytest -q passed after H9.2 served-shell alignment
+Latest validation reported by user:
+  pytest -q
+  161 passed in 1.00s
 ```
 
 Current UI route strategy after Phase 2.8-J:
@@ -54,7 +55,7 @@ Current UI route strategy after Phase 2.8-J:
 Important wording:
 
 ```text
-v7.1 is now allowed to become the default operator-console prototype.
+v7.1 is now the default operator-console prototype.
 This route switch does not mean v7.1 is a final product-grade GUI.
 ```
 
@@ -168,11 +169,9 @@ Phase 2.8-H durable outcomes:
 - Docs are consolidated into project_status.md and operator_console_requirements.md.
 ```
 
----
+### Phase 2.8-I: light command-feedback unification
 
-## Phase 2.8-I: light command-feedback unification
-
-Approved and started.
+Implemented and locally validated.
 
 Goal:
 
@@ -208,11 +207,9 @@ Non-goals:
 - no real hardware integration.
 ```
 
----
+### Phase 2.8-J: v7 default route switch
 
-## Phase 2.8-J: v7 default route switch
-
-Approved and started.
+Implemented and locally validated.
 
 Goal:
 

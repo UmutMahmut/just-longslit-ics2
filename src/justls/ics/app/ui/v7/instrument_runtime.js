@@ -68,6 +68,12 @@
     return Number(value.toFixed(digits)).toString();
   }
 
+  function latestJobLabel(payload) {
+    const job = payload && payload.latest_job;
+    if (!job) return "not available";
+    return [job.status, job.subsystem, job.action, job.job_id].filter(Boolean).join(" · ");
+  }
+
   function ensurePanelLayout() {
     const host = panel();
     if (!host || host.querySelector('[data-role="instrument-slit-width-arcsec"]')) return host;
@@ -137,6 +143,7 @@
             <dl class="kv">
               <dt>Last Command</dt><dd><code data-bind="v7.instrument.last_command">none</code></dd>
               <dt>Request ID</dt><dd><code data-bind="v7.instrument.request_id">not available</code></dd>
+              <dt>Latest Job</dt><dd><code data-bind="v7.instrument.latest_job">not available</code></dd>
               <dt>Last Error</dt><dd><code data-bind="v7.instrument.last_error">none</code></dd>
               <dt>Runtime State</dt><dd><code data-bind="v7.instrument.runtime_state">static fallback</code></dd>
               <dt>Summary</dt><dd><code data-bind="v7.instrument.result_summary">runtime not enabled</code></dd>
@@ -188,6 +195,7 @@
     runtime.lastError = null;
     setText(bind("v7.instrument.last_command"), command);
     setText(bind("v7.instrument.request_id"), runtime.lastRequestId || "not available");
+    setText(bind("v7.instrument.latest_job"), latestJobLabel(payload));
     setText(bind("v7.instrument.last_error"), "none");
     setText(bind("v7.instrument.result_summary"), resultSummary(command, payload));
     setText(bind("v7.instrument.result"), JSON.stringify({ command, request_id: runtime.lastRequestId, payload }, null, 2));
@@ -199,6 +207,7 @@
     runtime.lastError = text(error, "failed");
     setText(bind("v7.instrument.last_command"), command || "none");
     setText(bind("v7.instrument.request_id"), runtime.lastRequestId || "not available");
+    setText(bind("v7.instrument.latest_job"), latestJobLabel(runtime.lastResult));
     setText(bind("v7.instrument.last_error"), runtime.lastError);
     setText(bind("v7.instrument.result_summary"), `${command || "command"}: ${runtime.lastError}`);
     setText(bind("v7.instrument.result"), JSON.stringify({ command, request_id: runtime.lastRequestId, error: runtime.lastError }, null, 2));

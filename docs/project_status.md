@@ -21,7 +21,7 @@ The system is being developed around:
 - clear API/domain/kernel/application boundaries;
 - operator-safe control surfaces;
 - explicit diagnostics and request tracing;
-- staged migration from the current v5 UI capability baseline to a cleaner v7.1 operator console;
+- staged migration from the v5 capability baseline to the v7.1 operator console;
 - later real-hardware integration.
 ```
 
@@ -30,26 +30,43 @@ The system is being developed around:
 ## Current phase
 
 ```text
-Current phase:
-  Phase 2.8-H: functionally closed, pending final user acceptance
+Current completed work:
+  Phase 2.8-I: light operator command-feedback unification
+  Phase 2.8-J: v7 default route switch
 
-Next planned phase:
-  Phase 2.8-I: operator workflow polish
-  Status: not started
+Status:
+  Implemented in PR #10 and locally validated.
 
 Latest validation reported by user:
-  pytest -q passed after H9.2 served-shell alignment
+  pytest -q
+  161 passed in 1.00s
 ```
 
-Current UI route strategy:
+Current UI route strategy after Phase 2.8-J:
 
 ```text
-/ui      -> v5 stable default capability baseline
-/ui/v6   -> v6 operational-status review shell
-/ui/v7   -> v7.1 operator-console prototype, static by default
+/ui        -> v7.1 default operator-console prototype
+/ui/v7     -> v7.1 explicit operator-console prototype
+/ui/v5     -> v5 stable legacy fallback
+/ui/legacy -> v5 stable legacy fallback alias
+/ui/v6     -> v6 operational-status review shell
 ```
 
-Do **not** switch `/ui` to v7 yet.
+Important wording:
+
+```text
+v7.1 is now the default operator-console prototype.
+This route switch does not mean v7.1 is a final product-grade GUI.
+```
+
+Runtime policy is unchanged:
+
+```text
+- v7 runtime remains opt-in through JUSTLS_UI_V7_RUNTIME_ENABLED=1.
+- Status runtime is still the safest first runtime module when the master gate is enabled.
+- Instrument / Presets / Observe / Guard runtime modules remain individually gated.
+- Backend API semantics are unchanged by the route switch.
+```
 
 ---
 
@@ -62,17 +79,11 @@ Closed.
 Key durable outcomes:
 
 ```text
-- `/api/v1/status/full` gained GUI-facing operational status.
-- `/ui` remained the stable default entrypoint.
-- `/ui/v6` was added as a review shell, not a default UI.
+- /api/v1/status/full gained GUI-facing operational status.
+- /ui remained the stable default entrypoint at that time.
+- /ui/v6 was added as a review shell, not a default UI.
 - UI safety switches were added for v5 adapter and v6 route exposure.
 - X-Request-ID / latest-job / status-summary thinking entered the UI direction.
-```
-
-Durable lesson:
-
-```text
-Do not promote a technically healthy review shell to the default operator UI before it is more usable than the current default.
 ```
 
 ### Phase 2.7: Preset operational hardening
@@ -93,7 +104,7 @@ Key durable outcomes:
 Durable lesson:
 
 ```text
-Presets are not just configuration shortcuts. They are auditable operations and future workflow building blocks.
+Presets are auditable operations and future workflow building blocks, not just configuration shortcuts.
 ```
 
 ### Phase 2.8-G: v7 runtime architecture stabilization
@@ -105,7 +116,7 @@ Key durable outcomes:
 ```text
 - v7 runtime master gate added;
 - v7 module-level runtime gates added;
-- `/ui/v7` remains static by default;
+- /ui/v7 remains static by default when runtime is disabled;
 - runtime_status.js, preset_runtime.js, observe_runtime.js, and observe_guard.js became singleton-safe/skeleton-aware;
 - Presets and Observe each use one durable runtime-enhanceable skeleton;
 - runtime JS enhances durable HTML instead of creating duplicate panels by default.
@@ -119,46 +130,38 @@ HTML owns durable structure. Runtime JS enhances it.
 
 ### Phase 2.8-H: v5 to v7 feature parity pass
 
-Functionally closed, pending final user acceptance.
+Functionally closed.
 
 Completed H work:
 
 ```text
 H7: v7.1 Instrument / Configure static shell
   DONE
-  v7.1 IA is now Setup / Instrument / Observe / Presets / Diagnostics / Housekeeping / Engineer.
 
 H8: v7.1 runtime compatibility check
   DONE
-  Existing v7 runtime modules target the v7.1 durable skeletons.
 
 H2: v7 operator feedback rail baseline
   DONE
-  v7 status runtime now tracks request_id, RTT, last OK, connection state, severity, poll count, and freshness.
 
 H3: Observe Finish + structured-result baseline
   DONE / baseline only
-  v7 Observe now exposes Finish and structured request_id/latest_job/last_error fields.
 
 H9: Instrument API alignment baseline
   DONE / baseline only
-  v7 has an opt-in Instrument runtime gate and minimal slit/calibration/detector-read capability exposure.
 
 H9.1: Instrument panel layout and slit dual-unit correction
   DONE
-  v7 Instrument exposes arcsec and um slit-width fields, uses 128.34 um/arcsec, and provides 1.0 / 1.5 / 2.0 / 3.0 arcsec shortcuts.
 
 H9.2: served-shell alignment check
   DONE
-  The default served /ui/v7 static shell now reflects the H9.1 structure even before runtime enhancement.
 ```
 
-Phase 2.8-H close criteria met:
+Phase 2.8-H durable outcomes:
 
 ```text
-- v7.1 IA has a durable Instrument / Configure page.
+- v7.1 IA has Setup / Instrument / Observe / Presets / Diagnostics / Housekeeping / Engineer.
 - Existing runtime modules remain opt-in and skeleton-aware.
-- v7.1 default route stays static and safe.
 - H2 feedback rail baseline exists.
 - H3 Observe lifecycle baseline exists.
 - H9 Instrument API visibility/control baseline exists for routine slit/calibration plus detector read-only visibility.
@@ -166,62 +169,74 @@ Phase 2.8-H close criteria met:
 - Docs are consolidated into project_status.md and operator_console_requirements.md.
 ```
 
----
+### Phase 2.8-I: light command-feedback unification
 
-## Phase 2.8-I: operator workflow polish
-
-Planned after final H acceptance. Not started.
+Implemented and locally validated.
 
 Goal:
 
 ```text
-Make Setup -> Presets -> Instrument -> Observe -> Diagnostics feel like a natural operator flow.
+Make Instrument, Observe, Presets, Feedback rail, and Diagnostics speak the same command-feedback vocabulary:
+
+last_command
+request_id
+latest_job
+last_error
+result_summary
+raw_json
 ```
 
-Recommended I work:
+Scope:
 
 ```text
-- clarify which Setup fields are local placeholders and which are runtime-derived;
-- convert Presets JSON preview into operator-facing diff views;
-- standardize Observe command result / state transition / error display;
-- make Diagnostics the home for raw JSON and deeper debugging;
-- clarify roles of top status cards, feedback rail, and runtime panels;
-- unify latest_job / request_id / error detail presentation;
-- unify button availability rules;
-- unify visual language for runtime state / busy / blocked / confirmation.
+- keep Setup -> Presets -> Instrument -> Observe -> Diagnostics as the operator flow;
+- add served-shell bindings for unified command summaries;
+- keep raw JSON available, but make Diagnostics the deeper troubleshooting home;
+- keep endpoint semantics unchanged;
+- avoid new backend API requirements.
 ```
 
-Do not start Phase 2.8-I until explicitly approved.
-
----
-
-## Items intentionally not included in Phase 2.8-H
-
-These were intentionally held out of H, either because they are Phase 2.8-I workflow polish or later backend/hardware contracts:
+Non-goals:
 
 ```text
-- N1 night/day theme strategy;
-- further H3 Observe polish;
-- Presets diff polish;
-- workflow-level unification;
-- sequence runner;
-- observation plan editor;
-- quicklook/data watcher backend;
-- real hardware adapter integration;
-- low-level EtherCAT / power / engineering controls;
-- detector config write UI;
-- full B/G/R hardware control;
-- `/ui` -> v7 route switch.
+- no OCS protocol implementation;
+- no TCS sync implementation;
+- no sequence runner;
+- no detector config write UI;
+- no full B/G/R hardware control;
+- no real hardware integration.
+```
+
+### Phase 2.8-J: v7 default route switch
+
+Implemented and locally validated.
+
+Goal:
+
+```text
+Make /ui serve the v7.1 operator-console prototype by default while preserving v5 as explicit fallback.
+```
+
+Required invariants:
+
+```text
+- /ui and /ui/v7 serve the same v7.1 shell.
+- /ui/v5 and /ui/legacy preserve the v5 stable fallback.
+- /api/v1/* behavior is unchanged.
+- v7 runtime remains disabled by default unless explicitly enabled by environment variables.
+- This is a default-entrypoint decision, not a production GUI acceptance claim.
 ```
 
 ---
 
 ## Phase 2.9+ deferred backend contracts
 
-Deferred until after H/I clarify the operator surface:
+Deferred until after 2.8-I/J clarify the operator surface:
 
 ```text
 - durable setup/session metadata API;
+- OCS request/response/lifecycle contract;
+- TCS read-only status/readiness contract;
 - image feed / latest exposure backend / quicklook / data watcher;
 - sequence runner / observing plan model;
 - persistent observation log / audit trail;
@@ -230,7 +245,8 @@ Deferred until after H/I clarify the operator surface:
 - full B/G/R channel hardware-control contract;
 - slit-monitor camera / guider / slit-width measurement contract;
 - derotator / instrument-rotation control contract;
-- real hardware adapter validation.
+- real hardware adapter validation;
+- EtherCAT / low-level hardware realtime feedback.
 ```
 
 ---
@@ -240,12 +256,14 @@ Deferred until after H/I clarify the operator surface:
 These must remain true unless explicitly changed by a major decision:
 
 ```text
-- `/ui` remains v5 default.
-- `/ui/v7` remains static and clickable by default.
-- v7 runtime is opt-in through `JUSTLS_UI_V7_RUNTIME_ENABLED=1`.
+- /ui is the v7.1 default operator-console prototype.
+- /ui/v5 and /ui/legacy remain v5 fallback routes.
+- /ui/v7 remains static and clickable by default.
+- v7 runtime is opt-in through JUSTLS_UI_V7_RUNTIME_ENABLED=1.
 - v7 module-level runtime gates remain opt-in or master-gated.
 - runtime JS must enhance durable skeletons and avoid duplicate competing panels.
-- raw JSON belongs in Diagnostics, not in the main Observe/Presets flow.
+- routine pages show command summaries first.
+- raw JSON belongs in page detail areas and Diagnostics, not as the dominant main flow.
 - unsafe engineering actions belong in Engineer/Housekeeping/Diagnostics, not routine operator flow.
 ```
 

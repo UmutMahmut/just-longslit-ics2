@@ -339,15 +339,16 @@
               <h2>Observe · Latest Exposure Preview</h2>
               <div class="panel-body">
                 <div class="live-preview" aria-label="latest exposure preview placeholder">
-                  <div class="live-overlay">
+                  <img src="/camera/slit/latest.jpg" alt="Slit camera preview" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none';" />
+                  <div class="live-overlay" style="display: none;"><!-- 隐藏demo信息 -->
                     <div class="stack"><span class="pill">LIVE / DEMO / NOT WIRED</span><span class="pill">Latest Exposure Preview</span></div>
                     <div class="stack"><span class="pill">state: ready_to_arm</span><span class="pill">stale: unknown</span></div>
                   </div>
                 </div>
                 <div class="channel-grid" aria-label="BGR channel preview placeholders" style="margin-top: 8px;">
-                  <div class="channel-preview">B Channel</div>
-                  <div class="channel-preview">G Channel</div>
-                  <div class="channel-preview">R Channel</div>
+                  <div class="channel-preview"><img src="/camera/b/latest.jpg" alt="B channel" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none';" /></div>
+                  <div class="channel-preview"><img src="/camera/g/latest.jpg" alt="G channel" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none';" /></div>
+                  <div class="channel-preview"><img src="/camera/r/latest.jpg" alt="R channel" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none';" /></div>
                 </div>
               </div>
             </section>

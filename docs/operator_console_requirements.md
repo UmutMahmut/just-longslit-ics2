@@ -44,13 +44,21 @@ Use it as a hard constraint source for:
 
 If UI or code assumptions conflict with P0, P0 wins unless a later project decision explicitly supersedes it.
 
+Important interpretation rule:
+
+```text
+P0 hardware/electrical terms describe possible instrument-control scope and constraints.
+They do not, by themselves, preselect the ICS 2.0 software integration route.
+The software route must remain adapter-bounded and hardware-selection-driven.
+```
+
 ### ICS 2.0 repository
 
 This repository is the implementation source of truth. Current code determines what is actually available.
 
 ### v5 UI baseline
 
-`src/justls/ics/app/ui/ui_alpha_skeleton_v5.html` is the current `/ui` capability baseline. It is not merely an old mockup. v7.1 must not silently lose v5-visible concepts, stable API hooks, or instrument facts.
+`src/justls/ics/app/ui/ui_alpha_skeleton_v5.html` remains the v5 fallback capability baseline. It is not merely an old mockup. v7.1 must not silently lose v5-visible concepts, stable API hooks, or instrument facts.
 
 Important v5 fact:
 
@@ -95,6 +103,25 @@ JUST-specific correction:
 ```text
 JUST is a B/G/R three-channel spectrograph, not a MODS Blue/Red two-channel instrument.
 ```
+
+---
+
+## Technology-adoption boundary
+
+A requirement may mention a technology, but the software roadmap must not treat that technology as selected until hardware, operations, and integration contracts justify it.
+
+Before a new technology or protocol becomes part of an implementation phase, it must pass this gate:
+
+```text
+- Does it solve a current phase problem?
+- Is there real hardware or a real external interface contract behind it?
+- Can the need be represented first as a schema, simulator, or adapter boundary?
+- Does it preserve the Domain / Kernel / Application / Adapter layering?
+- Does it keep low-level engineering detail out of routine operator flow?
+- Can it be tested by unit, integration, or hardware-in-loop tests?
+```
+
+If not, it remains a candidate or placeholder, not a product requirement.
 
 ---
 
@@ -152,6 +179,8 @@ Focus / image quality:
 ```
 
 Do not introduce any Blue/Red two-channel wording or assumptions. Use B/G/R consistently.
+
+These values are instrument/optical constraints. The software must preserve, display, validate, and record relevant configuration and metadata, but it cannot improve or guarantee optical performance by software alone.
 
 ### Telescope interface and plate scale
 
@@ -405,7 +434,16 @@ P0 control scope includes:
 - EtherCAT distributed control.
 ```
 
-Do not expose low-level EtherCAT/power/unsafe controls in the routine operator flow. Reserve them for Engineer / Housekeeping / Diagnostics and later role gating.
+Interpretation for ICS 2.0:
+
+```text
+- This list records P0 hardware/electrical-control scope.
+- It does not preselect the ICS 2.0 software integration protocol.
+- Actual hardware communication remains hardware-selection-driven.
+- The software should keep hardware access adapter/gateway-bounded.
+- Do not expose low-level bus, power, PLC, motion-controller, or vendor-SDK controls in the routine operator flow.
+- Reserve low-level hardware details for Engineer / Housekeeping / Diagnostics and later role gating.
+```
 
 ### OCS software modules and observing-plan intent
 
@@ -441,7 +479,7 @@ P0 also references an LRS observing-plan GUI and NGPS OTM-like planning fields:
 - ETC exposure-time calculator.
 ```
 
-These are not Phase 2.8-H implementation requirements, but they must inform Phase 2.8-I and later workflow planning.
+These are not immediate implementation requirements, but they must inform Phase 2.9+ workflow planning.
 
 ---
 
@@ -469,10 +507,10 @@ Instrument / Configure
   Routine operator configuration and visibility for slit, calibration, detector profile, and B/G/R channel summary.
 
 Observe
-  Single-exposure execution and latest exposure preview. Do not turn this into a sequence runner in Phase 2.8-H.
+  Single-exposure execution and latest exposure preview. Do not turn this into a sequence runner until sequence contracts exist.
 
 Presets
-  Catalog, preview, confirmation, and guarded apply. Operator-facing diff polish belongs to Phase 2.8-I.
+  Catalog, preview, confirmation, and guarded apply. Operator-facing diff polish belongs to the next UI workflow pass.
 
 Diagnostics
   Raw JSON, request-id, latest-job, last-error, runtime status, and deeper troubleshooting.
@@ -546,7 +584,6 @@ v7.1 requirements:
 
 ```text
 - Slit width and slit angle must be visible in Instrument / Configure.
-- Since backend APIs already exist, minimal v7.1 direct operator controls are a Phase 2.8-H candidate.
 - Slit width controls must expose arcsec and um together.
 - The only accepted conversion constant is 128.34 um / arcsec unless superseded by a later design decision.
 - Common shortcut widths are 1.0, 1.5, 2.0, and 3.0 arcsec.
@@ -570,7 +607,6 @@ v7.1 requirements:
 ```text
 - Calibration mode and lamp state must be visible in Instrument / Configure.
 - Prefer the newer calibration endpoints over the legacy /api/v1/lamp path for v7.1 operator controls.
-- Minimal calibration mode and lamp select/enable controls are a Phase 2.8-H candidate.
 - UI text should preserve the real calibration concept: flat source, Hg(Ar), Ne, possible ThAr/FeAr, and science/calibration path switching.
 - Unsafe/low-level lamp, mirror, shutter, or power behavior belongs outside the routine operator flow unless the backend contract is explicit.
 ```
@@ -588,7 +624,6 @@ v7.1 requirements:
 
 ```text
 - Detector profile/config and B/G/R channel summaries must be visible in Instrument / Configure.
-- Read-only detector config visibility is suitable for Phase 2.8-H.
 - Direct detector config write control requires caution and may be deferred.
 - Full B/G/R hardware-control contracts are later backend/hardware work.
 - B/G/R channel UI must reflect the P0 wavelength definitions and must not use Blue/Red two-channel shortcuts.
@@ -614,7 +649,7 @@ v7.1 requirements:
 - Arm / Start / Finish / Stop & Readout / Abort & Discard belong in Observe.
 - Abort/discard needs explicit confirmation.
 - Request ID, latest job, last error, and state transition feedback must be visible.
-- Deeper workflow polish belongs to Phase 2.8-I.
+- Sequence-runner behavior requires later backend contracts.
 ```
 
 ### Presets
@@ -632,8 +667,7 @@ v7.1 requirements:
 ```text
 - Preset catalog, preview, and guarded apply must remain available.
 - Confirmation-required and high-risk semantics must not be bypassed.
-- Raw JSON preview is acceptable for Phase 2.8-H parity baseline.
-- Operator-facing diff/risk/affected-subsystem presentation belongs to Phase 2.8-I.
+- Operator-facing diff/risk/affected-subsystem presentation belongs to the next UI workflow pass.
 ```
 
 ---
@@ -665,36 +699,28 @@ Deferred backend contracts:
 
 ---
 
-## Current H9 / H9.1 implementation requirements
+## Current v7.1 implementation requirements
 
-H9 baseline already introduced a v7 Instrument runtime gate and minimal backend-capability exposure.
-
-H9.1 must correct the first Instrument panel into an operator-usable baseline:
+The current v7.1 default console must preserve these baseline requirements:
 
 ```text
-H9.1: Instrument panel layout and slit dual-unit correction
-
 Must do:
-  - restructure Instrument API Controls into Slit Controls, Calibration Controls, Detector Visibility, Command Summary, and Raw Debug Detail;
-  - add slit width arcsec input and um input;
-  - use SLIT_UM_PER_ARCSEC = 128.34 as the single conversion constant;
-  - provide common shortcut buttons for 1.0, 1.5, 2.0, and 3.0 arcsec;
-  - submit slit width to backend as width_um;
-  - show the conversion constant in the UI;
+  - keep /ui and /ui/v7 aligned;
+  - keep /ui/v5 and /ui/legacy as v5 fallback routes;
+  - maintain runtime gates and do not enable v7 mutation modules by default;
+  - keep Instrument / Observe / Presets command-feedback bindings visible;
+  - maintain request_id / last_command / latest_job / last_error / result_summary visibility;
   - keep raw JSON secondary, not the dominant visual element;
-  - maintain request_id / last_command / last_error visibility.
+  - use SLIT_UM_PER_ARCSEC = 128.34 as the single slit conversion constant.
 
 Must not do:
   - no 0.1 arcsec common shortcut;
-  - no detector config write UI;
-  - no full B/G/R hardware control;
-  - no EtherCAT node controls;
-  - no power management controls;
-  - no unsafe maintenance actions;
-  - no sequence runner;
-  - no Presets diff UX polish;
-  - no night/day theme work;
-  - no H3 Observe polish.
+  - no premature detector config write UI;
+  - no full B/G/R hardware control before backend/hardware contracts;
+  - no low-level hardware bus, PLC, power, or vendor-SDK controls in routine operator UI;
+  - no unsafe maintenance actions in routine pages;
+  - no sequence runner before observation-plan contracts;
+  - no fake telemetry.
 ```
 
 ---

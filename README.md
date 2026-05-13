@@ -8,29 +8,39 @@ ICS 2.0 is intended to become the software control backbone for the JUST long-sl
 
 ## Current status
 
-The current stable baseline is a simulator-backed ICS with a usable backend/API backbone, a stable v5 default UI, and a productizing v7.1 operator-console prototype.
+The current baseline is a simulator-backed ICS with a usable backend/API backbone, a v7.1 default operator-console prototype, and explicit v5 fallback routes.
 
 Current strategic UI decision:
 
 ```text
-/ui      -> v5 stable default capability baseline
-/ui/v6   -> v6 operational-status review shell
-/ui/v7   -> v7.1 operator-console prototype, static by default
+/ui        -> v7.1 default operator-console prototype
+/ui/v7     -> v7.1 explicit operator-console prototype
+/ui/v5     -> v5 stable legacy fallback
+/ui/legacy -> v5 stable legacy fallback alias
+/ui/v6     -> v6 operational-status review shell
 ```
 
-Do **not** switch `/ui` to v7 yet.
+Important wording:
+
+```text
+v7.1 is the default operator-console prototype.
+This route switch does not mean v7.1 is a final product-grade GUI.
+```
 
 Current mainline:
 
 ```text
-Phase 2.8-H: v5 to v7 feature parity pass
+Phase 2.8-I/J merged baseline:
+  - light command-feedback unification;
+  - /ui -> v7 default route switch;
+  - v5 fallback preserved at /ui/v5 and /ui/legacy.
 ```
 
 Recent local validation reported by the user:
 
 ```text
 pytest -q
-156 passed in 0.97s
+161 passed in 1.00s
 ```
 
 For the durable current-status record, see:
@@ -45,6 +55,12 @@ For operator-console requirements and backend-capability visibility rules, see:
 docs/operator_console_requirements.md
 ```
 
+For the current software-development strategy and phase roadmap, see:
+
+```text
+docs/ics2_software_development_strategy.md
+```
+
 ---
 
 ## What this repository currently provides
@@ -53,9 +69,9 @@ docs/operator_console_requirements.md
 - A FastAPI control and status interface under `/api/v1/*`.
 - A simulation-first runtime for end-to-end development before full hardware availability.
 - Backend-served static frontends for zero-CORS local integration.
-- A stable v5 default UI used as the current capability baseline.
-- A v7.1 operator-console prototype with static default behavior and opt-in runtime enhancement.
-- Runtime-status, preset, observe, and observe-guard prototypes for v7.1.
+- A v7.1 default operator-console prototype.
+- Explicit v5 fallback routes for continuity and rollback.
+- Runtime-status, instrument, preset, observe, and observe-guard prototypes for v7.1.
 - Regression tests covering API behavior, UI route/static asset behavior, runtime gates, preset safety, observe/status behavior, and operator-console shell invariants.
 
 ---
@@ -73,8 +89,30 @@ Core design priorities:
 - Keep simulation-first development while leaving a clean path for real hardware adapters.
 - Avoid pretending that static placeholders are real telemetry or persisted backend state.
 - Ensure backend capabilities are at least visible in the frontend, even when not directly controllable.
+- Prefer contracts and adapters before adopting specific hardware protocols or infrastructure technologies.
 
 The current design has been informed by mature spectrograph-control patterns and by earlier JUST ICS experience. The legacy ICS 1.0 repository is useful as an intent reference, especially for the minimal closed loop, SimHAL, capabilities map, slit/lamp control, SlitCam, B/G/R placeholders, and backend-served static UI. It is not the implementation source of truth for ICS 2.0.
+
+---
+
+## Technology adoption rule
+
+New infrastructure, protocol, database, event-streaming, hardware-bus, or observatory-integration technology must not be promoted into the main roadmap merely because it is powerful or familiar.
+
+Before adoption, it must pass this gate:
+
+```text
+1. What current project problem does it solve?
+2. Is that problem present in the current phase?
+3. Is there real hardware, real operations, or a real interface contract behind it?
+4. Can a simpler schema, simulator, file contract, or adapter boundary solve it for now?
+5. Does it preserve Domain / Kernel / Application / Adapter boundaries?
+6. Does it avoid exposing low-level engineering complexity in routine operator UI?
+7. Can it be tested through pytest or integration tests?
+8. If we do not adopt it now, can the current phase still move forward cleanly?
+```
+
+If these questions are not answerable, the item should remain `TBD`, `candidate`, or `adapter-bounded`, not a named implementation route.
 
 ---
 
@@ -82,7 +120,25 @@ The current design has been informed by mature spectrograph-control patterns and
 
 ### `/ui`
 
-Default stable UI.
+Default v7.1 operator-console prototype.
+
+Backed by:
+
+```text
+src/justls/ics/app/ui/ui_operational_v7.html
+```
+
+The served shell remains safe by default because v7 runtime modules are still opt-in.
+
+### `/ui/v7`
+
+Explicit v7.1 operator-console route.
+
+It should remain aligned with `/ui`.
+
+### `/ui/v5` and `/ui/legacy`
+
+Stable v5 fallback routes.
 
 Backed by:
 
@@ -90,7 +146,7 @@ Backed by:
 src/justls/ics/app/ui/ui_alpha_skeleton_v5.html
 ```
 
-Treat this as the current operator-facing capability baseline until v7 parity is explicitly approved.
+Keep available for continuity and rollback.
 
 ### `/ui/v6`
 
@@ -104,30 +160,6 @@ src/justls/ics/app/ui/ui_operational_v6.html
 
 Keep available for review and continuity with Phase 2.6/2.7 work.
 
-### `/ui/v7`
-
-Future operator-console prototype.
-
-Backed by:
-
-```text
-src/justls/ics/app/ui/ui_operational_v7.html
-```
-
-Default behavior must remain static and clickable without runtime JS.
-
-v7.1 currently organizes the future console around:
-
-```text
-Setup
-Instrument / Configure
-Observe
-Presets
-Diagnostics
-Housekeeping
-Engineer
-```
-
 ---
 
 ## v7 runtime gates
@@ -139,6 +171,7 @@ Recommended cleanup before starting a local server:
 ```powershell
 Remove-Item Env:JUSTLS_UI_V7_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:JUSTLS_UI_V7_INSTRUMENT_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED -ErrorAction SilentlyContinue
@@ -154,6 +187,7 @@ Module gates:
 
 ```powershell
 $env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED="1"
+$env:JUSTLS_UI_V7_INSTRUMENT_RUNTIME_ENABLED="1"
 $env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED="1"
 $env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED="1"
 $env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED="1"
@@ -163,6 +197,7 @@ Runtime assets:
 
 ```text
 src/justls/ics/app/ui/v7/runtime_status.js
+src/justls/ics/app/ui/v7/instrument_runtime.js
 src/justls/ics/app/ui/v7/preset_runtime.js
 src/justls/ics/app/ui/v7/observe_runtime.js
 src/justls/ics/app/ui/v7/observe_guard.js
@@ -207,6 +242,7 @@ tests/
 └── ui/
 
 docs/
+├── ics2_software_development_strategy.md
 ├── project_status.md
 └── operator_console_requirements.md
 ```
@@ -281,9 +317,11 @@ python -m uvicorn justls.ics.app.main:app --host 127.0.0.1 --port 8000 --reload
 ### 3) Open in browser
 
 - Swagger UI: `http://127.0.0.1:8000/docs`
-- Default stable UI: `http://127.0.0.1:8000/ui/`
+- Default v7.1 prototype: `http://127.0.0.1:8000/ui/`
+- v7 explicit prototype: `http://127.0.0.1:8000/ui/v7`
+- v5 fallback: `http://127.0.0.1:8000/ui/v5`
+- v5 legacy alias: `http://127.0.0.1:8000/ui/legacy`
 - v6 review shell: `http://127.0.0.1:8000/ui/v6`
-- v7 static prototype: `http://127.0.0.1:8000/ui/v7`
 
 For local integration work, open the UI through the backend-served route instead of `file://`, so frontend and backend stay on the same origin.
 
@@ -316,14 +354,15 @@ At the current stage:
 
 - the project remains simulation-first;
 - many real drivers are still placeholders or early stubs;
-- v7 is not yet the default UI;
+- v7 is now the default operator-console prototype, not a final product-grade GUI;
 - v7 runtime remains opt-in, not default-on;
 - durable setup/session metadata persistence is not started;
 - live image backend / quicklook / data watcher is not started;
 - sequence runner and durable observing plan model are deferred;
 - production preset UX still needs operator-facing diff tables and clearer risk presentation;
 - FITS/data-product pipeline and persistent observation log need future backend contracts;
-- role separation, authentication, and engineering/operator permission boundaries are future work.
+- role separation, authentication, and engineering/operator permission boundaries are future work;
+- real hardware communication protocols remain hardware-selection-driven and adapter-bounded, not preselected in the software roadmap.
 
 ---
 
@@ -332,11 +371,12 @@ At the current stage:
 Keep repository docs few and durable. Current source of truth:
 
 ```text
+docs/ics2_software_development_strategy.md
 docs/project_status.md
 docs/operator_console_requirements.md
 ```
 
-Avoid adding one-off phase notes. Update the two durable docs when the decision remains useful.
+Avoid adding one-off phase notes. Update durable docs when the decision remains useful.
 
 ---
 

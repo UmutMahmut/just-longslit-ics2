@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_api_observation_invalid_start_does_not_fault_runtime_state():
+def test_api_observation_invalid_start_does_not_fault_runtime_state():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/start")
@@ -53,7 +53,7 @@ def test_stage_2d2_api_observation_invalid_start_does_not_fault_runtime_state():
     assert runtime_state["subsystems"]["detector"]["state"] == "idle"
     assert runtime_state["exposure_state"] == "ready_to_arm"
 
-def test_stage_2d2_api_health_runtime_exposure_state_matches_observation_status_across_flow():
+def test_api_health_runtime_exposure_state_matches_observation_status_across_flow():
     client = TestClient(app)
 
     initial_health = client.get("/api/v1/health")
@@ -92,7 +92,7 @@ def test_stage_2d2_api_health_runtime_exposure_state_matches_observation_status_
     assert completed_obs.status_code == 200
     assert completed_health.json()["runtime"]["state"]["exposure_state"] == completed_obs.json()["state"] == "completed"
 
-def test_stage_2d2_armed_blocks_detector_config_mutation():
+def test_armed_blocks_detector_config_mutation():
     client = TestClient(app)
 
     arm = client.post(
@@ -118,7 +118,7 @@ def test_stage_2d2_armed_blocks_detector_config_mutation():
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "invalid_state"
 
-def test_stage_2d2_armed_blocks_preset_apply():
+def test_armed_blocks_preset_apply():
     client = TestClient(app)
 
     arm = client.post(
@@ -131,7 +131,7 @@ def test_stage_2d2_armed_blocks_preset_apply():
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "invalid_state"
 
-def test_stage_2d2_armed_blocks_slit_and_calibration_mutation():
+def test_armed_blocks_slit_and_calibration_mutation():
     client = TestClient(app)
 
     arm = client.post(
@@ -148,7 +148,7 @@ def test_stage_2d2_armed_blocks_slit_and_calibration_mutation():
     assert calibration.status_code == 400
     assert calibration.json()["detail"]["code"] == "invalid_state"
 
-def test_stage_2d2_armed_still_allows_observation_start():
+def test_armed_still_allows_observation_start():
     client = TestClient(app)
 
     arm = client.post(
@@ -161,7 +161,7 @@ def test_stage_2d2_armed_still_allows_observation_start():
     assert start.status_code == 200
     assert start.json()["state"] == "exposing"
 
-def test_stage_2d2_exposing_blocks_detector_preset_and_slit_mutation():
+def test_exposing_blocks_detector_preset_and_slit_mutation():
     client = TestClient(app)
 
     arm = client.post(
@@ -199,7 +199,7 @@ def test_stage_2d2_exposing_blocks_detector_preset_and_slit_mutation():
     assert slit.status_code == 400
     assert slit.json()["detail"]["code"] == "invalid_state"
 
-def test_stage_2d2_exposing_still_allows_observation_finish():
+def test_exposing_still_allows_observation_finish():
     client = TestClient(app)
 
     arm = client.post(

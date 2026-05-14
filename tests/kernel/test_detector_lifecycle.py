@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_detector_initial_snapshot():
+def test_detector_initial_snapshot():
     runtime = RuntimeAssembler().build()
     snap = runtime.detector.get_snapshot()
 
@@ -47,7 +47,7 @@ def test_stage_2d2_detector_initial_snapshot():
     assert snap.last_exposure is None
     assert snap.observation_meta is None
 
-def test_stage_2d2_detector_arm_creates_observation_meta():
+def test_detector_arm_creates_observation_meta():
     runtime = RuntimeAssembler().build()
 
     armed = runtime.detector.arm(
@@ -67,7 +67,7 @@ def test_stage_2d2_detector_arm_creates_observation_meta():
     assert armed.observation_meta["instrument_snapshot"]["slit_width_um"] == 120.0
     assert armed.observation_meta["detector_config"]["profile_name"] == "default"
 
-def test_stage_2d2_detector_finish_normal_flow():
+def test_detector_finish_normal_flow():
     runtime = RuntimeAssembler().build()
 
     runtime.detector.arm(
@@ -98,7 +98,7 @@ def test_stage_2d2_detector_finish_normal_flow():
     assert completed.observation_meta["frame_results"][0]["kept"] is True
     assert completed.observation_meta["frame_results"][0]["early_stop"] is False
 
-def test_stage_2d2_detector_stop_readout_flow():
+def test_detector_stop_readout_flow():
     runtime = RuntimeAssembler().build()
 
     runtime.detector.arm(
@@ -120,7 +120,7 @@ def test_stage_2d2_detector_stop_readout_flow():
     assert completed.observation_meta["state"] == "completed"
     assert completed.observation_meta["frame_results"][0]["early_stop"] is True
 
-def test_stage_2d2_detector_abort_discard_flow():
+def test_detector_abort_discard_flow():
     runtime = RuntimeAssembler().build()
 
     runtime.detector.arm(
@@ -144,13 +144,13 @@ def test_stage_2d2_detector_abort_discard_flow():
     assert discarded.observation_meta["state"] == "discarded"
     assert discarded.observation_meta["frame_results"][0]["discarded"] is True
 
-def test_stage_2d2_detector_invalid_start_before_arm():
+def test_detector_invalid_start_before_arm():
     runtime = RuntimeAssembler().build()
 
     with pytest.raises(InvalidStateError):
         runtime.detector.start()
 
-def test_stage_2d2_detector_invalid_finish_before_start():
+def test_detector_invalid_finish_before_start():
     runtime = RuntimeAssembler().build()
 
     runtime.detector.arm(
@@ -164,7 +164,7 @@ def test_stage_2d2_detector_invalid_finish_before_start():
     with pytest.raises(InvalidStateError):
         runtime.detector.finish_normal()
 
-def test_stage_2d2_detector_invalid_stop_before_start():
+def test_detector_invalid_stop_before_start():
     runtime = RuntimeAssembler().build()
 
     runtime.detector.arm(
@@ -178,7 +178,7 @@ def test_stage_2d2_detector_invalid_stop_before_start():
     with pytest.raises(InvalidStateError):
         runtime.detector.stop_and_readout()
 
-def test_stage_2d2_detector_invalid_abort_before_arm():
+def test_detector_invalid_abort_before_arm():
     runtime = RuntimeAssembler().build()
 
     with pytest.raises(InvalidStateError):

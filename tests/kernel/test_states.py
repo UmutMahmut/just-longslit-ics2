@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_initial_state_basics():
+def test_initial_state_basics():
     state = build_initial_state(RunMode.SIM)
     data = state.to_dict()
 

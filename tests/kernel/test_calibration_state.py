@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_lamps_legacy_on_off_flow():
+def test_lamps_legacy_on_off_flow():
     runtime = RuntimeAssembler().build()
 
     on_snapshot = runtime.lamps.set_legacy_on(True)
@@ -53,7 +53,7 @@ def test_stage_2d2_lamps_legacy_on_off_flow():
     assert off_snapshot.lamp_enabled is False
     assert off_snapshot.mirror_inserted is False
 
-def test_stage_2d2_lamps_explicit_mode_and_lamp_flow():
+def test_lamps_explicit_mode_and_lamp_flow():
     runtime = RuntimeAssembler().build()
 
     snap1 = runtime.lamps.set_mode("calibration")

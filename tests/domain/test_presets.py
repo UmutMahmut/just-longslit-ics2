@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_presets_catalog():
+def test_presets_catalog():
     items = list_presets()
     names = {item["name"] for item in items}
 
@@ -47,7 +47,7 @@ def test_stage_2d2_presets_catalog():
     assert "engineering_all_channels_off" in names
     assert "calib_flat_default" in names
 
-def test_stage_2d2_build_preset_plan_science_default():
+def test_build_preset_plan_science_default():
     plan = build_preset_plan("science_default").to_dict()
 
     assert plan["name"] == "science_default"
@@ -56,7 +56,7 @@ def test_stage_2d2_build_preset_plan_science_default():
     assert plan["calibration"]["enabled"] is False
     assert plan["slit"] is None
 
-def test_stage_2d2_build_preset_plan_calib_flat_default():
+def test_build_preset_plan_calib_flat_default():
     plan = build_preset_plan("calib_flat_default").to_dict()
 
     assert plan["name"] == "calib_flat_default"
@@ -65,7 +65,7 @@ def test_stage_2d2_build_preset_plan_calib_flat_default():
     assert plan["calibration"]["lamp"] == "flat"
     assert plan["calibration"]["enabled"] is True
 
-def test_stage_2d2_build_preset_config_science_default():
+def test_build_preset_config_science_default():
     cfg = build_preset_config("science_default").to_dict()
 
     assert cfg["profile_name"] == "science-default"
@@ -73,6 +73,6 @@ def test_stage_2d2_build_preset_config_science_default():
     assert cfg["channels"]["G"]["enabled"] is True
     assert cfg["channels"]["R"]["enabled"] is True
 
-def test_stage_2d2_build_unknown_preset_raises():
+def test_build_unknown_preset_raises():
     with pytest.raises(KeyError):
         build_preset_plan("not_exists")

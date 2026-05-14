@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_detector_config_model_defaults():
+def test_detector_config_model_defaults():
     cfg = DetectorConfig()
     data = cfg.to_dict()
 

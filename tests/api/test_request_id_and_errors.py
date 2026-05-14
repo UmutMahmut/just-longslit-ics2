@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_api_observation_invalid_start_returns_structured_error():
+def test_api_observation_invalid_start_returns_structured_error():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/start")
@@ -50,7 +50,7 @@ def test_stage_2d2_api_observation_invalid_start_returns_structured_error():
     assert isinstance(data["detail"]["message"], str)
     assert data["detail"]["message"]
 
-def test_stage_2d2_api_apply_unknown_preset_returns_structured_error():
+def test_api_apply_unknown_preset_returns_structured_error():
     client = TestClient(app)
 
     response = client.post("/api/v1/presets/apply", json={"name": "not_exists"})
@@ -61,7 +61,7 @@ def test_stage_2d2_api_apply_unknown_preset_returns_structured_error():
     assert data["detail"]["code"] == "preset_not_found"
     assert data["detail"]["message"] == "Preset not found: not_exists"
 
-def test_stage_2d2_api_success_response_includes_request_id_header():
+def test_api_success_response_includes_request_id_header():
     client = TestClient(app)
 
     response = client.get("/api/v1/health")
@@ -69,7 +69,7 @@ def test_stage_2d2_api_success_response_includes_request_id_header():
     assert "X-Request-ID" in response.headers
     assert response.headers["X-Request-ID"]
 
-def test_stage_2d2_api_preserves_incoming_request_id_header():
+def test_api_preserves_incoming_request_id_header():
     client = TestClient(app)
 
     response = client.get(
@@ -79,7 +79,7 @@ def test_stage_2d2_api_preserves_incoming_request_id_header():
     assert response.status_code == 200
     assert response.headers["X-Request-ID"] == "test-req-123"
 
-def test_stage_2d2_api_validation_error_includes_request_id_header():
+def test_api_validation_error_includes_request_id_header():
     client = TestClient(app)
 
     response = client.post("/api/v1/slit", json={"width_um": 0})
@@ -87,7 +87,7 @@ def test_stage_2d2_api_validation_error_includes_request_id_header():
     assert "X-Request-ID" in response.headers
     assert response.headers["X-Request-ID"]
 
-def test_stage_2d2_api_internal_error_includes_request_id_header_and_detail():
+def test_api_internal_error_includes_request_id_header_and_detail():
     route_path = "/api/v1/_test/internal-error-request-id"
 
     existing_paths = {route.path for route in app.router.routes}

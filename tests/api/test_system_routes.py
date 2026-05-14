@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_api_root():
+def test_api_root():
     client = TestClient(app)
     response = client.get("/")
 
@@ -48,7 +48,7 @@ def test_stage_2d2_api_root():
     assert data["docs"] == "/docs"
     assert data["openapi"] == "/openapi.json"
 
-def test_stage_2d2_api_health():
+def test_api_health():
     client = TestClient(app)
     response = client.get("/api/v1/health")
 
@@ -58,7 +58,7 @@ def test_stage_2d2_api_health():
     assert data["service"] == "just-longslit-ics-2.0"
     assert "runtime" in data
 
-def test_stage_2d2_api_status():
+def test_api_status():
     client = TestClient(app)
     response = client.get("/api/v1/status")
 
@@ -69,7 +69,7 @@ def test_stage_2d2_api_status():
     assert data["lamp_on"] is False
     assert data["temperature_c"] is None
 
-def test_stage_2d2_api_status_full():
+def test_api_status_full():
     client = TestClient(app)
     response = client.get("/api/v1/status/full")
 
@@ -95,7 +95,7 @@ def test_stage_2d2_api_status_full():
     assert data["observation"]["observation_meta"] is None
     assert data["detector_config"]["profile_name"] == "default"
 
-def test_stage_2d2_api_capabilities():
+def test_api_capabilities():
     client = TestClient(app)
     response = client.get("/api/v1/capabilities")
 

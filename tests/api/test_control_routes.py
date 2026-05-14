@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_api_set_slit_width():
+def test_api_set_slit_width():
     client = TestClient(app)
 
     response = client.post("/api/v1/slit", json={"width_um": 220.0})
@@ -53,7 +53,7 @@ def test_stage_2d2_api_set_slit_width():
     assert status_data["slit_width_um"] == 220.0
     assert status_data["slit_angle_deg"] == 0.0
 
-def test_stage_2d2_api_set_slit_angle():
+def test_api_set_slit_angle():
     client = TestClient(app)
 
     response = client.post("/api/v1/slit_angle", json={"angle_deg": 12.5})
@@ -68,19 +68,19 @@ def test_stage_2d2_api_set_slit_angle():
     assert status_data["slit_width_um"] == 120.0
     assert status_data["slit_angle_deg"] == 12.5
 
-def test_stage_2d2_api_invalid_slit_width_returns_422():
+def test_api_invalid_slit_width_returns_422():
     client = TestClient(app)
     response = client.post("/api/v1/slit", json={"width_um": 0})
 
     assert response.status_code == 422
 
-def test_stage_2d2_api_invalid_slit_angle_returns_422():
+def test_api_invalid_slit_angle_returns_422():
     client = TestClient(app)
     response = client.post("/api/v1/slit_angle", json={"angle_deg": 120.0})
 
     assert response.status_code == 422
 
-def test_stage_2d2_api_lamp_legacy_on_and_off():
+def test_api_lamp_legacy_on_and_off():
     client = TestClient(app)
 
     on_response = client.post("/api/v1/lamp", json={"on": True})
@@ -91,7 +91,7 @@ def test_stage_2d2_api_lamp_legacy_on_and_off():
     assert off_response.status_code == 200
     assert off_response.json()["lamp_on"] is False
 
-def test_stage_2d2_api_get_calibration_status():
+def test_api_get_calibration_status():
     client = TestClient(app)
 
     response = client.get("/api/v1/calibration/status")
@@ -103,7 +103,7 @@ def test_stage_2d2_api_get_calibration_status():
     assert data["lamp_enabled"] is False
     assert data["mirror_inserted"] is False
 
-def test_stage_2d2_api_set_calibration_mode_and_lamp():
+def test_api_set_calibration_mode_and_lamp():
     client = TestClient(app)
 
     response1 = client.post("/api/v1/calibration/mode", json={"mode": "calibration"})
@@ -122,13 +122,13 @@ def test_stage_2d2_api_set_calibration_mode_and_lamp():
     legacy = client.get("/api/v1/status")
     assert legacy.json()["lamp_on"] is True
 
-def test_stage_2d2_api_invalid_calibration_mode_returns_422():
+def test_api_invalid_calibration_mode_returns_422():
     client = TestClient(app)
     response = client.post("/api/v1/calibration/mode", json={"mode": "invalid"})
 
     assert response.status_code == 422
 
-def test_stage_2d2_api_invalid_calibration_lamp_returns_422():
+def test_api_invalid_calibration_lamp_returns_422():
     client = TestClient(app)
     response = client.post("/api/v1/calibration/lamp", json={"lamp": "invalid", "enabled": True})
 

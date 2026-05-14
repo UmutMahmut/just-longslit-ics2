@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_dispatcher_success_flow():
+def test_dispatcher_success_flow():
     runtime = RuntimeAssembler().build()
     runtime.set_subsystem_connected("slit", True)
     runtime.set_subsystem_state("slit", ControlState.IDLE)
@@ -64,7 +64,7 @@ def test_stage_2d2_dispatcher_success_flow():
     assert data["payload"]["width_um"] == 100.0
     assert runtime.get_subsystem_state("slit").state == ControlState.IDLE
 
-def test_stage_2d2_dispatcher_unsupported_action():
+def test_dispatcher_unsupported_action():
     runtime = RuntimeAssembler().build()
     dispatcher = CommandDispatcher(runtime)
 
@@ -81,7 +81,7 @@ def test_stage_2d2_dispatcher_unsupported_action():
     except UnsupportedError as exc:
         assert exc.code == ErrorCode.UNSUPPORTED
 
-def test_stage_2d2_validate_required_params():
+def test_validate_required_params():
     req = CommandRequest.create(
         subsystem="slit",
         action="set_width",
@@ -95,7 +95,7 @@ def test_stage_2d2_validate_required_params():
     except InvalidParamError as exc:
         assert exc.code == ErrorCode.INVALID_PARAM
 
-def test_stage_2d2_dispatcher_invalid_state_does_not_fault_detector_subsystem():
+def test_dispatcher_invalid_state_does_not_fault_detector_subsystem():
     runtime = RuntimeAssembler().build()
     dispatcher = CommandDispatcher(runtime)
 
@@ -123,7 +123,7 @@ def test_stage_2d2_dispatcher_invalid_state_does_not_fault_detector_subsystem():
     assert runtime.get_subsystem_state("detector").state == ControlState.IDLE
     assert runtime.get_snapshot().overall_state == ControlState.IDLE
 
-def test_stage_2d2_dispatcher_invalid_param_does_not_fault_slit_subsystem():
+def test_dispatcher_invalid_param_does_not_fault_slit_subsystem():
     runtime = RuntimeAssembler().build()
     dispatcher = CommandDispatcher(runtime)
 

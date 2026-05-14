@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_api_get_detector_config():
+def test_api_get_detector_config():
     client = TestClient(app)
 
     response = client.get("/api/v1/detector/config")
@@ -50,7 +50,7 @@ def test_stage_2d2_api_get_detector_config():
     assert data["channels"]["G"]["camera_role"] == "science_g"
     assert data["channels"]["R"]["camera_role"] == "science_r"
 
-def test_stage_2d2_api_set_detector_config():
+def test_api_set_detector_config():
     client = TestClient(app)
 
     response = client.post(
@@ -81,7 +81,7 @@ def test_stage_2d2_api_set_detector_config():
     assert read_data["profile_name"] == "rgb-safe-default"
     assert read_data["channels"]["R"]["enabled"] is True
 
-def test_stage_2d2_api_detector_config_invalid_payload_returns_422():
+def test_api_detector_config_invalid_payload_returns_422():
     client = TestClient(app)
 
     response = client.post(

@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_job_tracker_success_flow():
+def test_job_tracker_success_flow():
     tracker = JobTracker()
 
     req = CommandRequest.create(

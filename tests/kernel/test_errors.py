@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_error_code_basics():
+def test_error_code_basics():
     assert ErrorCode.OK.value == "ok"
     assert ErrorCode.INVALID_PARAM.value == "invalid_param"
     assert ErrorCode.UNSUPPORTED.value == "unsupported"

@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_management_service_detector_config_roundtrip():
+def test_management_service_detector_config_roundtrip():
     runtime = RuntimeAssembler().build()
     service = ManagementService(runtime)
 
@@ -63,7 +63,7 @@ def test_stage_2d2_management_service_detector_config_roundtrip():
     assert updated["channels"]["B"]["enabled"] is True
     assert service.get_detector_config_dict()["channels"]["R"]["enabled"] is True
 
-def test_stage_2d2_management_service_apply_preset_plan_science():
+def test_management_service_apply_preset_plan_science():
     runtime = RuntimeAssembler().build()
     service = ManagementService(runtime)
 
@@ -76,7 +76,7 @@ def test_stage_2d2_management_service_apply_preset_plan_science():
     assert result["calibration_applied"] is True
     assert result["slit_applied"] is False
 
-def test_stage_2d2_management_service_apply_preset_plan_calib_flat():
+def test_management_service_apply_preset_plan_calib_flat():
     runtime = RuntimeAssembler().build()
     service = ManagementService(runtime)
 

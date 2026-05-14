@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_openapi_presets_responses_are_typed():
+def test_openapi_presets_responses_are_typed():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -52,7 +52,7 @@ def test_stage_2d2_openapi_presets_responses_are_typed():
     assert "$ref" in apply_schema
     assert apply_schema["$ref"].endswith("/PresetApplyResponse")
 
-def test_stage_2d2_openapi_observation_responses_are_typed():
+def test_openapi_observation_responses_are_typed():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -69,7 +69,7 @@ def test_stage_2d2_openapi_observation_responses_are_typed():
     assert "$ref" in start_schema
     assert start_schema["$ref"].endswith("/ObservationStatusResponse")
 
-def test_stage_2d2_openapi_response_components_include_new_models():
+def test_openapi_response_components_include_new_models():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -81,7 +81,7 @@ def test_stage_2d2_openapi_response_components_include_new_models():
     assert "PresetApplyResponse" in schemas
     assert "ObservationStatusResponse" in schemas
 
-def test_stage_2d2_openapi_system_and_detector_responses_are_typed():
+def test_openapi_system_and_detector_responses_are_typed():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -112,7 +112,7 @@ def test_stage_2d2_openapi_system_and_detector_responses_are_typed():
     assert "$ref" in detector_post_schema
     assert detector_post_schema["$ref"].endswith("/DetectorConfig-Output")
 
-def test_stage_2d2_openapi_response_components_include_system_models():
+def test_openapi_response_components_include_system_models():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -128,7 +128,7 @@ def test_stage_2d2_openapi_response_components_include_system_models():
     assert "RuntimeStateResponse" in schemas
     assert "RuntimeSubsystemStateResponse" in schemas
 
-def test_stage_2d2_openapi_control_responses_are_typed():
+def test_openapi_control_responses_are_typed():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -159,7 +159,7 @@ def test_stage_2d2_openapi_control_responses_are_typed():
     assert "$ref" in slit_angle_schema
     assert slit_angle_schema["$ref"].endswith("/StateDtoResponse")
 
-def test_stage_2d2_openapi_control_response_components_exist():
+def test_openapi_control_response_components_exist():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -170,7 +170,7 @@ def test_stage_2d2_openapi_control_response_components_exist():
     assert "CalibrationStatusResponse" in schemas
     assert "StateDtoResponse" in schemas
 
-def test_stage_2d2_openapi_error_response_models_are_declared():
+def test_openapi_error_response_models_are_declared():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200
@@ -193,7 +193,7 @@ def test_stage_2d2_openapi_error_response_models_are_declared():
     assert "$ref" in preset_apply_404
     assert preset_apply_404["$ref"].endswith("/ApiErrorResponse")
 
-def test_stage_2d2_openapi_error_components_exist():
+def test_openapi_error_components_exist():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
     assert openapi.status_code == 200

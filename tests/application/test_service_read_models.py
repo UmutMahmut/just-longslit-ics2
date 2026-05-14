@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_services_read_runtime_state_calibration_observation_and_detector_config():
+def test_services_read_runtime_state_calibration_observation_and_detector_config():
     runtime = RuntimeAssembler().build()
 
     runtime.set_detector_config(

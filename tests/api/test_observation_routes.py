@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_api_observation_initial_status():
+def test_api_observation_initial_status():
     client = TestClient(app)
 
     response = client.get("/api/v1/observation/status")
@@ -50,7 +50,7 @@ def test_stage_2d2_api_observation_initial_status():
     assert data["last_exposure"] is None
     assert data["observation_meta"] is None
 
-def test_stage_2d2_api_observation_arm_includes_detector_config():
+def test_api_observation_arm_includes_detector_config():
     client = TestClient(app)
 
     client.post(
@@ -84,7 +84,7 @@ def test_stage_2d2_api_observation_arm_includes_detector_config():
     assert data["observation_meta"]["detector_config"]["channels"]["G"]["enabled"] is False
     assert data["observation_meta"]["detector_config"]["channels"]["R"]["enabled"] is True
 
-def test_stage_2d2_api_observation_start_returns_exposing():
+def test_api_observation_start_returns_exposing():
     client = TestClient(app)
 
     arm = client.post(
@@ -105,7 +105,7 @@ def test_stage_2d2_api_observation_start_returns_exposing():
     assert data["observation_meta"]["state"] == "exposing"
     assert data["observation_meta"]["started_at_utc"] is not None
 
-def test_stage_2d2_api_observation_finish():
+def test_api_observation_finish():
     client = TestClient(app)
 
     arm = client.post(
@@ -134,7 +134,7 @@ def test_stage_2d2_api_observation_finish():
     assert data["observation_meta"]["frame_results"][0]["kept"] is True
     assert data["observation_meta"]["frame_results"][0]["early_stop"] is False
 
-def test_stage_2d2_api_observation_stop_readout():
+def test_api_observation_stop_readout():
     client = TestClient(app)
 
     arm = client.post(
@@ -163,7 +163,7 @@ def test_stage_2d2_api_observation_stop_readout():
     assert data["observation_meta"]["frame_results"][0]["kept"] is True
     assert data["observation_meta"]["frame_results"][0]["early_stop"] is True
 
-def test_stage_2d2_api_observation_abort_discard():
+def test_api_observation_abort_discard():
     client = TestClient(app)
 
     arm = client.post(
@@ -188,13 +188,13 @@ def test_stage_2d2_api_observation_abort_discard():
     assert len(data["observation_meta"]["frame_results"]) == 1
     assert data["observation_meta"]["frame_results"][0]["discarded"] is True
 
-def test_stage_2d2_api_observation_invalid_start_before_arm():
+def test_api_observation_invalid_start_before_arm():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/start")
     assert response.status_code == 400
 
-def test_stage_2d2_api_observation_invalid_finish_before_start():
+def test_api_observation_invalid_finish_before_start():
     client = TestClient(app)
 
     arm = client.post(
@@ -206,13 +206,13 @@ def test_stage_2d2_api_observation_invalid_finish_before_start():
     response = client.post("/api/v1/observation/finish")
     assert response.status_code == 400
 
-def test_stage_2d2_api_observation_invalid_stop_before_start():
+def test_api_observation_invalid_stop_before_start():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/stop_readout")
     assert response.status_code == 400
 
-def test_stage_2d2_api_observation_invalid_abort_before_arm():
+def test_api_observation_invalid_abort_before_arm():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/abort_discard")

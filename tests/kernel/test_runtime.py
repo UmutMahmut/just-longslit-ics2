@@ -38,7 +38,7 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
-def test_stage_2d2_runtime_status_dict():
+def test_runtime_status_dict():
     runtime = RuntimeAssembler(RuntimeConfig(run_mode=RunMode.SIM)).build()
     status = runtime.status_dict()
 
@@ -47,7 +47,7 @@ def test_stage_2d2_runtime_status_dict():
     assert status["run_mode"] == "sim"
     assert status["latest_job"] is None
 
-def test_stage_2d2_runtime_has_slit_lamps_detector_and_capabilities():
+def test_runtime_has_slit_lamps_detector_and_capabilities():
     runtime = RuntimeAssembler().build()
     caps = runtime.get_capabilities_dict()
 
@@ -58,7 +58,7 @@ def test_stage_2d2_runtime_has_slit_lamps_detector_and_capabilities():
     assert caps["slit_angle"] is True
     assert caps["calib_lamps"] is True
 
-def test_stage_2d2_runtime_default_detector_config_exists():
+def test_runtime_default_detector_config_exists():
     runtime = RuntimeAssembler().build()
     cfg = runtime.get_detector_config_dict()
 
@@ -69,7 +69,7 @@ def test_stage_2d2_runtime_default_detector_config_exists():
     assert "channels" in cfg
     assert set(cfg["channels"].keys()) == {"B", "G", "R"}
 
-def test_stage_2d2_runtime_can_update_detector_config():
+def test_runtime_can_update_detector_config():
     runtime = RuntimeAssembler().build()
 
     updated = runtime.set_detector_config(
@@ -92,7 +92,7 @@ def test_stage_2d2_runtime_can_update_detector_config():
     assert cfg["channels"]["G"]["enabled"] is False
     assert cfg["channels"]["R"]["enabled"] is True
 
-def test_stage_2d2_runtime_can_update_subsystem_state():
+def test_runtime_can_update_subsystem_state():
     runtime = RuntimeAssembler().build()
 
     runtime.set_subsystem_connected("slit", True, message="connected")
@@ -103,7 +103,7 @@ def test_stage_2d2_runtime_can_update_subsystem_state():
     assert slit.state == ControlState.IDLE
     assert slit.message == "ready"
 
-def test_stage_2d2_runtime_snapshot_exposure_state_is_derived_from_detector():
+def test_runtime_snapshot_exposure_state_is_derived_from_detector():
     runtime = RuntimeAssembler().build()
 
     runtime.detector.arm(
@@ -121,7 +121,7 @@ def test_stage_2d2_runtime_snapshot_exposure_state_is_derived_from_detector():
     assert runtime_snapshot.exposure_state == detector_snapshot.state
     assert runtime_snapshot.exposure_state.value == "armed"
 
-def test_stage_2d2_runtime_snapshot_exposure_state_tracks_detector_after_start_and_finish():
+def test_runtime_snapshot_exposure_state_tracks_detector_after_start_and_finish():
     runtime = RuntimeAssembler().build()
 
     runtime.detector.arm(

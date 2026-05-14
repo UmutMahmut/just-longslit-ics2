@@ -56,3 +56,13 @@ def test_ui_v7_static_shell_stays_available_with_runtime_disabled_by_default():
     assert "Instrument / Configure" in response.text
     assert "/ui-assets/v7/runtime_status.js" not in response.text
     assert "/ui-assets/v7/observe_runtime.js" not in response.text
+
+def test_v7_default_and_explicit_v7_shells_are_aligned():
+    client = TestClient(app)
+
+    default_response = client.get("/ui")
+    explicit_response = client.get("/ui/v7")
+
+    assert default_response.status_code == 200
+    assert explicit_response.status_code == 200
+    assert default_response.text == explicit_response.text

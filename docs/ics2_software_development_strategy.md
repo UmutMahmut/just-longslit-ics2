@@ -3,8 +3,8 @@
 ```text
 文档日期: 2026-05-11
 建议文件名: docs/ics2_software_development_strategy.md
-版本: v2026.05.11
-状态: Phase 2.8-I/J merged baseline
+版本: v2026.05.11-r2
+状态: Phase 2.8-I/J merged baseline; technology-adoption gate added
 适用范围: JUST 长缝光谱仪 ICS 2.0 软件主线开发
 ```
 
@@ -49,7 +49,7 @@ ICS 2.0 不应越界承担以下职责：
 - 不负责改变光谱仪的光学分辨率本身；
 - 不负责替代 OCS scheduler 或完整观测计划系统；
 - 不负责替代 TCS 控制望远镜、调焦、转台、圆顶等；
-- 不负责在 routine operator UI 中暴露 EtherCAT 节点级控制；
+- 不负责在 routine operator UI 中暴露任何底层总线、PLC、motion-controller 或厂商 SDK 级控制；
 - 不负责完整科学数据处理和光谱归约；
 - 不负责在无硬件环境下伪造真实硬件 telemetry；
 - 不负责把 placeholder 包装成 production capability。
@@ -57,11 +57,37 @@ ICS 2.0 不应越界承担以下职责：
 
 例如，`R >= 1000 @ 1 arcsec`、可调分辨率、波长覆盖、线性色散等是光学和仪器设计约束。软件可以记录配置、校验状态、保存 FITS header、触发定标、辅助 QA，但软件本身不能“实现”光谱分辨率。
 
-同样，EtherCAT 属于真实硬件低层实时控制与反馈方向。当前阶段应保留 adapter 边界和未来 Engineer/Diagnostics 入口，而不是把 EtherCAT 从站发现、周期同步、节点控制提前变成 routine observing 主线。
+底层硬件通信协议不在当前软件阶段预先指定。真实硬件未来可能使用串口、USB、以太网、厂商 SDK、PLC/fieldbus、EPICS IOC 或其他控制接口；ICS 2.0 的战略目标是保留 adapter/gateway 边界，而不是提前把任何具体协议写成路线图主轴。
 
-## 3. 当前主线基线
+## 3. 技术采纳门槛
 
-### 3.1 路由和 UI 基线
+任何新技术、协议、数据库、消息系统、实时框架、硬件总线、外部平台进入主路线图前，必须通过 Technology Adoption Gate。
+
+```text
+1. 它解决的当前项目问题是什么？
+2. 这个问题是否已经在当前 phase 出现？
+3. 是否有真实硬件、真实运维、真实接口合同支撑？
+4. 是否可以先用更简单的 schema / simulator / file contract / adapter 解决？
+5. 是否破坏当前 Domain / Kernel / Application / Adapter 分层？
+6. 是否会让 routine operator UI 暴露底层工程复杂度？
+7. 是否能被 pytest 或 integration test 覆盖？
+8. 如果不用它，当前 phase 是否仍可推进？
+```
+
+判定规则：
+
+```text
+- 如果第 2、3、7 项不能回答清楚，不进入当前 phase。
+- 如果只是未来可能需要，写成 TBD 或 candidate。
+- 如果只是底层实现可能性，写成 adapter/gateway boundary。
+- 战略文档优先写能力合同，不预设实现技术。
+```
+
+这条规则适用于硬件总线，也适用于 WebSocket、FITS writer、SQLite/session persistence、Prometheus、权限系统、自动恢复、复杂 detector write UI 等可能过早引入的技术点。
+
+## 4. 当前主线基线
+
+### 4.1 路由和 UI 基线
 
 当前主线 UI 路由为：
 
@@ -94,9 +120,7 @@ HTML owns durable structure.
 Runtime JS enhances durable HTML skeletons.
 ```
 
-也就是：静态 served shell 应该具备稳定结构；runtime 只增强，不应默认创建重复 UI。
-
-### 3.2 后端 API 基线
+### 4.2 后端 API 基线
 
 当前 backend 已有这些主要接口：
 
@@ -130,7 +154,7 @@ POST /api/v1/presets/apply
 
 Observation router 当前覆盖 single-exposure lifecycle：status、arm、start、finish、stop_readout、abort_discard。Presets router 当前覆盖 catalog、preview、guarded apply，并对 confirmation-required 和 invalid-state 场景保留 API 级保护。Health router 当前提供 health、status、status/full、capabilities。
 
-### 3.3 Kernel / Runtime 基线
+### 4.3 Kernel / Runtime 基线
 
 当前 runtime 已经具备：
 
@@ -148,9 +172,7 @@ Observation router 当前覆盖 single-exposure lifecycle：status、arm、start
 
 Job 层已经能记录 command request、job status、accepted/running/succeeded/failed/aborted、state_before/state_after、result、error 等信息。Dispatcher 层把 command 映射到 handler，并将 invalid param / invalid state / unsupported 作为 non-fault rejection 处理，而不是一概把系统打入 FAULT。
 
-这正是 ICS 2.0 后续发展最有价值的资产之一。
-
-## 4. 已完成的关键工作
+## 5. 已完成的关键工作
 
 ### Phase 2.6：GUI 与运行状态基础
 
@@ -197,7 +219,7 @@ Phase 2.8-J:
 
 该阶段已合并到 main，并由本地 `pytest -q` 验证 161 passed。
 
-## 5. 当前能力分级
+## 6. 当前能力分级
 
 | 能力 | 当前状态 | 策略判断 |
 |---|---|---|
@@ -215,10 +237,10 @@ Phase 2.8-J:
 | TCS | 未实现 | 先做 read-only status/readiness，不做 slew/focus 控制 |
 | FITS/data product | 未实现 | 先定义 ExposureRecord/DataProduct contract，再做 writer |
 | Slit monitor/guider | 未实现 | 保留 visible placeholder，后续接 image feed |
-| EtherCAT | 未实现 | Phase 4.x/硬件 commissioning 方向，不是近期核心 |
+| 底层硬件通信协议 | 未确定 | 由真实硬件选型决定；当前只保留 adapter/gateway 边界，不预设具体协议 |
 | Auth/role gating | 未实现 | 产品化前必须补，但不应早于核心 workflow contract |
 
-## 6. 逻辑架构
+## 7. 逻辑架构
 
 ```mermaid
 flowchart TB
@@ -237,7 +259,7 @@ flowchart TB
 
   DATA["Data Product Layer<br/>ExposureRecord / FITS / Quicklook / Audit"]
   HW["Hardware Layer<br/>Slit / Lamps / Detector B-G-R / SlitCam"]
-  ECAT["EtherCAT<br/>Future Low-Level Realtime Layer"]
+  HWIF["Hardware Interface TBD<br/>Controller / SDK / Fieldbus if required"]
 
   Operator --> API
   OCS -. "Phase 3.x" .-> API
@@ -250,15 +272,15 @@ flowchart TB
   ADAPTER --> DRIVER
 
   DRIVER --> HW
-  DRIVER -. "Phase 4.x" .-> ECAT
+  DRIVER -. "Phase 4.x if required" .-> HWIF
 
   APP --> DATA
   KERNEL --> DATA
 ```
 
-这个图的关键点是：OCS/TCS/EtherCAT/Data Product 都不应该绕过 Application/Kernel 直接进入 UI 或硬件。所有命令必须穿过统一的状态、审计、错误和安全边界。
+这个图的关键点是：OCS/TCS/Data Product/未来硬件接口都不应该绕过 Application/Kernel 直接进入 UI 或硬件。所有命令必须穿过统一的状态、审计、错误和安全边界。底层硬件通信协议保持 TBD，由真实硬件选型反向驱动。
 
-## 7. 数据与控制流目标
+## 8. 数据与控制流目标
 
 ```mermaid
 sequenceDiagram
@@ -287,7 +309,7 @@ sequenceDiagram
 
 目标不是让每个按钮直接控制硬件，而是让每个操作都成为可追踪、可恢复、可解释的 command lifecycle。
 
-## 8. 产品级目标定义
+## 9. 产品级目标定义
 
 ICS 2.0 达到产品级，并不意味着“没有任何 bug”。更实际的定义是：
 
@@ -318,7 +340,7 @@ OCS / Operator / Future Script
   -> Safe abort and recovery
 ```
 
-## 9. 技术路线图
+## 10. 技术路线图
 
 ### Phase 2.9：Contract Hardening
 
@@ -505,10 +527,10 @@ GET  /api/v1/ocs/events
 
 FITS writer 可以在这一阶段开始，但应服务于真实数据产品合同，不要先写孤立的 FITS demo。
 
-#### Phase 3.4：Realtime event push
+#### Phase 3.4：Realtime event push, if still justified
 
 ```text
-- SSE or WebSocket；
+- SSE or WebSocket, after EventEnvelope is stable；
 - lifecycle events；
 - command result events；
 - observation step updates；
@@ -516,7 +538,7 @@ FITS writer 可以在这一阶段开始，但应服务于真实数据产品合�
 - polling fallback。
 ```
 
-不宜早于 EventEnvelope 和 sequence lifecycle 稳定。
+实时推送不宜早于 EventEnvelope 和 sequence lifecycle 稳定；如果 polling + command feedback 足够支持当前阶段，则继续保留为后续候选。
 
 #### Phase 3.5：v7 production-candidate hardening
 
@@ -524,7 +546,7 @@ FITS writer 可以在这一阶段开始，但应服务于真实数据产品合�
 - v7 不只是 default prototype，而是 production candidate；
 - role boundary 初步进入；
 - operator/diagnostics/engineer 信息分区完成；
-- dark/day or night/day theme strategy；
+- theme strategy, if operationally justified；
 - local deployment checklist；
 - route fallback strategy 保留。
 ```
@@ -542,8 +564,10 @@ DetectorAdapter
 SlitMonitorAdapter
 TcsAdapter
 SafetyInterlockAdapter
-PowerAdapter
-EtherCatAdapter
+PowerAdapter, if required
+HardwareGatewayAdapter, if required
+VendorSdkAdapter, if required
+FieldbusAdapter, if required
 ```
 
 每个 adapter 必须有：
@@ -599,18 +623,18 @@ tests
 
 自动闭环应放到很后面，不能早期直接启用。
 
-#### Phase 4.4：EtherCAT realtime integration
+#### Phase 4.4：Hardware communication and realtime feedback integration, if required
 
-EtherCAT 应进入低层实时反馈、驱动状态、限位、watchdog、安全 I/O、节点健康和 motion feedback。它不应成为 early UI feature，也不应直接暴露给 routine operator。
+真实硬件通信协议不在软件阶段预先指定。Phase 4.x 根据最终硬件、控制器、厂商 SDK、PLC/fieldbus 架构和现场 commissioning 需求决定接入方式。若硬件确实使用某种 fieldbus、motion controller、PLC、EPICS IOC、串口、USB、以太网或厂商 SDK，ICS 只通过 adapter/gateway 进入，不让 routine operator UI 直接面对底层接口。
 
 ```text
 Engineer-only first
 sim parity required
-safe stop verified
-watchdog verified
-node map documented
+safe stop verified, if applicable
+watchdog verified, if applicable
+hardware map documented
 fault mapping stable
-no browser-to-fieldbus direct control
+no browser-to-hardware direct control
 ```
 
 #### Phase 4.5：Nightly commissioning
@@ -626,21 +650,18 @@ no browser-to-fieldbus direct control
 - incident log。
 ```
 
-## 10. 工作优先级
+## 11. 工作优先级
 
 ### P0：现在到 Phase 2.9 必须推进
 
 ```text
-1. 更新 README 的过时状态
-2. 固化最新版软件开发战略文档
-3. ObservationPlan / SequenceStep / EventEnvelope / DataProduct / TcsStatus 合同
-4. Presets operator-facing diff polish
-5. Setup session metadata contract
-6. Diagnostics command-feedback consolidation
-7. 保持 pytest -q 绿色
+1. 纠正文档中过时或过度技术预设的表述
+2. ObservationPlan / SequenceStep / EventEnvelope / DataProduct / TcsStatus 合同
+3. Presets operator-facing diff polish
+4. Setup session metadata contract
+5. Diagnostics command-feedback consolidation
+6. 保持 pytest -q 绿色
 ```
-
-其中 README 是一个明确残留：当前 `README.md` 仍写着 `/ui` 是 v5 stable default，并写着 “Do not switch /ui to v7 yet”，这已经落后于 `main.py` 和 `project_status.md`。这应作为下一次纯文档 PR 的第一项。
 
 ### P1：Phase 3.0–3.2 推进
 
@@ -655,11 +676,11 @@ no browser-to-fieldbus direct control
 ### P2：Phase 3.3–3.5 推进
 
 ```text
-1. SSE/WebSocket realtime push
+1. Realtime event push, if EventEnvelope and sequence lifecycle justify it
 2. v7 production-candidate hardening
 3. role/permission boundary
 4. persistent observation log
-5. monitoring/metrics
+5. monitoring/metrics, if operational deployment requires it
 ```
 
 ### P3：Phase 4.x 推进
@@ -668,11 +689,12 @@ no browser-to-fieldbus direct control
 1. real slit/calibration hardware
 2. detector B/G/R bring-up
 3. slit monitor / guider
-4. EtherCAT realtime feedback
-5. commissioning checklists and drills
+4. hardware communication protocol validation
+5. low-level realtime feedback, if required by selected hardware
+6. commissioning checklists and drills
 ```
 
-## 11. 硬件现实约束
+## 12. 硬件现实约束
 
 后续所有软件设计必须遵守以下原则：
 
@@ -694,20 +716,19 @@ no browser-to-fieldbus direct control
 - calibration 不只是 lamp on/off，还包括 source、mode、path、mirror 等后续合同；
 - slit monitor / guider 是一等子系统，不应从 UI 架构中消失；
 - TCS context 是 readiness 的组成部分，但早期只读；
-- EtherCAT 是后续硬件实时层，不是当前阶段核心功能。
+- 底层通信协议由硬件选型决定；当前阶段不预设任何具体 fieldbus 或厂商接口。
 ```
 
-## 12. 短期行动清单
+## 13. 短期行动清单
 
-### 立即行动 1：文档卫生 PR
+### 立即行动 1：文档卫生与技术采纳门槛
 
 目标：
 
 ```text
-- 新增 docs/ics2_software_development_strategy.md；
-- 更新 README.md 当前状态；
-- 删除 README 中 “Do not switch /ui to v7 yet” 的过时描述；
-- README 路由改为 /ui -> v7, /ui/v5 -> v5 fallback；
+- README / project_status / operator_console_requirements / strategy 中的当前状态保持一致；
+- 删除或降级未被硬件事实支撑的具体技术名词；
+- 加入 Technology Adoption Gate；
 - 保持 docs/project_status.md 作为阶段状态源；
 - 保持 docs/operator_console_requirements.md 作为硬件/需求边界源。
 ```
@@ -717,7 +738,7 @@ no browser-to-fieldbus direct control
 ```text
 pytest -q
 文档 route 描述与 main.py 一致
-无新增 phase scratch note
+没有把未定技术写成既定路线
 ```
 
 ### 立即行动 2：Phase 2.9-A 合同包
@@ -752,8 +773,6 @@ pytest -q
 - raw JSON 保留在 details 或 Diagnostics。
 ```
 
-当前 response schema 已支持 detector/calibration/slit changes 分组，适合直接进入 UI polish。
-
 ### 立即行动 4：Setup session metadata contract
 
 目标：
@@ -767,7 +786,7 @@ pytest -q
 
 优先级低于 ObservationPlan 和 EventEnvelope，但应在 v7 production-candidate 之前完成。
 
-## 13. 成功标准
+## 14. 成功标准
 
 短期成功：
 
@@ -776,7 +795,8 @@ pytest -q
 - pytest -q 持续绿色；
 - Phase 2.9 contract 进入代码或文档并有测试；
 - Presets diff 可读；
-- v7 作为默认入口不扩大 runtime 控制面。
+- v7 作为默认入口不扩大 runtime 控制面；
+- 新技术名词进入路线图前通过 Technology Adoption Gate。
 ```
 
 中期成功：
@@ -796,11 +816,11 @@ pytest -q
 - 真实 slit/calibration/detector hardware adapter 可逐步替换 simulator；
 - B/G/R exposure/readout/data product loop 可 commissioning；
 - slit monitor / guider 可进入 operator workflow；
-- EtherCAT 用于底层实时反馈和安全状态，不破坏 operator abstraction；
+- 底层硬件通信由真实硬件选型驱动，并被 adapter/gateway 边界隔离；
 - 夜间 checkout、abort/recovery、incident logging 可操作。
 ```
 
-## 14. Mermaid：阶段推进图
+## 15. Mermaid：阶段推进图
 
 ```mermaid
 flowchart LR
@@ -810,14 +830,14 @@ flowchart LR
     D["Phase 3.1<br/>OCS Adapter MVP"]
     E["Phase 3.2<br/>TCS Read-only Sync"]
     F["Phase 3.3<br/>Data Product + Quicklook"]
-    G["Phase 3.4<br/>Realtime Events"]
+    G["Phase 3.4<br/>Realtime Events if justified"]
     H["Phase 3.5<br/>v7 Production Candidate"]
     I["Phase 4.x<br/>Hardware Commissioning"]
 
     A --> B --> C --> D --> E --> F --> G --> H --> I
 ```
 
-## 15. Mermaid：能力分区图
+## 16. Mermaid：能力分区图
 
 ```mermaid
 flowchart TB
@@ -835,7 +855,7 @@ flowchart TB
     Diagnostics --> Events["future event stream"]
 
     Engineer --> HW["future hardware controls"]
-    Engineer --> EtherCAT["future EtherCAT diagnostics"]
+    Engineer --> Interface["hardware interface diagnostics if required"]
     Engineer --> Recovery["manual recovery / interlocks"]
 
     Instrument -. "low-level unsafe hidden" .-> Engineer
@@ -843,21 +863,21 @@ flowchart TB
     Presets -. "raw preview secondary" .-> Diagnostics
 ```
 
-## 16. 最终战略判断
+## 17. 最终战略判断
 
-ICS 2.0 当前已经越过“原型是否合理”的阶段，进入“控制系统骨架如何产品化”的阶段。现在最重要的不是马上堆 OCS/TCS/EtherCAT/FITS 功能，而是把合同、状态、事件、观测计划、数据产品和 UI 责任边界定稳。
+ICS 2.0 当前已经越过“原型是否合理”的阶段，进入“控制系统骨架如何产品化”的阶段。现在最重要的不是马上堆 OCS/TCS/FITS/硬件总线功能，而是把合同、状态、事件、观测计划、数据产品和 UI 责任边界定稳。
 
 最稳妥的推进顺序是：
 
 ```text
-1. 文档卫生和战略文档落地；
+1. 文档卫生和技术采纳门槛落地；
 2. Phase 2.9 contract hardening；
 3. Presets diff 和 Setup session contract；
 4. Sequence runner simulator MVP；
 5. OCS adapter；
 6. TCS read-only；
 7. Data product / quicklook；
-8. Realtime event push；
+8. Realtime event push, if justified；
 9. v7 production-candidate hardening；
 10. Phase 4.x 真实硬件 commissioning。
 ```
@@ -866,7 +886,5 @@ ICS 2.0 当前已经越过“原型是否合理”的阶段，进入“控制系
 
 ```text
 - 把光学/硬件能力错误归因给软件；
-- 在合同未稳定前过早接真实硬件和实时总线。
+- 在合同未稳定、硬件未定型前过早指定实现技术。
 ```
-
-下一步建议直接开一个纯文档 PR：更新 README，并把这份战略文档加入 `docs/`。

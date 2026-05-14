@@ -22,7 +22,7 @@ The system is being developed around:
 - operator-safe control surfaces;
 - explicit diagnostics and request tracing;
 - staged migration from the v5 capability baseline to the v7.1 operator console;
-- later real-hardware integration.
+- later real-hardware integration through adapter/gateway boundaries.
 ```
 
 ---
@@ -229,6 +229,27 @@ Required invariants:
 
 ---
 
+## Technology adoption gate
+
+New infrastructure, protocol, database, event-streaming, hardware-bus, external platform, or observatory-integration technology must not be promoted into the main roadmap merely because it is powerful or familiar.
+
+Before adoption, it must answer:
+
+```text
+1. What current project problem does it solve?
+2. Is that problem present in the current phase?
+3. Is there real hardware, real operations, or a real interface contract behind it?
+4. Can a simpler schema, simulator, file contract, or adapter boundary solve it for now?
+5. Does it preserve Domain / Kernel / Application / Adapter boundaries?
+6. Does it avoid exposing low-level engineering complexity in routine operator UI?
+7. Can it be tested through pytest or integration tests?
+8. If we do not adopt it now, can the current phase still move forward cleanly?
+```
+
+If these questions are not answerable, the item remains `TBD`, `candidate`, or `adapter-bounded`, not a named implementation route.
+
+---
+
 ## Phase 2.9+ deferred backend contracts
 
 Deferred until after 2.8-I/J clarify the operator surface:
@@ -246,7 +267,7 @@ Deferred until after 2.8-I/J clarify the operator surface:
 - slit-monitor camera / guider / slit-width measurement contract;
 - derotator / instrument-rotation control contract;
 - real hardware adapter validation;
-- EtherCAT / low-level hardware realtime feedback.
+- hardware communication protocol validation after hardware selection.
 ```
 
 ---
@@ -265,6 +286,7 @@ These must remain true unless explicitly changed by a major decision:
 - routine pages show command summaries first.
 - raw JSON belongs in page detail areas and Diagnostics, not as the dominant main flow.
 - unsafe engineering actions belong in Engineer/Housekeeping/Diagnostics, not routine operator flow.
+- bottom-layer hardware protocols remain hardware-selection-driven and adapter-bounded.
 ```
 
 ---
@@ -276,8 +298,9 @@ These must remain true unless explicitly changed by a major decision:
 Current durable docs:
 
 ```text
+docs/ics2_software_development_strategy.md
 docs/project_status.md
 docs/operator_console_requirements.md
 ```
 
-Avoid reintroducing one-off phase notes. If a decision remains useful, fold it into one of these two files.
+Avoid reintroducing one-off phase notes. If a decision remains useful, fold it into one of these files.

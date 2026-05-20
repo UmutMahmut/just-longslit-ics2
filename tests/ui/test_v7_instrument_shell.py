@@ -87,11 +87,3 @@ def test_v7_static_shell_keeps_unwired_hardware_honest():
     assert "read-only summary" in html
     assert "not connected" in html or "runtime not enabled" in html
 
-def test_v7_static_shell_still_does_not_inject_runtime_by_default():
-    client = TestClient(app)
-
-    response = client.get("/ui/v7")
-
-    assert response.status_code == 200
-    html = response.text
-

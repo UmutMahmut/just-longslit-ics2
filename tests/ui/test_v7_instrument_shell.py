@@ -99,3 +99,4 @@ def test_v7_static_shell_still_does_not_inject_runtime_by_default():
     assert "/ui-assets/v7/preset_runtime.js" not in html
     assert "/ui-assets/v7/observe_runtime.js" not in html
     assert "/ui-assets/v7/observe_guard.js" not in html
+

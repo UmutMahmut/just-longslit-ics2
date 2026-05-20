@@ -81,7 +81,7 @@
     host.innerHTML = `
       <h2>Instrument Controls · Slit / Calibration / Detector Visibility</h2>
       <div class="panel-body grid">
-        <div class="phase-note"><strong>H9.1:</strong> Existing backend capabilities are visible here. Slit width uses arcsec for operator intent and um for backend commands. Runtime remains opt-in; backend state-machine guards remain authoritative.</div>
+        <div class="phase-note"><strong>Scope:</strong> Existing backend capabilities are visible here. Slit width uses arcsec for operator intent and um for backend commands. Runtime remains opt-in; backend state-machine guards remain authoritative.</div>
 
         <section class="panel" data-role="instrument-slit-controls">
           <h3>Slit Controls</h3>
@@ -120,7 +120,7 @@
               <span class="badge live">Hg(Ar)</span>
               <span class="badge live">Ne</span>
               <span class="badge future">ThAr / FeAr possible</span>
-              <span class="badge future">mirror path details deferred</span>
+              <span class="badge future">mirror path details pending</span>
             </div>
           </div>
         </section>
@@ -132,7 +132,7 @@
             <dl class="kv">
               <dt>Endpoint</dt><dd><code>/api/v1/detector/config</code></dd>
               <dt>Write Control</dt><dd><code>deferred</code></dd>
-              <dt>B/G/R Hardware</dt><dd><code>visibility only in H9.1</code></dd>
+              <dt>B/G/R Hardware</dt><dd><code>read-only summary</code></dd>
             </dl>
           </div>
         </section>

@@ -232,6 +232,12 @@
     setText('[data-bind="v7.message.text"]', message, message);
     setText('[data-bind="v7.message.phase"]', phase, phase);
     setText('[data-bind="v7.message.severity"]', resolvedSeverity, resolvedSeverity);
+    setText('[data-bind="v7.message.connection"]', runtime.connectionState || "unknown", "unknown");
+    setText('[data-bind="v7.message.rtt_ms"]', rttLabel(), "not measured");
+    setText('[data-bind="v7.message.last_ok_at"]', runtime.lastOkAt || "not available", "not available");
+    setText('[data-bind="v7.message.request_id"]', runtime.lastRequestId || "not available", "not available");
+    setText('[data-bind="v7.message.poll_count"]', runtime.refreshCount, "0");
+    setText('[data-bind="v7.message.freshness"]', runtime.lastOkAt ? "fresh" : "not available", "not available");
     document.querySelectorAll('[data-role="v7-message-rail"]').forEach((rail) => {
       rail.setAttribute("data-severity", resolvedSeverity);
       rail.setAttribute("data-connection", runtime.connectionState || "unknown");

@@ -66,6 +66,7 @@
           <dt>Request ID</dt><dd><code data-bind="v7.observe.request_id">not available</code></dd>
           <dt>Latest Job</dt><dd><code data-bind="v7.observe.latest_job">not available</code></dd>
           <dt>Last Error</dt><dd><code data-bind="v7.observe.last_error">none</code></dd>
+          <dt>Result Summary</dt><dd><code data-bind="v7.observe.result_summary">runtime not enabled</code></dd>
           <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">idle</code></dd>
         </dl>
         <div class="badge-row">
@@ -157,11 +158,26 @@
     return [job.status, job.subsystem, job.action, job.job_id].filter(Boolean).join(" · ");
   }
 
+  function resultSummary(command, payload) {
+    if (!command) return "none";
+    if (!payload || typeof payload !== "object") return `${command}: done`;
+    const state = payload.state || payload.observation_state;
+    const last = payload.last_exposure || payload.armed_exposure || {};
+    const frame = last.frame_type || payload.frame_type;
+    const exp = last.exp_time_s || payload.exp_time_s;
+    const parts = [command];
+    if (state) parts.push(state);
+    if (frame) parts.push(frame);
+    if (exp) parts.push(`${exp} s`);
+    return parts.join(" · ");
+  }
+  
   function bindStructuredResult(command, payload, error) {
     setText(bind("v7.observe.last_command"), command || "none");
     setText(bind("v7.observe.request_id"), runtime.lastRequestId || "not available");
     setText(bind("v7.observe.latest_job"), latestJobLabel(payload));
     setText(bind("v7.observe.last_error"), error ? text(error, "failed") : "none");
+    setText(bind("v7.observe.result_summary"), error ? `${command || "command"}: ${text(error, "failed")}` : resultSummary(command, payload));
   }
 
   function renderStatus(payload) {

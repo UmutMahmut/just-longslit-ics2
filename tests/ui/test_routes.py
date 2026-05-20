@@ -13,7 +13,9 @@ def test_ui_root_is_default_v7_operator_console_prototype():
     assert "UI Alpha Skeleton" not in response.text
     assert "/ui-assets/v5/phase2d6_operational_status.js" not in response.text
     assert "/ui-assets/v7/runtime_status.js" not in response.text
-    assert "Phase 2.8-J default route" in response.text
+    assert 'data-role="v7-message-rail"' in response.text
+    assert "Operator Feedback" in response.text
+    assert 'data-bind="v7.message.phase"' in response.text
 
 
 def test_v5_legacy_fallback_routes_stay_available():

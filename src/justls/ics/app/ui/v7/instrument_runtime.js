@@ -112,9 +112,9 @@
               <div class="field-grid">
                 <label>Mode<select data-role="instrument-calibration-mode"><option value="science">science</option><option value="calibration">calibration</option></select></label>
                 <label>Lamp<select data-role="instrument-calibration-lamp"><option value="flat">flat</option><option value="arc_hgar">arc_hgar</option><option value="arc_ne">arc_ne</option></select></label>
-                <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" checked /> Enable lamp</label>
                 <button class="btn" type="button" data-action="instrument-set-calibration-mode" disabled>Set Mode</button>
                 <button class="btn" type="button" data-action="instrument-set-calibration-lamp" disabled>Set Lamp</button>
+                <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" checked /> Enable lamp</label>
                 <button class="btn" type="button" data-action="instrument-refresh-calibration" disabled>Refresh</button>
               </div>
               <dl class="kv compact-kv" style="margin-top: 8px;">

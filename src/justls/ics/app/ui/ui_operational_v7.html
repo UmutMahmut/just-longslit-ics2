@@ -152,12 +152,60 @@
     .table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .table th, .table td { border-bottom: 1px solid var(--border-soft); padding: 7px 6px; text-align: left; vertical-align: top; }
     .table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .compact-panel .panel-body { padding: 8px; }
+
+    .compact-kv {
+      grid-template-columns: 125px minmax(0, 1fr);
+      gap: 5px 8px;
+      font-size: 12px;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .summary-chip {
+      border: 1px solid var(--border-soft);
+      background: var(--panel-2);
+      padding: 7px 8px;
+      min-width: 0;
+    }
+
+    .summary-chip span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .summary-chip code {
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .dev-note {
+      border: 1px dashed var(--border-soft);
+      background: var(--panel-2);
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .dev-note summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+    }
 
     .rail { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 9px 14px; border-top: 2px solid #7f8da3; background: linear-gradient(180deg, #eef3f9, #dde6f1); font-size: 12px; }
     .rail strong { text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-size: 10px; }
 
     @media (max-width: 1180px) {
-      .topbar, .body, .grid-2, .grid-2-1, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .topbar, .body, .grid-2, .grid-2-1, .grid-3, .grid-4, .summary-row { grid-template-columns: 1fr; }
       .nav { border-right: 0; border-bottom: 2px solid #7f8da3; grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .nav .group-label { grid-column: 1 / -1; }
       .status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -252,137 +300,140 @@
 
         <section class="page" data-page-panel="instrument" data-role="instrument-page" data-phase="2.8-H-static">
           <div class="grid">
-            <section class="panel" data-role="instrument-summary">
-              <h2>Instrument / Configure · Routine Operator Configuration</h2>
+            <section class="panel compact-panel" data-role="instrument-overview">
+              <h2>Instrument / Configure · Routine Configuration</h2>
               <div class="panel-body">
-                <div class="phase-note"><strong>Phase 2.8-H:</strong> Static-first placement for routine slit, calibration, detector, and B/G/R channel configuration. Backend contracts that do not exist yet are marked as deferred, not simulated.</div>
-                <dl class="kv">
-                  <dt>Current Preset</dt><dd><code data-bind="v7.instrument.current_preset">science_default</code></dd>
-                  <dt>Mode</dt><dd><code data-bind="v7.instrument.mode">science / static placeholder</code></dd>
-                  <dt>Slit Width</dt><dd><code data-bind="v7.instrument.slit_width">1.0 arcsec · placeholder</code></dd>
-                  <dt>Slit Angle</dt><dd><code data-bind="v7.instrument.slit_angle">0 deg · placeholder</code></dd>
-                  <dt>Detector Profile</dt><dd><code data-bind="v7.instrument.detector_profile">default</code></dd>
-                  <dt>B/G/R Readiness</dt><dd><code data-bind="v7.instrument.bgr_readiness">B: placeholder · G: placeholder · R: placeholder</code></dd>
-                  <dt>Runtime Boundary</dt><dd>Static skeleton only; no new backend API is required by this page.</dd>
-                </dl>
-              </div>
-            </section>
-
-            <div class="grid grid-3">
-              <section class="panel" data-role="slit-configuration">
-                <h2>Slit Configuration</h2>
-                <div class="panel-body">
-                  <dl class="kv">
-                    <dt>Width Target</dt><dd><code data-bind="v7.instrument.slit.width_target">0.5–5 arcsec range · backend contract</code></dd>
-                    <dt>Width Current</dt><dd><code data-bind="v7.instrument.slit.width_current">not wired</code></dd>
-                    <dt>Angle Target</dt><dd><code data-bind="v7.instrument.slit.angle_target">any-direction requirement · placeholder</code></dd>
-                    <dt>Angle Current</dt><dd><code data-bind="v7.instrument.slit.angle_current">not wired</code></dd>
-                    <dt>Slit Monitor</dt><dd><span class="badge future">slit camera / guider contract deferred</span></dd>
-                  </dl>
-                </div>
-              </section>
-
-              <section class="panel" data-role="calibration-configuration">
-                <h2>Calibration Configuration</h2>
-                <div class="panel-body">
-                  <dl class="kv">
-                    <dt>Science / Calib Mode</dt><dd><code data-bind="v7.instrument.calibration.mode">science</code></dd>
-                    <dt>Flat Source</dt><dd><code data-bind="v7.instrument.calibration.flat">off · placeholder</code></dd>
-                    <dt>Arc Lamps</dt><dd><code data-bind="v7.instrument.calibration.arc">Hg(Ar) / Ne / future sources · placeholder</code></dd>
-                    <dt>Mirror / Projector</dt><dd><code data-bind="v7.instrument.calibration.projector">not wired</code></dd>
-                    <dt>Safe Action</dt><dd><button class="btn" type="button" data-role="placeholder-action" disabled>All lamps off</button></dd>
-                  </dl>
-                </div>
-              </section>
-
-              <section class="panel" data-role="detector-configuration">
-                <h2>Detector Configuration</h2>
-                <div class="panel-body">
-                  <dl class="kv">
-                    <dt>Profile</dt><dd><code data-bind="v7.instrument.detector.profile">default</code></dd>
-                    <dt>Save Enabled</dt><dd><code data-bind="v7.instrument.detector.save_enabled">yes · placeholder</code></dd>
-                    <dt>Trigger Mode</dt><dd><code data-bind="v7.instrument.detector.trigger_mode">software · placeholder</code></dd>
-                    <dt>Readout Mode</dt><dd><code data-bind="v7.instrument.detector.readout_mode">normal · placeholder</code></dd>
-                    <dt>Hardware Scope</dt><dd><span class="badge future">B/G/R full control contract deferred</span></dd>
-                  </dl>
-                </div>
-              </section>
-            </div>
-
-            <section class="panel" data-role="bgr-channel-panels">
-              <h2>B/G/R Channel Panels · Three-Channel JUST Model</h2>
-              <div class="panel-body">
-                <div class="channel-grid">
-                  <section class="channel-card" data-channel="B"><h3>B Channel</h3><div class="panel-body"><dl class="kv"><dt>Enabled</dt><dd><code data-bind="v7.instrument.channel.B.enabled">placeholder</code></dd><dt>Role</dt><dd><code data-bind="v7.instrument.channel.B.role">science_b</code></dd><dt>Coverage</dt><dd>365–573 nm design context</dd><dt>Status</dt><dd><span class="badge future">backend contract</span></dd></dl></div></section>
-                  <section class="channel-card" data-channel="G"><h3>G Channel</h3><div class="panel-body"><dl class="kv"><dt>Enabled</dt><dd><code data-bind="v7.instrument.channel.G.enabled">placeholder</code></dd><dt>Role</dt><dd><code data-bind="v7.instrument.channel.G.role">science_g</code></dd><dt>Coverage</dt><dd>546–772 nm design context</dd><dt>Status</dt><dd><span class="badge future">backend contract</span></dd></dl></div></section>
-                  <section class="channel-card" data-channel="R"><h3>R Channel</h3><div class="panel-body"><dl class="kv"><dt>Enabled</dt><dd><code data-bind="v7.instrument.channel.R.enabled">placeholder</code></dd><dt>Role</dt><dd><code data-bind="v7.instrument.channel.R.role">science_r</code></dd><dt>Coverage</dt><dd>747–985 nm design context</dd><dt>Status</dt><dd><span class="badge future">backend contract</span></dd></dl></div></section>
+                <div class="summary-row" aria-label="instrument summary">
+                  <div class="summary-chip">
+                    <span>Preset</span>
+                    <code data-bind="v7.instrument.current_preset">science_default</code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>Mode</span>
+                    <code data-bind="v7.instrument.mode">science</code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>Slit</span>
+                    <code><span data-bind="v7.instrument.slit_width">1.0 arcsec</span> · <span data-bind="v7.instrument.slit_angle">0 deg</span></code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>Detector</span>
+                    <code data-bind="v7.instrument.detector_profile">default</code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>B/G/R</span>
+                    <code data-bind="v7.instrument.bgr_readiness">B: pending · G: pending · R: pending</code>
+                  </div>
                 </div>
               </div>
             </section>
 
-              <section class="panel" id="v7-instrument-controls" data-role="v7-instrument-controls" data-phase="runtime-enhanceable">
-              <h2>Instrument Controls · Slit / Calibration / Detector Visibility</h2>
+            <section class="panel compact-panel" id="v7-instrument-controls" data-role="v7-instrument-controls" data-phase="runtime-enhanceable">
+              <h2>Instrument Controls · Slit / Calibration / Detector</h2>
               <div class="panel-body grid">
-                <div class="phase-note"><strong>Scope:</strong> Existing backend capabilities are visible here. Slit width uses arcsec for operator intent and um for backend commands. Runtime remains opt-in; backend state-machine guards remain authoritative.</div>
+                <div class="grid grid-3">
+                  <section class="panel compact-panel" data-role="instrument-slit-controls">
+                    <h3>Slit</h3>
+                    <div class="panel-body">
+                      <div class="field-grid">
+                        <label>Width (arcsec)<input type="number" min="0.001" step="0.001" value="1.0" data-role="instrument-slit-width-arcsec" /></label>
+                        <label>Width (um)<input type="number" min="0.001" step="0.001" value="128.34" data-role="instrument-slit-width-um" /></label>
+                        <label>Angle (deg)<input type="number" min="-90" max="90" step="0.001" value="0" data-role="instrument-slit-angle-deg" /></label>
+                        <button class="btn primary" type="button" data-action="instrument-set-slit-width" disabled>Set Width</button>
+                        <button class="btn" type="button" data-action="instrument-set-slit-angle" disabled>Set Angle</button>
+                      </div>
+                      <dl class="kv compact-kv" style="margin-top: 8px;">
+                        <dt>Current Width</dt><dd><code data-bind="v7.instrument.slit.width_current">not connected</code></dd>
+                        <dt>Current Angle</dt><dd><code data-bind="v7.instrument.slit.angle_current">not connected</code></dd>
+                        <dt>Conversion</dt><dd><code>1 arcsec = <span data-bind="v7.instrument.slit.conversion_um_per_arcsec">128.34</span> um</code></dd>
+                      </dl>
+                      <div class="badge-row" data-role="instrument-slit-shortcuts" aria-label="common slit width shortcuts" style="margin-top: 8px;">
+                        <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="1.0" disabled>1.0"</button>
+                        <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="1.5" disabled>1.5"</button>
+                        <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="2.0" disabled>2.0"</button>
+                        <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="3.0" disabled>3.0"</button>
+                      </div>
+                    </div>
+                  </section>
 
-                <section class="panel" data-role="instrument-slit-controls">
-                  <h3>Slit Controls</h3>
+                  <section class="panel compact-panel" data-role="instrument-calibration-controls">
+                    <h3>Calibration</h3>
+                    <div class="panel-body">
+                      <div class="field-grid">
+                        <label>Mode<select data-role="instrument-calibration-mode"><option value="science">science</option><option value="calibration">calibration</option></select></label>
+                        <label>Lamp<select data-role="instrument-calibration-lamp"><option value="flat">flat</option><option value="arc_hgar">arc_hgar</option><option value="arc_ne">arc_ne</option></select></label>
+                        <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" checked /> Enable lamp</label>
+                        <button class="btn" type="button" data-action="instrument-set-calibration-mode" disabled>Set Mode</button>
+                        <button class="btn" type="button" data-action="instrument-set-calibration-lamp" disabled>Set Lamp</button>
+                        <button class="btn" type="button" data-action="instrument-refresh-calibration" disabled>Refresh</button>
+                      </div>
+                      <dl class="kv compact-kv" style="margin-top: 8px;">
+                        <dt>Mode</dt><dd><code data-bind="v7.instrument.calibration.mode">science</code></dd>
+                        <dt>Flat</dt><dd><code data-bind="v7.instrument.calibration.flat">off</code></dd>
+                        <dt>Arc</dt><dd><code data-bind="v7.instrument.calibration.arc">not connected</code></dd>
+                      </dl>
+                      <div class="badge-row" style="margin-top: 8px;">
+                        <span class="badge live">flat</span>
+                        <span class="badge live">Hg(Ar)</span>
+                        <span class="badge live">Ne</span>
+                        <span class="badge future">mirror path pending</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="panel compact-panel" data-role="instrument-detector-visibility">
+                    <h3>Detector</h3>
+                    <div class="panel-body">
+                      <button class="btn" type="button" data-action="instrument-refresh-detector-config" disabled>Refresh Detector Config</button>
+                      <dl class="kv compact-kv" style="margin-top: 8px;">
+                        <dt>Profile</dt><dd><code data-bind="v7.instrument.detector.profile">default</code></dd>
+                        <dt>Save</dt><dd><code data-bind="v7.instrument.detector.save_enabled">unknown</code></dd>
+                        <dt>Trigger</dt><dd><code data-bind="v7.instrument.detector.trigger_mode">software</code></dd>
+                        <dt>Readout</dt><dd><code data-bind="v7.instrument.detector.readout_mode">normal</code></dd>
+                        <dt>B/G/R Hardware</dt><dd><code>read-only summary</code></dd>
+                      </dl>
+                    </div>
+                  </section>
+                </div>
+
+                <section class="panel compact-panel" data-role="bgr-channel-summary">
+                  <h3>B/G/R Channel Summary</h3>
                   <div class="panel-body">
-                    <div class="field-grid">
-                      <label>Slit Width (arcsec)<input type="number" min="0.001" step="0.001" value="1.0" data-role="instrument-slit-width-arcsec" /></label>
-                      <label>Slit Width (um)<input type="number" min="0.001" step="0.001" value="128.34" data-role="instrument-slit-width-um" /></label>
-                      <label>Slit Angle (deg)<input type="number" min="-90" max="90" step="0.001" value="0" data-role="instrument-slit-angle-deg" /></label>
-                      <button class="btn primary" type="button" data-action="instrument-set-slit-width" disabled>Set Slit Width</button>
-                      <button class="btn" type="button" data-action="instrument-set-slit-angle" disabled>Set Slit Angle</button>
-                    </div>
-                    <div class="badge-row" data-role="instrument-slit-shortcuts" aria-label="common slit width shortcuts">
-                      <span class="badge future">1 arcsec = <code data-bind="v7.instrument.slit.conversion_um_per_arcsec">128.34</code> um</span>
-                      <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="1.0" disabled>1.0 arcsec</button>
-                      <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="1.5" disabled>1.5 arcsec</button>
-                      <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="2.0" disabled>2.0 arcsec</button>
-                      <button class="btn" type="button" data-role="instrument-slit-shortcut" data-arcsec="3.0" disabled>3.0 arcsec</button>
-                      <span class="badge demo">design range 0.5-5.0 arcsec</span>
-                    </div>
+                    <table class="table" aria-label="BGR channel summary">
+                      <thead>
+                        <tr><th>Channel</th><th>Enabled</th><th>Role</th><th>Coverage</th><th>Status</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr data-channel="B">
+                          <td><strong>B Channel</strong></td>
+                          <td><code data-bind="v7.instrument.channel.B.enabled">pending</code></td>
+                          <td><code data-bind="v7.instrument.channel.B.role">science_b</code></td>
+                          <td>365–573 nm</td>
+                          <td><span class="badge future">read-only</span></td>
+                        </tr>
+                        <tr data-channel="G">
+                          <td><strong>G Channel</strong></td>
+                          <td><code data-bind="v7.instrument.channel.G.enabled">pending</code></td>
+                          <td><code data-bind="v7.instrument.channel.G.role">science_g</code></td>
+                          <td>546–772 nm</td>
+                          <td><span class="badge future">read-only</span></td>
+                        </tr>
+                        <tr data-channel="R">
+                          <td><strong>R Channel</strong></td>
+                          <td><code data-bind="v7.instrument.channel.R.enabled">pending</code></td>
+                          <td><code data-bind="v7.instrument.channel.R.role">science_r</code></td>
+                          <td>747–985 nm</td>
+                          <td><span class="badge future">read-only</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </section>
 
-                <section class="panel" data-role="instrument-calibration-controls">
-                  <h3>Calibration Controls</h3>
-                  <div class="panel-body">
-                    <div class="field-grid">
-                      <label>Calibration Mode<select data-role="instrument-calibration-mode"><option value="science">science</option><option value="calibration">calibration</option></select></label>
-                      <label>Calibration Lamp<select data-role="instrument-calibration-lamp"><option value="flat">flat</option><option value="arc_hgar">arc_hgar</option><option value="arc_ne">arc_ne</option></select></label>
-                      <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" checked /> Enable selected lamp</label>
-                      <button class="btn" type="button" data-action="instrument-set-calibration-mode" disabled>Set Calibration Mode</button>
-                      <button class="btn" type="button" data-action="instrument-set-calibration-lamp" disabled>Set Calibration Lamp</button>
-                      <button class="btn" type="button" data-action="instrument-refresh-calibration" disabled>Refresh Calibration</button>
-                    </div>
-                    <div class="badge-row">
-                      <span class="badge live">flat source</span>
-                      <span class="badge live">Hg(Ar)</span>
-                      <span class="badge live">Ne</span>
-                      <span class="badge future">ThAr / FeAr possible</span>
-                      <span class="badge future">mirror path details pending</span>
-                    </div>
-                  </div>
-                </section>
-
-                <section class="panel" data-role="instrument-detector-visibility">
-                  <h3>Detector Visibility · Read-only</h3>
-                  <div class="panel-body">
-                    <button class="btn" type="button" data-action="instrument-refresh-detector-config" disabled>Refresh Detector Config</button>
-                    <dl class="kv">
-                      <dt>Endpoint</dt><dd><code>/api/v1/detector/config</code></dd>
-                      <dt>Write Control</dt><dd><code>deferred</code></dd>
-                      <dt>B/G/R Hardware</dt><dd><code>read-only summary</code></dd>
-                    </dl>
-                  </div>
-                </section>
-
-                <section class="panel" data-role="instrument-command-summary">
+                <section class="panel compact-panel" data-role="instrument-command-summary">
                   <h3>Command Summary</h3>
                   <div class="panel-body">
-                    <dl class="kv">
+                    <dl class="kv compact-kv">
                       <dt>Last Command</dt><dd><code data-bind="v7.instrument.last_command">none</code></dd>
                       <dt>Request ID</dt><dd><code data-bind="v7.instrument.request_id">not available</code></dd>
                       <dt>Latest Job</dt><dd><code data-bind="v7.instrument.latest_job">not available</code></dd>
@@ -393,20 +444,15 @@
                   </div>
                 </section>
 
-                <details class="panel" data-role="instrument-raw-debug">
+                <details class="dev-note" data-role="instrument-boundary-note">
+                  <summary>Implementation boundary</summary>
+                  <p>Routine slit and calibration controls belong here. Low-level drive recovery, power operations, and protected hardware maintenance belong to Engineer. Raw payload inspection belongs to Diagnostics.</p>
+                </details>
+
+                <details class="dev-note" data-role="instrument-raw-debug">
                   <summary>Raw Result JSON · Diagnostics Detail</summary>
                   <pre data-bind="v7.instrument.result">Instrument runtime is opt-in. Raw command result JSON is kept here for diagnostics.</pre>
                 </details>
-              </div>
-            </section>          
-            <section class="panel" data-role="instrument-safety-boundary">
-              <h2>Safety Boundary</h2>
-              <div class="panel-body">
-                <div class="badge-row">
-                  <span class="badge live">Routine operator configuration belongs here</span>
-                  <span class="badge future">Power / low-level drive / EtherCAT node controls remain Engineer</span>
-                  <span class="badge future">Image backend / quicklook / sequence runner deferred</span>
-                </div>
               </div>
             </section>
           </div>

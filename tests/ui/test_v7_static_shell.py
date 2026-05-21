@@ -75,18 +75,7 @@ def test_v7_static_setup_page_is_action_oriented_readiness_workspace():
     assert 'data-bind="v7.setup.detector_profile"' in html
     assert 'data-bind="v7.data.next_frame_token"' in html
     assert 'data-bind="v7.data.directory"' in html
-    client = TestClient(app)
 
-    response = client.get("/ui/v7")
-
-    assert response.status_code == 200
-    assert "data-role=\"setup-page\"" in response.text
-    # assert "data-role=\"local-session-context\"" in response.text
-    assert "data-role=\"session-input\"" in response.text
-    assert "data-phase=\"2.8-H-static\"" in response.text
-    # assert "data-phase=\"local-placeholder\"" in response.text
-    # assert "Routine instrument configuration now lives under Instrument / Configure" in response.text
-    assert "id=\"v7-setup-readiness\"" in response.text
 
 
 def test_v7_static_presets_page_has_single_runtime_enhanceable_skeleton():

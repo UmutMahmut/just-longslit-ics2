@@ -104,6 +104,212 @@ JUST-specific correction:
 JUST is a B/G/R three-channel spectrograph, not a MODS Blue/Red two-channel instrument.
 ```
 
+### MODS-inspired operational gap review before Phase 2.9
+
+MODS is not a visual style target for ICS 2.0. Its control-panel screens are dense and old-fashioned by modern web standards. The useful lesson is operational completeness: mature spectrograph-control software tends to make the observing loop, data naming, command/status feedback, channel state, and observatory context visible to the operator.
+
+Use MODS as a checklist for Phase 2.9 planning, not as a widget-by-widget UI template.
+
+```text
+Do not copy:
+  - Blue/Red two-channel assumptions;
+  - dense all-controls-on-one-page layout;
+  - unguarded engineering controls in routine pages;
+  - telescope write-control without an OCS/TCS contract.
+
+Do translate:
+  - setup/data-naming closure;
+  - global command/status feedback;
+  - operator-visible channel context;
+  - read-only telescope/observatory context;
+  - clear separation of Setup, Instrument, Observe, Housekeeping, and Engineer responsibilities.
+```
+
+Phase 2.9 gaps are not only frontend gaps. Each item below records the required software boundary before implementation.
+
+#### Setup and data naming
+
+Scope:
+
+```text
+frontend + API + application service + persistence
+```
+
+Current state:
+
+```text
+- Setup now exposes observer/project/session context.
+- Root name, date prefix, next frame token, and data directory have visible frontend locations.
+- No durable session persistence contract exists yet.
+- No persisted FITS/data-naming state is available to downstream observation commands yet.
+```
+
+Phase 2.9 decision:
+
+```text
+Adopt durable Setup persistence.
+```
+
+Required direction:
+
+```text
+- Define a session/data-context domain model.
+- Add API/application service support for save/apply/reload of observing-session context.
+- Preserve a visible filename/data preview in Setup.
+- Keep the implementation storage-simple at first if needed, but do not leave Setup as frontend-only state.
+```
+
+Do not over-scope this into a full observatory scheduler or proposal database.
+
+#### Global command and status feedback
+
+Scope:
+
+```text
+frontend + runtime state + job/error read model
+```
+
+Current state:
+
+```text
+- v7 has a footer message rail.
+- Instrument, Observe, and Presets expose command summaries.
+- Request ID, latest job, last error, and result summary are visible in page-level bindings.
+- The shared command/status semantics are not yet formalized as one durable read model.
+```
+
+Phase 2.9 direction:
+
+```text
+Formalize a shared command/status feedback read model before adding more command surfaces.
+```
+
+Required fields should include:
+
+```text
+last_command
+request_id
+latest_job
+last_error
+result_summary
+connection/freshness when runtime polling is enabled
+```
+
+#### B/G/R channel context
+
+Scope:
+
+```text
+frontend-only summary for now; later domain/runtime/API only when hardware contracts require it
+```
+
+Current state:
+
+```text
+- B/G/R channel summary is visible in Instrument / Configure.
+- P0 B/G/R wavelength ranges are preserved.
+- Three-camera hardware is not yet available for real integration.
+```
+
+Phase 2.9 decision:
+
+```text
+Do not start a per-channel exposure-readiness or per-channel exposure-control model in Phase 2.9.
+```
+
+Required direction:
+
+```text
+- Keep B/G/R as an honest operator-visible summary.
+- Do not introduce fake per-channel telemetry.
+- Do not copy MODS Blue/Red exposure-control structure.
+- Revisit channel readiness/control only when camera hardware and backend contracts are available.
+```
+
+#### Telescope and external observatory context
+
+Scope:
+
+```text
+external observatory / OCS boundary + read-only frontend context + future feedback-to-OCS candidate
+```
+
+Current state:
+
+```text
+- ICS 2.0 does not own telescope control.
+- The current frontend does not expose target, RA/Dec, guiding, rotator, offset, or OCS context.
+- P0 observation flow clearly involves OCS/TCS/weather/dome responsibilities beyond the instrument alone.
+```
+
+Phase 2.9 decision:
+
+```text
+Adopt read-only telescope/observatory context only where useful.
+Do not implement telescope write-control inside ICS 2.0.
+```
+
+Boundary rule:
+
+```text
+ICS 2.0 must not bypass OCS/TCS authority.
+Telescope pointing, rotator, guiding, offsets, dome, and weather authority remain outside routine ICS write-control unless a formal OCS/TCS interface contract says otherwise.
+```
+
+Future candidate:
+
+```text
+ICS 2.0 may later provide advisory or feedback information to OCS, such as slit/instrument readiness, recommended offset context, exposure/data status, or instrument-side constraints.
+This is an information-level loop to OCS, not direct telescope control.
+```
+
+#### Instrument mode, mask, and disperser semantics
+
+Scope:
+
+```text
+domain + API + frontend only if JUST hardware/design requires it
+```
+
+Current state:
+
+```text
+- Slit, calibration, detector profile, presets, and B/G/R summary are visible.
+- No committed mask/disperser/channel-mode domain object exists in ICS 2.0.
+```
+
+Phase 2.9 direction:
+
+```text
+Keep mask/disperser/channel-mode semantics as TBD unless current JUST hardware/design requires them.
+```
+
+Do not import MODS-specific slit-mask/dichroic/grating/prism controls unless they map to a real JUST mechanism and a real backend/hardware contract.
+
+#### Housekeeping and Engineer boundary
+
+Scope:
+
+```text
+frontend IA + future API safety/authorization model
+```
+
+Current state:
+
+```text
+- Navigation reserves Housekeeping and Engineer pages.
+- Detailed operational-maintenance and engineering-control responsibilities are not fully specified.
+```
+
+Phase 2.9 direction:
+
+```text
+Housekeeping = read-only operational maintenance and health context.
+Engineer = guarded, unsafe, low-level, recovery, or hardware-maintenance controls.
+```
+
+Routine observing pages must not expose low-level bus, power, PLC, vendor-SDK, emergency, or recovery controls.
+
 ---
 
 ## Technology-adoption boundary

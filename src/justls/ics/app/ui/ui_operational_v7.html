@@ -261,38 +261,89 @@
 
       <section class="workspace">
         <section class="page active" data-page-panel="setup" data-role="setup-page" data-phase="2.8-H-static">
-          <div class="grid grid-2-1">
-            <section class="panel" data-role="local-session-context" data-phase="local-placeholder">
-              <h2>Setup · Observation Context</h2>
+          <div class="grid">
+            <section class="panel compact-panel" data-role="setup-overview">
+              <h2>Setup / Readiness · Observation Preparation</h2>
               <div class="panel-body">
-                <div class="phase-note"><strong>Scope:</strong> Setup is for observer, project, file naming, and FITS/data context. Routine instrument configuration now lives under Instrument / Configure.</div>
-                <div class="field-grid">
-                  <label>Observer(s)<input value="" placeholder="Observer names" data-role="session-input" data-field="observers" /></label>
-                  <label>Project ID<input value="" placeholder="JUST-YYYY-XXX" data-role="session-input" data-field="project_id" /></label>
-                  <label>PI Name<input value="" placeholder="PI" data-role="session-input" data-field="pi_name" /></label>
-                  <label>Support / Operator<input value="" placeholder="Support astronomer" data-role="session-input" data-field="support_operator" /></label>
-                  <label>Root Name<input value="justls" placeholder="root name" data-role="session-input" data-field="root_name" /></label>
-                  <label>Date Prefix<input value="AUTO" placeholder="AUTO" data-role="session-input" data-field="date_prefix" /></label>
-                </div>
-                <label style="margin-top: 10px;">Comment<textarea placeholder="Session note / observing comment" data-role="session-input" data-field="comment"></textarea></label>
-                <div class="badge-row" style="margin-top: 10px;">
-                  <span class="badge demo">Local placeholder</span>
-                  <span class="badge future">Durable session backend deferred</span>
+                <div class="summary-row" aria-label="setup readiness summary">
+                  <div class="summary-chip">
+                    <span>Run Mode</span>
+                    <code data-bind="v7.setup.run_mode">static</code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>Operational</span>
+                    <code data-bind="v7.setup.operational">not connected</code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>Observation</span>
+                    <code data-bind="v7.setup.observation_state">ready_to_arm</code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>Detector</span>
+                    <code data-bind="v7.setup.detector_profile">default</code>
+                  </div>
+                  <div class="summary-chip">
+                    <span>Next Frame</span>
+                    <code data-bind="v7.data.next_frame_token">AUTO-0001</code>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <section class="panel" id="v7-setup-readiness" data-role="setup-readiness" data-phase="runtime-enhanceable">
-              <h2>Setup Readiness · Current Context</h2>
+            <div class="grid grid-2-1">
+              <section class="panel compact-panel" data-role="setup-session-context">
+                <h2>Session Context</h2>
+                <div class="panel-body">
+                  <div class="field-grid">
+                    <label>Observer(s)<input value="" placeholder="Observer names" data-role="session-input" data-field="observers" /></label>
+                    <label>Project ID<input value="" placeholder="JUST-YYYY-XXX" data-role="session-input" data-field="project_id" /></label>
+                    <label>PI Name<input value="" placeholder="PI" data-role="session-input" data-field="pi_name" /></label>
+                    <label>Support / Operator<input value="" placeholder="Support astronomer" data-role="session-input" data-field="support_operator" /></label>
+                    <label>Root Name<input value="justls" placeholder="root name" data-role="session-input" data-field="root_name" /></label>
+                    <label>Date Prefix<input value="AUTO" placeholder="AUTO" data-role="session-input" data-field="date_prefix" /></label>
+                  </div>
+                  <label style="margin-top: 10px;">Comment<textarea placeholder="Session note / observing comment" data-role="session-input" data-field="comment"></textarea></label>
+
+                  <div class="badge-row" style="margin-top: 10px;" aria-label="setup persistence status">
+                    <span class="badge future">Session backend pending</span>
+                    <span class="badge future">Not saved to backend</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel compact-panel" id="v7-setup-readiness" data-role="setup-readiness" data-phase="runtime-enhanceable">
+                <h2>Readiness Checklist</h2>
+                <div class="panel-body">
+                  <dl class="kv compact-kv">
+                    <dt>Runtime</dt><dd><code data-bind="v7.setup.run_mode">static</code></dd>
+                    <dt>Operational</dt><dd><code data-bind="v7.setup.operational">not connected</code></dd>
+                    <dt>Observation State</dt><dd><code data-bind="v7.setup.observation_state">ready_to_arm</code></dd>
+                    <dt>Detector Profile</dt><dd><code data-bind="v7.setup.detector_profile">default</code></dd>
+                    <dt>Data Directory</dt><dd><code data-bind="v7.data.directory">backend pending</code></dd>
+                    <dt>Current Preset</dt><dd><code data-bind="v7.instrument.current_preset">science_default</code></dd>
+                  </dl>
+
+                  <div class="badge-row" style="margin-top: 10px;">
+                    <span class="badge live">Session fields local</span>
+                    <span class="badge future">Runtime status optional</span>
+                    <span class="badge future">Backend save pending</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="panel compact-panel" data-role="setup-next-steps">
+              <h2>Next Steps</h2>
               <div class="panel-body">
-                <dl class="kv">
-                  <dt>Run Mode</dt><dd><code data-bind="v7.setup.run_mode">static</code></dd>
-                  <dt>Operational</dt><dd><code data-bind="v7.setup.operational">not wired</code></dd>
-                  <dt>Observation State</dt><dd><code data-bind="v7.setup.observation_state">ready_to_arm</code></dd>
-                  <dt>Detector Profile</dt><dd><code data-bind="v7.setup.detector_profile">default</code></dd>
-                  <dt>Next Frame Token</dt><dd><code data-bind="v7.data.next_frame_token">AUTO-0001</code></dd>
-                  <dt>Data Directory</dt><dd><code data-bind="v7.data.directory">future backend binding</code></dd>
-                </dl>
+                <div class="badge-row" aria-label="setup next step actions">
+                  <button class="btn" type="button" data-page-shortcut="instrument">Configure Instrument</button>
+                  <button class="btn" type="button" data-page-shortcut="presets">Review Presets</button>
+                  <button class="btn primary" type="button" data-page-shortcut="observe">Go to Observe</button>
+                  <button class="btn" type="button" data-page-shortcut="diagnostics">Open Diagnostics</button>
+                </div>
+                <p style="margin: 10px 0 0; color: var(--muted); font-size: 12px;">
+                  Prepare the observing session context, verify readiness, then continue to instrument configuration, preset review, or single-exposure operation.
+                </p>
               </div>
             </section>
           </div>

@@ -8,7 +8,7 @@ ICS 2.0 is intended to become the software control backbone for the JUST long-sl
 
 ## Current status
 
-The current baseline is a simulator-backed ICS with a usable backend/API backbone, a v7.1 default operator-console prototype, and explicit v5 fallback routes.
+The current baseline is a simulator-backed ICS with a usable backend/API backbone, a v7.1 default operator-console prototype, explicit v5 fallback routes, and the Phase 2.8/v7 UI information-architecture cleanup merged into `main`.
 
 Current strategic UI decision:
 
@@ -30,17 +30,20 @@ This route switch does not mean v7.1 is a final product-grade GUI.
 Current mainline:
 
 ```text
-Phase 2.8-I/J merged baseline:
+Phase 2.8-I/J + v7 UI IA cleanup merged baseline:
   - light command-feedback unification;
   - /ui -> v7 default route switch;
-  - v5 fallback preserved at /ui/v5 and /ui/legacy.
+  - v5 fallback preserved at /ui/v5 and /ui/legacy;
+  - v7 static HTML shell is the served layout source;
+  - Instrument and Setup pages are action-oriented operator-console prototypes;
+  - MODS-inspired Phase 2.9 gap review is documented as an operational-loop checklist.
 ```
 
 Recent local validation reported by the user:
 
 ```text
 pytest -q
-161 passed in 1.00s
+156 passed in 0.99s
 ```
 
 For the durable current-status record, see:
@@ -72,7 +75,7 @@ docs/ics2_software_development_strategy.md
 - A v7.1 default operator-console prototype.
 - Explicit v5 fallback routes for continuity and rollback.
 - Runtime-status, instrument, preset, observe, and observe-guard prototypes for v7.1.
-- Regression tests covering API behavior, UI route/static asset behavior, runtime gates, preset safety, observe/status behavior, and operator-console shell invariants.
+- Regression tests covering API behavior, application/domain/kernel contracts, UI route/static asset behavior, runtime gates, preset safety, observe/status behavior, and operator-console shell invariants.
 
 ---
 
@@ -82,7 +85,7 @@ ICS 2.0 is being developed as a real instrument control system for long-slit spe
 
 Core design priorities:
 
-- Preserve a clear state model for observation, calibration, slit, detector, presets, and diagnostics.
+- Preserve a clear state model for setup/session context, observation, calibration, slit, detector, presets, and diagnostics.
 - Keep unsafe or high-impact actions explicit, previewable, confirmed, and auditable.
 - Keep operator-facing workflow separate from engineering/diagnostic detail.
 - Make raw status and JSON available in Diagnostics, not in the main observing path.
@@ -92,6 +95,29 @@ Core design priorities:
 - Prefer contracts and adapters before adopting specific hardware protocols or infrastructure technologies.
 
 The current design has been informed by mature spectrograph-control patterns and by earlier JUST ICS experience. The legacy ICS 1.0 repository is useful as an intent reference, especially for the minimal closed loop, SimHAL, capabilities map, slit/lamp control, SlitCam, B/G/R placeholders, and backend-served static UI. It is not the implementation source of truth for ICS 2.0.
+
+---
+
+## Near-term roadmap focus
+
+Phase 2.9 is now treated as **Contract Hardening**. The first executable slice is Phase 2.9-A: durable Setup/Data Context.
+
+```text
+Phase 2.9-A  Setup/Data Context model + API + persistence
+Phase 2.9-B  Observation request/preview contract
+Phase 2.9-C  Shared command/status feedback contract
+Phase 2.9-D  Data product and exposure-record contract
+Phase 2.9-E  Read-only observatory/TCS context
+Phase 2.9-F  Operator workflow polish
+Phase 3.x    Simulator-backed end-to-end observing workflow
+Phase 4.x    Real hardware commissioning through adapter contracts
+```
+
+The roadmap source of truth remains:
+
+```text
+docs/ics2_software_development_strategy.md
+```
 
 ---
 
@@ -239,6 +265,9 @@ src/justls/ics/
 
 tests/
 ├── api/
+├── application/
+├── domain/
+├── kernel/
 └── ui/
 
 docs/
@@ -338,11 +367,14 @@ pytest -q
 Current test homes:
 
 ```text
-tests/api/  API behavior and response contracts
-tests/ui/   UI routes, static shells, static assets, runtime injection gates
+tests/api/          API behavior and response contracts
+tests/application/  application services and use-case contracts
+tests/domain/       domain models and validation
+tests/kernel/       runtime, job, state, and guard behavior
+tests/ui/           UI routes, static shells, static assets, runtime injection gates
 ```
 
-Avoid adding new root-level `test_stage_*` files. Prefer domain-specific test locations such as `tests/api/`, `tests/ui/`, or future `tests/kernel/` as appropriate.
+Avoid adding new root-level `test_stage_*` files. Prefer boundary-specific test locations such as `tests/api/`, `tests/application/`, `tests/domain/`, `tests/kernel/`, or `tests/ui/`.
 
 ---
 
@@ -356,9 +388,9 @@ At the current stage:
 - many real drivers are still placeholders or early stubs;
 - v7 is now the default operator-console prototype, not a final product-grade GUI;
 - v7 runtime remains opt-in, not default-on;
-- durable setup/session metadata persistence is not started;
+- durable setup/session metadata persistence is the next Phase 2.9-A target;
 - live image backend / quicklook / data watcher is not started;
-- sequence runner and durable observing plan model are deferred;
+- sequence runner and durable observing plan model are deferred until after the setup/data-context contract starts;
 - production preset UX still needs operator-facing diff tables and clearer risk presentation;
 - FITS/data-product pipeline and persistent observation log need future backend contracts;
 - role separation, authentication, and engineering/operator permission boundaries are future work;

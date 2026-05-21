@@ -50,6 +50,36 @@ def test_v7_static_setup_page_is_action_oriented_readiness_workspace():
     response = client.get("/ui/v7")
 
     assert response.status_code == 200
+    html = response.text
+    assert 'data-role="setup-page"' in html
+    assert 'data-role="setup-overview"' in html
+    assert 'data-role="setup-session-context"' in html
+    assert 'data-role="session-input"' in html
+    assert 'id="v7-setup-readiness"' in html
+    assert 'data-role="setup-readiness"' in html
+    assert 'data-role="setup-next-steps"' in html
+
+    assert 'data-page-shortcut="instrument"' in html
+    assert 'data-page-shortcut="presets"' in html
+    assert 'data-page-shortcut="observe"' in html
+    assert 'data-page-shortcut="diagnostics"' in html
+
+    assert "Configure Instrument" in html
+    assert "Review Presets" in html
+    assert "Go to Observe" in html
+    assert "Readiness Checklist" in html
+
+    assert 'data-bind="v7.setup.run_mode"' in html
+    assert 'data-bind="v7.setup.operational"' in html
+    assert 'data-bind="v7.setup.observation_state"' in html
+    assert 'data-bind="v7.setup.detector_profile"' in html
+    assert 'data-bind="v7.data.next_frame_token"' in html
+    assert 'data-bind="v7.data.directory"' in html
+    client = TestClient(app)
+
+    response = client.get("/ui/v7")
+
+    assert response.status_code == 200
     assert "data-role=\"setup-page\"" in response.text
     # assert "data-role=\"local-session-context\"" in response.text
     assert "data-role=\"session-input\"" in response.text

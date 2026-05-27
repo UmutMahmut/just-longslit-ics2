@@ -260,7 +260,7 @@
       </nav>
 
       <section class="workspace">
-        <section class="page active" data-page-panel="setup" data-role="setup-page" data-phase="2.8-H-static">
+        <section class="page active" data-page-panel="setup" data-role="setup-page" data-phase="2.9-A-persisted-context">
           <div class="grid">
             <section class="panel compact-panel" data-role="setup-overview">
               <h2>Setup / Readiness · Observation Preparation</h2>
@@ -301,12 +301,18 @@
                     <label>Support / Operator<input value="" placeholder="Support astronomer" data-role="session-input" data-field="support_operator" /></label>
                     <label>Root Name<input value="justls" placeholder="root name" data-role="session-input" data-field="root_name" /></label>
                     <label>Date Prefix<input value="AUTO" placeholder="AUTO" data-role="session-input" data-field="date_prefix" /></label>
+                    <label>Next Frame Index<input type="number" min="1" step="1" value="1" data-role="session-input" data-field="next_frame_index" /></label>
+                    <label>Data Directory<input value="" placeholder="D:/data/JUST" data-role="session-input" data-field="data_directory" /></label>
                   </div>
                   <label style="margin-top: 10px;">Comment<textarea placeholder="Session note / observing comment" data-role="session-input" data-field="comment"></textarea></label>
 
                   <div class="badge-row" style="margin-top: 10px;" aria-label="setup persistence status">
-                    <span class="badge future">Session backend pending</span>
-                    <span class="badge future">Not saved to backend</span>
+                    <span class="badge live" data-bind="v7.setup.persistence_status">Persisted backend context</span>
+                    <span class="badge future" data-bind="v7.setup.save_status">UI save binding pending</span>
+                  </div>
+                  <div class="badge-row" style="margin-top: 10px;" aria-label="setup context actions">
+                    <button class="btn primary" type="button" data-action="setup-save-context" disabled>Save Setup</button>
+                    <button class="btn" type="button" data-action="setup-reload-context" disabled>Reload from Backend</button>
                   </div>
                 </div>
               </section>
@@ -319,14 +325,16 @@
                     <dt>Operational</dt><dd><code data-bind="v7.setup.operational">not connected</code></dd>
                     <dt>Observation State</dt><dd><code data-bind="v7.setup.observation_state">ready_to_arm</code></dd>
                     <dt>Detector Profile</dt><dd><code data-bind="v7.setup.detector_profile">default</code></dd>
-                    <dt>Data Directory</dt><dd><code data-bind="v7.data.directory">backend pending</code></dd>
+                    <dt>Data Directory</dt><dd><code data-bind="v7.data.directory">not configured</code></dd>
+                    <dt>File Stem</dt><dd><code data-bind="v7.data.file_stem">justls_AUTO_0001</code></dd>
+                    <dt>FITS Preview</dt><dd><code data-bind="v7.data.fits_filename">justls_AUTO_0001.fits</code></dd>
                     <dt>Current Preset</dt><dd><code data-bind="v7.instrument.current_preset">science_default</code></dd>
                   </dl>
 
                   <div class="badge-row" style="margin-top: 10px;">
-                    <span class="badge live">Session fields local</span>
+                    <span class="badge live">Session context API ready</span>
                     <span class="badge future">Runtime status optional</span>
-                    <span class="badge future">Backend save pending</span>
+                    <span class="badge future">UI save binding pending</span>
                   </div>
                 </div>
               </section>

@@ -45,6 +45,20 @@ def test_v7_static_setup_page_is_action_oriented_readiness_workspace():
     assert 'data-bind="v7.setup.detector_profile"' in html
     assert 'data-bind="v7.data.next_frame_token"' in html
     assert 'data-bind="v7.data.directory"' in html
+
+    assert 'data-phase="2.9-A-persisted-context"' in html
+    assert 'data-bind="v7.setup.persistence_status"' in html
+    assert 'data-bind="v7.setup.save_status"' in html
+    assert 'data-action="setup-save-context"' in html
+    assert 'data-action="setup-reload-context"' in html
+    assert 'data-field="next_frame_index"' in html
+    assert 'data-field="data_directory"' in html
+    assert 'data-bind="v7.data.file_stem"' in html
+    assert 'data-bind="v7.data.fits_filename"' in html
+
+    assert "Session backend pending" not in html
+    assert "Not saved to backend" not in html
+    assert "Backend save pending" not in html
     client = TestClient(app)
 
     response = client.get("/ui/v7")

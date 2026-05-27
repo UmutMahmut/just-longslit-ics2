@@ -26,6 +26,7 @@ def test_v7_runtime_master_gate_injects_status_only_by_default(monkeypatch):
     assert switches["phase2d8_v7_runtime_enabled"] is True
     assert switches["phase2d8_v7_runtime_modules"] == {
         "status": True,
+        "setup": False,
         "instrument": False,
         "presets": False,
         "observe": False,
@@ -55,6 +56,7 @@ def test_v7_runtime_modules_are_individually_opt_in(monkeypatch):
     switches = response.json()["ui_safety_switches"]
     assert switches["phase2d8_v7_runtime_modules"] == {
         "status": True,
+        "setup": False,
         "instrument": True,
         "presets": True,
         "observe": True,

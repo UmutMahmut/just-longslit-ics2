@@ -105,6 +105,7 @@ UI_V6_ENTRY = UI_DIR / "ui_operational_v6.html"
 UI_V7_ENTRY = UI_DIR / "ui_operational_v7.html"
 UI_PHASE_2D6_ADAPTER = "/ui-assets/v5/phase2d6_operational_status.js"
 UI_V7_RUNTIME_STATUS = "/ui-assets/v7/runtime_status.js"
+UI_V7_SETUP_RUNTIME = "/ui-assets/v7/setup_runtime.js"
 UI_V7_INSTRUMENT_RUNTIME = "/ui-assets/v7/instrument_runtime.js"
 UI_V7_PRESET_RUNTIME = "/ui-assets/v7/preset_runtime.js"
 UI_V7_OBSERVE_RUNTIME = "/ui-assets/v7/observe_runtime.js"
@@ -115,6 +116,7 @@ PHASE_2D6_V6_ENABLED_ENV = "JUSTLS_UI_V6_ENABLED"
 PHASE_2D8_V7_ENABLED_ENV = "JUSTLS_UI_V7_ENABLED"
 PHASE_2D8_V7_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_RUNTIME_ENABLED"
 PHASE_2D8_V7_RUNTIME_STATUS_ENABLED_ENV = "JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED"
+PHASE_2D8_V7_SETUP_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_SETUP_RUNTIME_ENABLED"
 PHASE_2D8_V7_INSTRUMENT_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_INSTRUMENT_RUNTIME_ENABLED"
 PHASE_2D8_V7_PRESET_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED"
 PHASE_2D8_V7_OBSERVE_RUNTIME_ENABLED_ENV = "JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED"
@@ -164,6 +166,8 @@ def phase_2d8_v7_runtime_status_enabled() -> bool:
     # runtime module to restore during Phase 2.8-G.
     return env_flag(PHASE_2D8_V7_RUNTIME_STATUS_ENABLED_ENV, default=True)
 
+def phase_2d8_v7_setup_runtime_enabled() -> bool:
+    return env_flag(PHASE_2D8_V7_SETUP_RUNTIME_ENABLED_ENV, default=False)
 
 def phase_2d8_v7_instrument_runtime_enabled() -> bool:
     return env_flag(PHASE_2D8_V7_INSTRUMENT_RUNTIME_ENABLED_ENV, default=False)
@@ -185,6 +189,7 @@ def phase_2d8_v7_runtime_module_flags() -> dict[str, bool]:
     if not phase_2d8_v7_runtime_enabled():
         return {
             "status": False,
+            "setup": False,
             "instrument": False,
             "presets": False,
             "observe": False,
@@ -192,6 +197,7 @@ def phase_2d8_v7_runtime_module_flags() -> dict[str, bool]:
         }
     return {
         "status": phase_2d8_v7_runtime_status_enabled(),
+        "setup": phase_2d8_v7_setup_runtime_enabled(),
         "instrument": phase_2d8_v7_instrument_runtime_enabled(),
         "presets": phase_2d8_v7_preset_runtime_enabled(),
         "observe": phase_2d8_v7_observe_runtime_enabled(),
@@ -204,6 +210,8 @@ def phase_2d8_v7_runtime_scripts() -> tuple[str, ...]:
     scripts: list[str] = []
     if flags["status"]:
         scripts.append(UI_V7_RUNTIME_STATUS)
+    if flags["setup"]:
+        scripts.append(UI_V7_SETUP_RUNTIME)
     if flags["instrument"]:
         scripts.append(UI_V7_INSTRUMENT_RUNTIME)
     if flags["presets"]:

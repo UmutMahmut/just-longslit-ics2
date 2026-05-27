@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
@@ -9,8 +11,13 @@ from justls.ics.application.services.health_service import HealthService
 from justls.ics.application.services.management_service import ManagementService
 from justls.ics.application.services.observation_service import ObservationService
 from justls.ics.application.services.setup_context_service import SetupContextService
+from justls.ics.application.services.setup_context_store import JsonSetupContextStore
 from justls.ics.kernel.errors import InvalidStateError, UnsupportedError
 from justls.ics.kernel.runtime import Runtime, get_runtime
+
+
+SETUP_CONTEXT_PATH_ENV = "JUSTLS_SETUP_CONTEXT_PATH"
+DEFAULT_SETUP_CONTEXT_PATH = Path(".justls") / "setup_context.json"
 
 
 def get_runtime_dependency() -> Runtime:
@@ -28,8 +35,15 @@ def get_management_service(runtime: RuntimeDep) -> ManagementService:
     return ManagementService(runtime)
 
 
+def get_setup_context_path() -> Path:
+    raw_path = os.getenv(SETUP_CONTEXT_PATH_ENV)
+    if raw_path and raw_path.strip():
+        return Path(raw_path.strip())
+    return DEFAULT_SETUP_CONTEXT_PATH
+
+
 def get_setup_context_service() -> SetupContextService:
-    return SetupContextService()
+    return SetupContextService(store=JsonSetupContextStore(get_setup_context_path()))
 
 
 def _require_slit(runtime: Runtime):

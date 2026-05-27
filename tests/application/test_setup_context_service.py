@@ -65,6 +65,50 @@ def test_setup_context_service_saves_context_through_store(tmp_path) -> None:
     assert payload["next_frame_token"] == "20260527-0008"
 
 
+def test_setup_context_service_saves_payload_through_store(tmp_path) -> None:
+    store = JsonSetupContextStore(tmp_path / "setup_context.json")
+    service = SetupContextService(store=store)
+
+    service.save_context_payload(
+        {
+            "observers": "Observer",
+            "project_id": "P-001",
+            "root_name": "science",
+            "date_prefix": "20260527",
+            "next_frame_index": 11,
+        }
+    )
+
+    payload = service.get_context_payload()
+
+    assert payload["observers"] == "Observer"
+    assert payload["project_id"] == "P-001"
+    assert payload["root_name"] == "science"
+    assert payload["next_frame_token"] == "20260527-0011"
+
+
+def test_setup_context_service_reload_reads_store(tmp_path) -> None:
+    path = tmp_path / "setup_context.json"
+    first_service = SetupContextService(store=JsonSetupContextStore(path))
+    second_service = SetupContextService(store=JsonSetupContextStore(path))
+
+    first_service.save_context_payload(
+        {
+            "observers": "Observer",
+            "project_id": "P-001",
+            "root_name": "science",
+            "date_prefix": "20260527",
+            "next_frame_index": 13,
+        }
+    )
+
+    reloaded = second_service.reload_context()
+
+    assert reloaded.observers == "Observer"
+    assert reloaded.project_id == "P-001"
+    assert reloaded.next_frame_token() == "20260527-0013"
+
+
 def test_setup_context_service_rejects_context_and_store_together(tmp_path) -> None:
     store = JsonSetupContextStore(tmp_path / "setup_context.json")
 

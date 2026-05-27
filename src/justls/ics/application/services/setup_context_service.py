@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Mapping
 
 from justls.ics.application.services.setup_context_store import (
     InMemorySetupContextStore,
@@ -25,6 +25,13 @@ class SetupContextService:
 
     def save_context(self, context: SessionDataContext) -> SessionDataContext:
         return self._store.save(context)
+
+    def save_context_payload(self, payload: Mapping[str, Any]) -> SessionDataContext:
+        context = SessionDataContext.from_dict(payload)
+        return self.save_context(context)
+
+    def reload_context(self) -> SessionDataContext:
+        return self._store.load()
 
     def get_context_payload(self, observing_date: date | str | None = None) -> dict[str, Any]:
         return self.get_context().to_dict(observing_date)

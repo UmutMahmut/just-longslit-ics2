@@ -132,6 +132,8 @@ class ObservationMetaResponse(BaseModel):
     instrument_snapshot: dict[str, Any] | None = None
     calibration_snapshot: CalibrationStatusResponse | None = None
     detector_config: DetectorConfig | None = None
+    setup_context: dict[str, Any] | None = None
+    data_preview: dict[str, Any] | None = None
     frame_results: list[ObservationFrameResultResponse] = Field(default_factory=list)
 
 

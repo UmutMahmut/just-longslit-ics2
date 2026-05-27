@@ -172,6 +172,8 @@ def _handle_observation_arm(runtime: Runtime, request):
 
     detector_config = runtime.get_detector_config_dict()
     preset_apply = _latest_successful_preset_apply(runtime)
+    setup_context = request.params.get("setup_context")
+    data_preview = request.params.get("data_preview")
 
     snapshot = detector.arm(
         exp_time_s=float(request.params["exp_time_s"]),
@@ -181,6 +183,8 @@ def _handle_observation_arm(runtime: Runtime, request):
         calibration_snapshot=calibration_snapshot,
         detector_config=detector_config,
         preset_apply=preset_apply,
+        setup_context=setup_context,
+        data_preview=data_preview,
     )
     return snapshot.to_dict()
 
@@ -233,8 +237,9 @@ SetupContextServiceDep = Annotated[SetupContextService, Depends(get_setup_contex
 def get_observation_service(
     runtime: RuntimeDep,
     dispatcher: DispatcherDep,
+    setup_context_service: SetupContextServiceDep,
 ) -> ObservationService:
-    return ObservationService(runtime, dispatcher)
+    return ObservationService(runtime, dispatcher, setup_context_service)
 
 
 ObservationServiceDep = Annotated[ObservationService, Depends(get_observation_service)]

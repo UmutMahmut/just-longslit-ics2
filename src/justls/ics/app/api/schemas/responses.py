@@ -23,6 +23,23 @@ class PresetListResponse(BaseModel):
     items: list[PresetListItemResponse]
 
 
+class SetupContextResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    observers: str
+    project_id: str
+    pi_name: str
+    support_operator: str
+    root_name: str
+    date_prefix: str
+    comment: str
+    next_frame_index: int
+    data_directory: str
+    next_frame_token: str
+    file_stem: str
+    fits_filename: str
+
+
 class PresetChangeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

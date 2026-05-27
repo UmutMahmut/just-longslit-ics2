@@ -8,6 +8,7 @@ from justls.ics.application.dispatcher import CommandDispatcher, validate_requir
 from justls.ics.application.services.health_service import HealthService
 from justls.ics.application.services.management_service import ManagementService
 from justls.ics.application.services.observation_service import ObservationService
+from justls.ics.application.services.setup_context_service import SetupContextService
 from justls.ics.kernel.errors import InvalidStateError, UnsupportedError
 from justls.ics.kernel.runtime import Runtime, get_runtime
 
@@ -25,6 +26,10 @@ def get_health_service(runtime: RuntimeDep) -> HealthService:
 
 def get_management_service(runtime: RuntimeDep) -> ManagementService:
     return ManagementService(runtime)
+
+
+def get_setup_context_service() -> SetupContextService:
+    return SetupContextService()
 
 
 def _require_slit(runtime: Runtime):
@@ -208,6 +213,7 @@ def get_dispatcher(runtime: RuntimeDep) -> CommandDispatcher:
 DispatcherDep = Annotated[CommandDispatcher, Depends(get_dispatcher)]
 HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]
 ManagementServiceDep = Annotated[ManagementService, Depends(get_management_service)]
+SetupContextServiceDep = Annotated[SetupContextService, Depends(get_setup_context_service)]
 
 
 def get_observation_service(

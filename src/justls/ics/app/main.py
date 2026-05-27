@@ -16,6 +16,7 @@ from justls.ics.app.api.routers.health import router as health_router
 from justls.ics.app.api.routers.lamps import router as lamps_router
 from justls.ics.app.api.routers.observation import router as observation_router
 from justls.ics.app.api.routers.presets import router as presets_router
+from justls.ics.app.api.routers.setup import router as setup_router
 from justls.ics.app.api.routers.slit import router as slit_router
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,7 @@ async def handle_unexpected_exception(
 
 
 app.include_router(health_router)
+app.include_router(setup_router)
 app.include_router(slit_router)
 app.include_router(lamps_router)
 app.include_router(observation_router)
@@ -125,6 +127,7 @@ if UI_DIR.exists():
 CAMERA_DIR = Path(__file__).resolve().parent / "api" / "v1" / "camera"
 if CAMERA_DIR.exists():
     app.mount("/camera", StaticFiles(directory=CAMERA_DIR), name="camera")
+
 
 def env_flag(name: str, *, default: bool = True) -> bool:
     """Read a simple boolean environment flag.
@@ -233,6 +236,7 @@ def serve_v7_html() -> HTMLResponse | dict[str, str]:
         UI_V7_ENTRY,
         extra_scripts=phase_2d8_v7_runtime_scripts(),
     )
+
 
 def serve_html(
     path: Path,

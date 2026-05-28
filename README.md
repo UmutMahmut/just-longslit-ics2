@@ -8,9 +8,43 @@ ICS 2.0 is intended to become the software control backbone for the JUST long-sl
 
 ## Current status
 
-The current baseline is a simulator-backed ICS with a usable backend/API backbone, a v7.1 default operator-console prototype, explicit v5 fallback routes, and the Phase 2.8/v7 UI information-architecture cleanup merged into `main`.
+The current `main` baseline has completed **Phase 2.9-A: durable Setup/Data Context**.
 
-Current strategic UI decision:
+Current mainline commit:
+
+```text
+08daffb observation: attach setup context snapshot on arm
+```
+
+Recent local validation reported by the user:
+
+```text
+pytest -q
+202 passed in 1.38s
+```
+
+Phase 2.9-A established the first durable backend fact source for observing setup/session metadata:
+
+```text
+Setup UI
+  -> GET/PUT/reload /api/v1/setup/context
+  -> JsonSetupContextStore
+  -> ObservationService.arm()
+  -> ObservationMeta.setup_context + data_preview
+  -> GET /api/v1/observation/status
+```
+
+This completed the planned Setup/Data Context chain without expanding into a proposal database, scheduler, sequence runner, FITS writer, DataProduct pipeline, telescope control, or per-channel B/G/R exposure control.
+
+The next planned phase is:
+
+```text
+Phase 2.9-B: Observation request/preview contract
+```
+
+---
+
+## Current UI route strategy
 
 ```text
 /ui        -> v7.1 default operator-console prototype
@@ -27,43 +61,6 @@ v7.1 is the default operator-console prototype.
 This route switch does not mean v7.1 is a final product-grade GUI.
 ```
 
-Current mainline:
-
-```text
-Phase 2.8-I/J + v7 UI IA cleanup merged baseline:
-  - light command-feedback unification;
-  - /ui -> v7 default route switch;
-  - v5 fallback preserved at /ui/v5 and /ui/legacy;
-  - v7 static HTML shell is the served layout source;
-  - Instrument and Setup pages are action-oriented operator-console prototypes;
-  - MODS-inspired Phase 2.9 gap review is documented as an operational-loop checklist.
-```
-
-Recent local validation reported by the user:
-
-```text
-pytest -q
-156 passed in 0.99s
-```
-
-For the durable current-status record, see:
-
-```text
-docs/project_status.md
-```
-
-For operator-console requirements and backend-capability visibility rules, see:
-
-```text
-docs/operator_console_requirements.md
-```
-
-For the current software-development strategy and phase roadmap, see:
-
-```text
-docs/ics2_software_development_strategy.md
-```
-
 ---
 
 ## What this repository currently provides
@@ -72,39 +69,55 @@ docs/ics2_software_development_strategy.md
 - A FastAPI control and status interface under `/api/v1/*`.
 - A simulation-first runtime for end-to-end development before full hardware availability.
 - Backend-served static frontends for zero-CORS local integration.
-- A v7.1 default operator-console prototype.
-- Explicit v5 fallback routes for continuity and rollback.
-- Runtime-status, instrument, preset, observe, and observe-guard prototypes for v7.1.
-- Regression tests covering API behavior, application/domain/kernel contracts, UI route/static asset behavior, runtime gates, preset safety, observe/status behavior, and operator-console shell invariants.
+- A v7.1 default operator-console prototype with explicit v5 fallback routes.
+- Durable setup/session context API, JSON-backed persistence, and v7 setup runtime binding.
+- Observation arm metadata handoff for `setup_context` and `data_preview` snapshots.
+- Runtime-status, setup, instrument, preset, observe, and observe-guard runtime modules for v7.1, all opt-in behind runtime gates.
+- Regression tests covering API behavior, application/domain/kernel contracts, UI route/static asset behavior, runtime gates, preset safety, observe/status behavior, setup context persistence, and operator-console shell invariants.
 
 ---
 
 ## Design direction
 
-ICS 2.0 is being developed as a real instrument control system for long-slit spectroscopy. The control software must eventually support a coherent observing loop, not merely isolated buttons.
+ICS 2.0 is being developed as a real instrument control system for long-slit spectroscopy. The control software must support a coherent observing loop, not merely isolated buttons.
 
 Core design priorities:
 
-- Preserve a clear state model for setup/session context, observation, calibration, slit, detector, presets, and diagnostics.
+- Preserve a clear state model for setup/session context, observation, calibration, slit, detector, presets, diagnostics, and future data products.
 - Keep unsafe or high-impact actions explicit, previewable, confirmed, and auditable.
 - Keep operator-facing workflow separate from engineering/diagnostic detail.
 - Make raw status and JSON available in Diagnostics, not in the main observing path.
 - Keep simulation-first development while leaving a clean path for real hardware adapters.
 - Avoid pretending that static placeholders are real telemetry or persisted backend state.
-- Ensure backend capabilities are at least visible in the frontend, even when not directly controllable.
+- Ensure backend capabilities are visible in the frontend when operationally relevant.
 - Prefer contracts and adapters before adopting specific hardware protocols or infrastructure technologies.
 
 The current design has been informed by mature spectrograph-control patterns and by earlier JUST ICS experience. The legacy ICS 1.0 repository is useful as an intent reference, especially for the minimal closed loop, SimHAL, capabilities map, slit/lamp control, SlitCam, B/G/R placeholders, and backend-served static UI. It is not the implementation source of truth for ICS 2.0.
 
 ---
 
+## Architecture guardrails
+
+Every phase, PR, and commit should pass these checks:
+
+| Guardrail | Question | Purpose |
+|---|---|---|
+| Contract first | Is this stabilizing a domain/API contract, or merely piling UI/implementation detail? | Prevent UI-first semantic drift. |
+| Simulation parity | Can the simulator and future real hardware keep the same contract? | Prevent real-only hacks. |
+| No telescope overreach | Does this bypass OCS/TCS authority for pointing, rotator, guiding, dome, weather, or telescope control? | Prevent ICS boundary violations. |
+| No fake capability | Does this present a placeholder as a real capability? | Prevent operator misunderstanding. |
+| Auditable command lifecycle | Do high-impact actions have request_id, latest_job, result, and error visibility? | Prevent untraceable operations. |
+| Layer boundary | Are domain/application/kernel/api/ui/adapter responsibilities still separated? | Preserve maintainability. |
+
+---
+
 ## Near-term roadmap focus
 
-Phase 2.9 is now treated as **Contract Hardening**. The first executable slice is Phase 2.9-A: durable Setup/Data Context.
+Phase 2.9 is **Contract Hardening**.
 
 ```text
-Phase 2.9-A  Setup/Data Context model + API + persistence
-Phase 2.9-B  Observation request/preview contract
+Phase 2.9-A  Setup/Data Context model + API + persistence + observation snapshot handoff  DONE
+Phase 2.9-B  Observation request/preview contract                                      NEXT
 Phase 2.9-C  Shared command/status feedback contract
 Phase 2.9-D  Data product and exposure-record contract
 Phase 2.9-E  Read-only observatory/TCS context
@@ -113,10 +126,22 @@ Phase 3.x    Simulator-backed end-to-end observing workflow
 Phase 4.x    Real hardware commissioning through adapter contracts
 ```
 
-The roadmap source of truth remains:
+The roadmap source of truth is:
 
 ```text
 docs/ics2_software_development_strategy.md
+```
+
+The current-status source of truth is:
+
+```text
+docs/project_status.md
+```
+
+Operator-console requirements and capability visibility rules are maintained in:
+
+```text
+docs/operator_console_requirements.md
 ```
 
 ---
@@ -142,52 +167,6 @@ If these questions are not answerable, the item should remain `TBD`, `candidate`
 
 ---
 
-## Current frontend routes
-
-### `/ui`
-
-Default v7.1 operator-console prototype.
-
-Backed by:
-
-```text
-src/justls/ics/app/ui/ui_operational_v7.html
-```
-
-The served shell remains safe by default because v7 runtime modules are still opt-in.
-
-### `/ui/v7`
-
-Explicit v7.1 operator-console route.
-
-It should remain aligned with `/ui`.
-
-### `/ui/v5` and `/ui/legacy`
-
-Stable v5 fallback routes.
-
-Backed by:
-
-```text
-src/justls/ics/app/ui/ui_alpha_skeleton_v5.html
-```
-
-Keep available for continuity and rollback.
-
-### `/ui/v6`
-
-Operational-status review shell.
-
-Backed by:
-
-```text
-src/justls/ics/app/ui/ui_operational_v6.html
-```
-
-Keep available for review and continuity with Phase 2.6/2.7 work.
-
----
-
 ## v7 runtime gates
 
 The v7 runtime architecture is opt-in.
@@ -197,6 +176,7 @@ Recommended cleanup before starting a local server:
 ```powershell
 Remove-Item Env:JUSTLS_UI_V7_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:JUSTLS_UI_V7_SETUP_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_INSTRUMENT_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED -ErrorAction SilentlyContinue
 Remove-Item Env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED -ErrorAction SilentlyContinue
@@ -213,6 +193,7 @@ Module gates:
 
 ```powershell
 $env:JUSTLS_UI_V7_RUNTIME_STATUS_ENABLED="1"
+$env:JUSTLS_UI_V7_SETUP_RUNTIME_ENABLED="1"
 $env:JUSTLS_UI_V7_INSTRUMENT_RUNTIME_ENABLED="1"
 $env:JUSTLS_UI_V7_PRESET_RUNTIME_ENABLED="1"
 $env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED="1"
@@ -223,6 +204,7 @@ Runtime assets:
 
 ```text
 src/justls/ics/app/ui/v7/runtime_status.js
+src/justls/ics/app/ui/v7/setup_runtime.js
 src/justls/ics/app/ui/v7/instrument_runtime.js
 src/justls/ics/app/ui/v7/preset_runtime.js
 src/justls/ics/app/ui/v7/observe_runtime.js
@@ -239,45 +221,6 @@ Runtime JS should not create competing duplicate UI panels unless it is a fallba
 
 ---
 
-## Repository layout
-
-A simplified view of the current repository:
-
-```text
-src/justls/ics/
-├── adapters/
-├── app/
-│   ├── api/
-│   ├── desktop/
-│   ├── ui/
-│   │   ├── ui_alpha_skeleton_v5.html
-│   │   ├── ui_operational_v6.html
-│   │   ├── ui_operational_v7.html
-│   │   ├── v5/
-│   │   ├── v6/
-│   │   └── v7/
-│   └── main.py
-├── application/
-├── domain/
-├── drivers/
-├── infra/
-└── kernel/
-
-tests/
-├── api/
-├── application/
-├── domain/
-├── kernel/
-└── ui/
-
-docs/
-├── ics2_software_development_strategy.md
-├── project_status.md
-└── operator_console_requirements.md
-```
-
----
-
 ## API overview
 
 Current backend work is centered around the `/api/v1/*` namespace.
@@ -288,6 +231,9 @@ Representative endpoints include:
 - `GET /api/v1/status`
 - `GET /api/v1/status/full`
 - `GET /api/v1/capabilities`
+- `GET /api/v1/setup/context`
+- `PUT /api/v1/setup/context`
+- `POST /api/v1/setup/context/reload`
 - `GET /api/v1/observation/status`
 - `POST /api/v1/observation/arm`
 - `POST /api/v1/observation/start`
@@ -309,19 +255,7 @@ Representative endpoints include:
 
 ## Running locally
 
-### 0) Recommended environment
-
 Use your existing local Python environment for development and testing.
-
-If you use conda, activate your environment first:
-
-```powershell
-conda activate <your-env>
-```
-
-### 1) Install dependencies
-
-From repository root:
 
 ```powershell
 python -m pip install -U pip
@@ -329,21 +263,13 @@ pip install -e .
 pip install -U pytest httpx uvicorn fastapi
 ```
 
-### 2) Run backend
-
-A typical local startup command is:
+Run backend:
 
 ```powershell
 python -m uvicorn justls.ics.app.main:app --app-dir src --reload
 ```
 
-Alternative explicit host/port form:
-
-```powershell
-python -m uvicorn justls.ics.app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-### 3) Open in browser
+Open in browser:
 
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - Default v7.1 prototype: `http://127.0.0.1:8000/ui/`
@@ -362,6 +288,12 @@ Run tests locally with:
 
 ```powershell
 pytest -q
+```
+
+Current baseline reported by the user after Phase 2.9-A merge:
+
+```text
+202 passed in 1.38s
 ```
 
 Current test homes:
@@ -388,9 +320,10 @@ At the current stage:
 - many real drivers are still placeholders or early stubs;
 - v7 is now the default operator-console prototype, not a final product-grade GUI;
 - v7 runtime remains opt-in, not default-on;
-- durable setup/session metadata persistence is the next Phase 2.9-A target;
+- setup/session metadata now has durable JSON-backed persistence and observation arm snapshot handoff;
+- Phase 2.9-B has not yet defined the ObservationRequest / ObservationPlan preview contract;
 - live image backend / quicklook / data watcher is not started;
-- sequence runner and durable observing plan model are deferred until after the setup/data-context contract starts;
+- sequence runner and durable observing plan execution remain deferred;
 - production preset UX still needs operator-facing diff tables and clearer risk presentation;
 - FITS/data-product pipeline and persistent observation log need future backend contracts;
 - role separation, authentication, and engineering/operator permission boundaries are future work;

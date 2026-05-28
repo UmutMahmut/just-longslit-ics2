@@ -2,11 +2,63 @@
 
 ## Purpose
 
-This is the durable project-status document for JUST Long-Slit ICS 2.0. It replaces the previous collection of phase-specific audit notes in `docs/`.
-
-Keep this document focused on current direction, phase boundaries, completed milestones, open decisions, and close criteria. Do not use it as a scratchpad for every temporary idea.
+This is the durable project-status document for JUST Long-Slit ICS 2.0. It records current direction, phase boundaries, completed milestones, open decisions, and close criteria.
 
 Durable hardware, P0, v5 baseline, and operator-console requirements are maintained in `docs/operator_console_requirements.md`.
+
+The software-development strategy and phase roadmap are maintained in `docs/ics2_software_development_strategy.md`.
+
+---
+
+## Current snapshot
+
+```text
+Date/context: after Phase 2.9-A merge
+Mainline commit: 08daffb observation: attach setup context snapshot on arm
+Validation: pytest -q -> 202 passed in 1.38s
+Current phase status: Phase 2.9-A complete; Phase 2.9-B next
+```
+
+Phase 2.9-A is now merged into `main`.
+
+Durable Setup/Data Context is no longer a frontend-only placeholder. It now has:
+
+```text
+- SessionDataContext domain model;
+- GET /api/v1/setup/context;
+- PUT /api/v1/setup/context;
+- POST /api/v1/setup/context/reload;
+- SetupContextService;
+- SetupContextStore protocol;
+- JsonSetupContextStore;
+- v7 setup_runtime.js behind opt-in runtime gates;
+- Observation arm snapshot handoff into ObservationMeta.setup_context and ObservationMeta.data_preview.
+```
+
+The current Setup/Data Context loop is:
+
+```text
+Setup UI
+  -> GET/PUT/reload /api/v1/setup/context
+  -> JsonSetupContextStore
+  -> ObservationService.arm()
+  -> ObservationMeta.setup_context + data_preview
+  -> GET /api/v1/observation/status
+```
+
+Explicitly not done in Phase 2.9-A:
+
+```text
+- no proposal database;
+- no scheduler;
+- no sequence runner;
+- no FITS writer;
+- no DataProduct pipeline;
+- no frame-index consumption/auto-increment policy;
+- no TCS/OCS control;
+- no telescope pointing/rotator/guiding/dome/weather authority;
+- no per-channel B/G/R exposure readiness/control.
+```
 
 ---
 
@@ -25,24 +77,23 @@ The system is being developed around:
 - later real-hardware integration through adapter/gateway boundaries.
 ```
 
----
-
-## Current phase
+Long-term target loop:
 
 ```text
-Current completed work:
-  Phase 2.8-I: light operator command-feedback unification
-  Phase 2.8-J: v7 default route switch
-
-Status:
-  Implemented in PR #10 and locally validated.
-
-Latest validation reported by user:
-  pytest -q
-  161 passed in 1.00s
+OCS / Operator / Future Script
+  -> ObservationRequest / ObservationPlan
+  -> ICS validation and readiness
+  -> SequenceStep execution
+  -> Slit / calibration / detector / TCS-readiness coordination
+  -> ExposureRecord / DataProduct / Quicklook
+  -> Lifecycle event stream
+  -> Result callback / audit log
+  -> Safe abort and recovery
 ```
 
-Current UI route strategy after Phase 2.8-J:
+---
+
+## Current UI route strategy
 
 ```text
 /ui        -> v7.1 default operator-console prototype
@@ -55,18 +106,34 @@ Current UI route strategy after Phase 2.8-J:
 Important wording:
 
 ```text
-v7.1 is now the default operator-console prototype.
+v7.1 is the default operator-console prototype.
 This route switch does not mean v7.1 is a final product-grade GUI.
 ```
 
-Runtime policy is unchanged:
+Runtime policy:
 
 ```text
 - v7 runtime remains opt-in through JUSTLS_UI_V7_RUNTIME_ENABLED=1.
-- Status runtime is still the safest first runtime module when the master gate is enabled.
+- Setup runtime is separately gated by JUSTLS_UI_V7_SETUP_RUNTIME_ENABLED=1.
+- Status runtime remains the safest first runtime module when the master gate is enabled.
 - Instrument / Presets / Observe / Guard runtime modules remain individually gated.
-- Backend API semantics are unchanged by the route switch.
+- Backend API semantics are not changed merely by route selection.
 ```
+
+---
+
+## Architecture guardrails
+
+Every phase, PR, and commit should pass these checks:
+
+| Guardrail | Question | Purpose |
+|---|---|---|
+| Contract first | Is this stabilizing a domain/API contract, or merely piling UI/implementation detail? | Prevent UI-first semantic drift. |
+| Simulation parity | Can the simulator and future real hardware keep the same contract? | Prevent real-only hacks. |
+| No telescope overreach | Does this bypass OCS/TCS authority for pointing, rotator, guiding, dome, weather, or telescope control? | Prevent ICS boundary violations. |
+| No fake capability | Does this present a placeholder as a real capability? | Prevent operator misunderstanding. |
+| Auditable command lifecycle | Do high-impact actions have request_id, latest_job, result, and error visibility? | Prevent untraceable operations. |
+| Layer boundary | Are domain/application/kernel/api/ui/adapter responsibilities still separated? | Preserve maintainability. |
 
 ---
 
@@ -101,130 +168,94 @@ Key durable outcomes:
 - observation arm can attach the latest successful preset-apply summary.
 ```
 
-Durable lesson:
-
-```text
-Presets are auditable operations and future workflow building blocks, not just configuration shortcuts.
-```
-
-### Phase 2.8-G: v7 runtime architecture stabilization
+### Phase 2.8-G/H/I/J and v7 UI IA cleanup
 
 Closed.
 
 Key durable outcomes:
 
 ```text
-- v7 runtime master gate added;
-- v7 module-level runtime gates added;
-- /ui/v7 remains static by default when runtime is disabled;
-- runtime_status.js, preset_runtime.js, observe_runtime.js, and observe_guard.js became singleton-safe/skeleton-aware;
-- Presets and Observe each use one durable runtime-enhanceable skeleton;
-- runtime JS enhances durable HTML instead of creating duplicate panels by default.
+- v7 runtime master gate and module-level runtime gates exist;
+- /ui now serves v7.1 by default;
+- /ui/v5 and /ui/legacy preserve v5 fallback;
+- ui_operational_v7.html is the served layout source;
+- Instrument and Setup pages are action-oriented operator-console prototypes;
+- MODS-inspired review is documented as an operational-loop completeness checklist, not a visual-style target;
+- HTML owns durable structure and runtime JS enhances durable skeletons.
 ```
 
-Durable rule:
+### Phase 2.9-A: durable Setup/Data Context
+
+Closed and merged into `main`.
+
+Key durable outcomes:
 
 ```text
-HTML owns durable structure. Runtime JS enhances it.
+- SessionDataContext domain model exists.
+- Setup context has GET/PUT/reload API endpoints.
+- Setup context has a service layer and JSON store abstraction.
+- v7 Setup page has persisted-context hooks and opt-in setup_runtime.js binding.
+- Observation arm attaches setup_context and data_preview snapshots into observation metadata.
+- Tests are placed by boundary under tests/domain, tests/application, tests/api, and tests/ui.
 ```
 
-### Phase 2.8-H: v5 to v7 feature parity pass
-
-Functionally closed.
-
-Completed H work:
+A1-A6 closeout:
 
 ```text
-H7: v7.1 Instrument / Configure static shell
-  DONE
-
-H8: v7.1 runtime compatibility check
-  DONE
-
-H2: v7 operator feedback rail baseline
-  DONE
-
-H3: Observe Finish + structured-result baseline
-  DONE / baseline only
-
-H9: Instrument API alignment baseline
-  DONE / baseline only
-
-H9.1: Instrument panel layout and slit dual-unit correction
-  DONE
-
-H9.2: served-shell alignment check
-  DONE
+A1  SessionDataContext domain model + domain tests       done
+A2  read-only GET API + service default                  done
+A3  persistence port + JSON store                        done
+A4  PUT/reload API + JSON-backed dependency              done
+A5  Setup UI runtime binding                             done
+A6  observation metadata handoff                         done
 ```
 
-Phase 2.8-H durable outcomes:
+---
+
+## Current capability status
+
+| Capability | Current state | Strategy judgment |
+|---|---|---|
+| Layered architecture | Established | Continue Domain / Kernel / Application / API / UI / Adapter separation. |
+| Request ID / Job audit | Established | Future OCS, sequence, and data product work must preserve it. |
+| Setup/Data Context | Durable backend + UI binding + observation snapshot handoff | Phase 2.9-A complete. |
+| Observation single exposure | Available | Keep as baseline while defining ObservationRequest/ObservationPlan preview in 2.9-B. |
+| Preset preview/apply | Available | Needs later operator-facing diff polish. |
+| v7 default UI | Default prototype | Not final production GUI. |
+| v7 runtime | Opt-in | Keep explicit gates. |
+| Slit control | Basic available | Preserve arcsec/um contract. |
+| Calibration | Basic visible/control | Future contract should distinguish source/mode/path/mirror, not just lamp on/off. |
+| Detector config | Visible, partially writable | Avoid expanding routine detector write UI prematurely. |
+| B/G/R channels | Honest summary only | No per-channel exposure readiness/control yet. |
+| OCS | Not implemented | Phase 2.9-B starts request/preview contract; actual adapter later. |
+| TCS | Not implemented | Future read-only readiness; no telescope control. |
+| Data product | Not implemented | Phase 2.9-D contract later. |
+| Hardware protocols | Not selected | Remain hardware-selection-driven and adapter-bounded. |
+
+---
+
+## Phase 2.9-B next
+
+Phase 2.9-B should define the **Observation request/preview contract**.
+
+Expected first discussion:
 
 ```text
-- v7.1 IA has Setup / Instrument / Observe / Presets / Diagnostics / Housekeeping / Engineer.
-- Existing runtime modules remain opt-in and skeleton-aware.
-- H2 feedback rail baseline exists.
-- H3 Observe lifecycle baseline exists.
-- H9 Instrument API visibility/control baseline exists for routine slit/calibration plus detector read-only visibility.
-- P0/v5 slit-width unit contract is preserved in code and tests.
-- Docs are consolidated into project_status.md and operator_console_requirements.md.
+- ObservationRequest fields and minimal schema;
+- ObservationPlan / SequenceStep boundary;
+- dry-run / preview response shape;
+- validation and readiness inputs;
+- relationship to current single-exposure arm/start/finish lifecycle;
+- no actual sequence runner yet;
+- no OCS adapter yet;
+- no TCS control;
+- no FITS/DataProduct implementation.
 ```
 
-### Phase 2.8-I: light command-feedback unification
-
-Implemented and locally validated.
-
-Goal:
+Likely first slice:
 
 ```text
-Make Instrument, Observe, Presets, Feedback rail, and Diagnostics speak the same command-feedback vocabulary:
-
-last_command
-request_id
-latest_job
-last_error
-result_summary
-raw_json
-```
-
-Scope:
-
-```text
-- keep Setup -> Presets -> Instrument -> Observe -> Diagnostics as the operator flow;
-- add served-shell bindings for unified command summaries;
-- keep raw JSON available, but make Diagnostics the deeper troubleshooting home;
-- keep endpoint semantics unchanged;
-- avoid new backend API requirements.
-```
-
-Non-goals:
-
-```text
-- no OCS protocol implementation;
-- no TCS sync implementation;
-- no sequence runner;
-- no detector config write UI;
-- no full B/G/R hardware control;
-- no real hardware integration.
-```
-
-### Phase 2.8-J: v7 default route switch
-
-Implemented and locally validated.
-
-Goal:
-
-```text
-Make /ui serve the v7.1 operator-console prototype by default while preserving v5 as explicit fallback.
-```
-
-Required invariants:
-
-```text
-- /ui and /ui/v7 serve the same v7.1 shell.
-- /ui/v5 and /ui/legacy preserve the v5 stable fallback.
-- /api/v1/* behavior is unchanged.
-- v7 runtime remains disabled by default unless explicitly enabled by environment variables.
-- This is a default-entrypoint decision, not a production GUI acceptance claim.
+2.9-B1: domain model for ObservationRequest / ExposureSpec / ObservationPreviewResult + domain tests
 ```
 
 ---
@@ -247,28 +278,6 @@ Before adoption, it must answer:
 ```
 
 If these questions are not answerable, the item remains `TBD`, `candidate`, or `adapter-bounded`, not a named implementation route.
-
----
-
-## Phase 2.9+ deferred backend contracts
-
-Deferred until after 2.8-I/J clarify the operator surface:
-
-```text
-- durable setup/session metadata API;
-- OCS request/response/lifecycle contract;
-- TCS read-only status/readiness contract;
-- image feed / latest exposure backend / quicklook / data watcher;
-- sequence runner / observing plan model;
-- persistent observation log / audit trail;
-- role separation / authentication / permission boundaries;
-- final FITS/data-product metadata contract;
-- full B/G/R channel hardware-control contract;
-- slit-monitor camera / guider / slit-width measurement contract;
-- derotator / instrument-rotation control contract;
-- real hardware adapter validation;
-- hardware communication protocol validation after hardware selection.
-```
 
 ---
 

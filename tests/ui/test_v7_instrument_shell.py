@@ -18,6 +18,17 @@ def test_v7_static_shell_contains_instrument_configure_page():
     assert 'data-role="v7-instrument-controls"' in html
     assert 'data-role="instrument-slit-controls"' in html
     assert 'data-role="instrument-calibration-controls"' in html
+    assert "Mode/Lamp must match the intended frame type" in html
+    assert "Science frames require science mode and lamps off" in html
+    assert "flat frames require calibration mode with the flat lamp" in html
+    assert "arc frames require calibration mode with an Hg(Ar) or Ne arc lamp" in html
+    assert 'data-action="instrument-use-calibration-frame-defaults"' in html
+    assert 'data-bind="v7.instrument.calibration.active_lamp"' in html
+    assert 'data-bind="v7.instrument.calibration.lamp_enabled"' in html
+    assert 'data-bind="v7.instrument.calibration.mirror_inserted"' in html
+    assert 'data-bind="v7.instrument.calibration.frame_type_context"' in html
+    assert 'data-bind="v7.instrument.calibration.expected_for_frame"' in html
+    assert 'data-bind="v7.instrument.calibration.compatibility"' in html
     assert 'data-role="instrument-detector-visibility"' in html
     assert 'data-role="bgr-channel-summary"' in html
     assert 'data-role="instrument-command-summary"' in html
@@ -76,6 +87,7 @@ def test_v7_static_shell_models_just_as_bgr_not_mods_blue_red():
     assert 'data-channel="G"' in html
     assert 'data-channel="R"' in html
 
+
 def test_v7_static_shell_keeps_unwired_hardware_honest():
     client = TestClient(app)
 
@@ -86,4 +98,3 @@ def test_v7_static_shell_keeps_unwired_hardware_honest():
     assert "Runtime remains opt-in" in html
     assert "read-only summary" in html
     assert "not connected" in html or "runtime not enabled" in html
-

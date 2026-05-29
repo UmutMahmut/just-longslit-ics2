@@ -45,3 +45,7 @@ secrets.*
 
 # Temporary personal debug files
 tmp_check.py
+# Python packaging / build artifacts
+*.egg-info/
+build/
+dist/

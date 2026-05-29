@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "just-longslit-ics2"
+version = "0.0.1"
+description = "Instrument Control System for the JUST Telescope long-slit spectrograph."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+  "Private :: Do Not Upload",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "fastapi>=0.110,<1.0",
+  "pydantic>=2,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "httpx>=0.27,<1",
+  "uvicorn[standard]>=0.29,<1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["justls*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

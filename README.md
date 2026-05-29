@@ -259,8 +259,13 @@ Use your existing local Python environment for development and testing.
 
 ```powershell
 python -m pip install -U pip
-pip install -e .
-pip install -U pytest httpx uvicorn fastapi
+pip install -e ".[dev]"
+```
+
+Equivalent convenience entry:
+
+```powershell
+pip install -r requirements.txt
 ```
 
 Run backend:

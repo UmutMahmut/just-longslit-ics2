@@ -114,19 +114,28 @@
                 <label>Lamp<select data-role="instrument-calibration-lamp"><option value="flat">flat</option><option value="arc_hgar">arc_hgar</option><option value="arc_ne">arc_ne</option></select></label>
                 <button class="btn" type="button" data-action="instrument-set-calibration-mode" disabled>Set Mode</button>
                 <button class="btn" type="button" data-action="instrument-set-calibration-lamp" disabled>Set Lamp</button>
-                <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" checked /> Enable lamp</label>
+                <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" /> Enable lamp</label>
+                <button class="btn" type="button" data-action="instrument-use-calibration-frame-defaults" disabled>Use Frame-Type Defaults</button>
                 <button class="btn" type="button" data-action="instrument-refresh-calibration" disabled>Refresh</button>
               </div>
+              <p style="margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45;">
+                Mode/Lamp must match the intended frame type. Science frames require science mode and lamps off; flat frames require calibration mode with the flat lamp; arc frames require calibration mode with an Hg(Ar) or Ne arc lamp. Dark/bias are future detector-only frames and keep lamps off.
+              </p>
               <dl class="kv compact-kv" style="margin-top: 8px;">
                 <dt>Mode</dt><dd><code data-bind="v7.instrument.calibration.mode">science</code></dd>
-                <dt>Flat</dt><dd><code data-bind="v7.instrument.calibration.flat">off</code></dd>
-                <dt>Arc</dt><dd><code data-bind="v7.instrument.calibration.arc">not connected</code></dd>
+                <dt>Active Lamp</dt><dd><code data-bind="v7.instrument.calibration.active_lamp">none</code></dd>
+                <dt>Lamp Enabled</dt><dd><code data-bind="v7.instrument.calibration.lamp_enabled">false</code></dd>
+                <dt>Mirror / Path</dt><dd><code data-bind="v7.instrument.calibration.mirror_inserted">out</code></dd>
+                <dt>Observe Frame</dt><dd><code data-bind="v7.instrument.calibration.frame_type_context">science</code></dd>
+                <dt>Expected for Frame</dt><dd><code data-bind="v7.instrument.calibration.expected_for_frame">science mode + lamps off</code></dd>
+                <dt>Compatibility</dt><dd><code data-bind="v7.instrument.calibration.compatibility">status not loaded</code></dd>
               </dl>
               <div class="badge-row" style="margin-top: 8px;">
                 <span class="badge live">flat</span>
                 <span class="badge live">Hg(Ar)</span>
                 <span class="badge live">Ne</span>
-                <span class="badge future">mirror path pending</span>
+                <span class="badge future">frame-type advisory</span>
+                <span class="badge future">preview validation pending</span>
               </div>
             </div>
           </section>
@@ -272,14 +281,188 @@
     setText(document.querySelector('[data-bind="v7.instrument.slit.width_current"]'), `${formatNumber(arcsec, 3)} arcsec / ${formatNumber(value, 3)} um`);
   }
 
+  function observeFrameType() {
+    const select = document.querySelector('[data-role="obs-frame-type"]');
+    return select && select.value ? select.value : "unknown";
+  }
+
+  function calibrationRequirementForFrameType(frameType, selectedLamp) {
+    const arcLamp = selectedLamp === "arc_ne" ? "arc_ne" : "arc_hgar";
+    if (frameType === "science") {
+      return {
+        enforce: true,
+        mode: "science",
+        lampEnabled: false,
+        mirrorInserted: false,
+        label: "science mode + lamps off",
+      };
+    }
+    if (frameType === "flat") {
+      return {
+        enforce: true,
+        mode: "calibration",
+        lampEnabled: true,
+        lamp: "flat",
+        defaultLamp: "flat",
+        mirrorInserted: true,
+        label: "calibration mode + flat lamp",
+      };
+    }
+    if (frameType === "arc") {
+      return {
+        enforce: true,
+        mode: "calibration",
+        lampEnabled: true,
+        acceptedLamps: ["arc_hgar", "arc_ne"],
+        defaultLamp: arcLamp,
+        mirrorInserted: true,
+        label: "calibration mode + Hg(Ar)/Ne arc lamp",
+      };
+    }
+    if (frameType === "dark" || frameType === "bias") {
+      return {
+        enforce: true,
+        mode: "science",
+        lampEnabled: false,
+        mirrorInserted: false,
+        label: "detector-only frame + lamps off",
+      };
+    }
+    if (frameType === "test") {
+      return {
+        enforce: false,
+        label: "test frame: manually verify Mode/Lamp",
+      };
+    }
+    return {
+      enforce: false,
+      label: "unknown frame type: manually verify Mode/Lamp",
+    };
+  }
+
+  function lampMatchesRequirement(requirement, activeLamp, lampEnabled) {
+    if (!requirement.enforce) return true;
+    if (requirement.lampEnabled === false) return !lampEnabled;
+    if (!lampEnabled) return false;
+    if (requirement.lamp) return activeLamp === requirement.lamp;
+    if (requirement.acceptedLamps) return requirement.acceptedLamps.includes(activeLamp);
+    return true;
+  }
+
+  function calibrationCompatibilityLabel(status) {
+    if (!status) return "status not loaded";
+    const frameType = observeFrameType();
+    const selectedLamp = byRole("instrument-calibration-lamp");
+    const requirement = calibrationRequirementForFrameType(frameType, selectedLamp && selectedLamp.value);
+
+    if (!requirement.enforce) return requirement.label;
+
+    const failures = [];
+    if (requirement.mode && status.mode !== requirement.mode) {
+      failures.push(`mode should be ${requirement.mode}`);
+    }
+    if (!lampMatchesRequirement(requirement, status.activeLamp, status.lampEnabled)) {
+      if (requirement.lampEnabled === false) failures.push("lamp should be off");
+      else if (requirement.lamp) failures.push(`lamp should be ${requirement.lamp}`);
+      else if (requirement.acceptedLamps) failures.push(`lamp should be ${requirement.acceptedLamps.join(" or ")}`);
+    }
+    if (requirement.mirrorInserted !== undefined && status.mirrorInserted !== requirement.mirrorInserted) {
+      failures.push(requirement.mirrorInserted ? "mirror/path should be inserted" : "mirror/path should be out");
+    }
+
+    return failures.length ? `mismatch: ${failures.join("; ")}` : "ok";
+  }
+
+  function renderCalibrationFrameGuidance() {
+    const frameType = observeFrameType();
+    const lampSelect = byRole("instrument-calibration-lamp");
+    const requirement = calibrationRequirementForFrameType(frameType, lampSelect && lampSelect.value);
+    setText(document.querySelector('[data-bind="v7.instrument.calibration.frame_type_context"]'), frameType);
+    setText(document.querySelector('[data-bind="v7.instrument.calibration.expected_for_frame"]'), requirement.label);
+    setText(document.querySelector('[data-bind="v7.instrument.calibration.compatibility"]'), calibrationCompatibilityLabel(runtime.calibrationStatus));
+  }
+
+  function applyCalibrationDefaultsForFrameType() {
+    const modeSelect = byRole("instrument-calibration-mode");
+    const lampSelect = byRole("instrument-calibration-lamp");
+    const enabledInput = byRole("instrument-calibration-lamp-enabled");
+    if (!modeSelect || !lampSelect || !enabledInput) return;
+
+    const requirement = calibrationRequirementForFrameType(observeFrameType(), lampSelect.value);
+    if (!requirement.enforce) {
+      renderCalibrationFrameGuidance();
+      return;
+    }
+
+    if (requirement.mode) modeSelect.value = requirement.mode;
+    enabledInput.checked = Boolean(requirement.lampEnabled);
+    if (requirement.defaultLamp) lampSelect.value = requirement.defaultLamp;
+    syncCalibrationControlState("frame_defaults");
+    renderCalibrationFrameGuidance();
+  }
+
   function updateCalibrationFields(payload) {
     if (!payload || typeof payload !== "object") return;
-    const mode = payload.mode || payload.calibration_mode;
-    const activeLamp = payload.active_lamp || payload.lamp || payload.selected_lamp;
-    const lamps = payload.lamps || payload.lamp_states || {};
-    setText(document.querySelector('[data-bind="v7.instrument.calibration.mode"]'), mode || "unknown");
-    setText(document.querySelector('[data-bind="v7.instrument.calibration.flat"]'), text(lamps.flat, activeLamp === "flat" ? "enabled" : "unknown"));
-    setText(document.querySelector('[data-bind="v7.instrument.calibration.arc"]'), activeLamp ? `${activeLamp}` : "unknown");
+    const mode = payload.mode || payload.calibration_mode || "unknown";
+    const activeLamp = payload.active_lamp || payload.lamp || payload.selected_lamp || null;
+    const lampEnabled = payload.lamp_enabled === undefined ? Boolean(activeLamp) : Boolean(payload.lamp_enabled);
+    const mirrorInserted = payload.mirror_inserted === undefined ? mode === "calibration" : Boolean(payload.mirror_inserted);
+
+    runtime.calibrationStatus = {
+      mode,
+      activeLamp,
+      lampEnabled,
+      mirrorInserted,
+    };
+
+    setText(document.querySelector('[data-bind="v7.instrument.calibration.mode"]'), mode);
+    setText(document.querySelector('[data-bind="v7.instrument.calibration.active_lamp"]'), lampEnabled && activeLamp ? activeLamp : "none");
+    setText(document.querySelector('[data-bind="v7.instrument.calibration.lamp_enabled"]'), String(lampEnabled));
+    setText(document.querySelector('[data-bind="v7.instrument.calibration.mirror_inserted"]'), mirrorInserted ? "inserted" : "out");
+
+    const modeSelect = byRole("instrument-calibration-mode");
+    const lampSelect = byRole("instrument-calibration-lamp");
+    const enabledInput = byRole("instrument-calibration-lamp-enabled");
+    if (modeSelect && (mode === "science" || mode === "calibration")) modeSelect.value = mode;
+    if (lampSelect && activeLamp) lampSelect.value = activeLamp;
+    if (enabledInput) enabledInput.checked = lampEnabled;
+
+    renderCalibrationFrameGuidance();
+  }
+
+  function syncCalibrationControlState(trigger) {
+    const modeSelect = byRole("instrument-calibration-mode");
+    const lampSelect = byRole("instrument-calibration-lamp");
+    const enabledInput = byRole("instrument-calibration-lamp-enabled");
+    if (!modeSelect || !enabledInput) return;
+
+    if (trigger === "mode" && modeSelect.value === "science") {
+      enabledInput.checked = false;
+      renderCalibrationFrameGuidance();
+      return;
+    }
+
+    if ((trigger === "lamp_enable" || trigger === "lamp_select") && enabledInput.checked) {
+      modeSelect.value = "calibration";
+      renderCalibrationFrameGuidance();
+      return;
+    }
+
+    if (trigger === "frame_defaults") {
+      renderCalibrationFrameGuidance();
+      return;
+    }
+
+    if (modeSelect.value === "science") enabledInput.checked = false;
+    if (enabledInput.checked) modeSelect.value = "calibration";
+    renderCalibrationFrameGuidance();
+  }
+
+  function bindObservationFrameTypeContext() {
+    const select = document.querySelector('[data-role="obs-frame-type"]');
+    if (!select || select.dataset.calibrationContextBound) return;
+    select.dataset.calibrationContextBound = "true";
+    select.addEventListener("change", renderCalibrationFrameGuidance);
   }
 
   function updateDetectorFields(payload) {
@@ -411,6 +594,25 @@
   function bindEvents() {
     bindSlitUnitSync();
     bindSlitShortcuts();
+    bindObservationFrameTypeContext();
+
+    const modeSelect = byRole("instrument-calibration-mode");
+    const lampSelect = byRole("instrument-calibration-lamp");
+    const enabledInput = byRole("instrument-calibration-lamp-enabled");
+
+    if (modeSelect && !modeSelect.dataset.couplingBound) {
+      modeSelect.dataset.couplingBound = "true";
+      modeSelect.addEventListener("change", () => syncCalibrationControlState("mode"));
+    }
+    if (lampSelect && !lampSelect.dataset.couplingBound) {
+      lampSelect.dataset.couplingBound = "true";
+      lampSelect.addEventListener("change", () => syncCalibrationControlState("lamp_select"));
+    }
+    if (enabledInput && !enabledInput.dataset.couplingBound) {
+      enabledInput.dataset.couplingBound = "true";
+      enabledInput.addEventListener("change", () => syncCalibrationControlState("lamp_enable"));
+    }
+
     bindButton("instrument-set-slit-width", () => {
       try {
         postJson("set_slit_width", SLIT_ENDPOINT, { width_um: readSlitWidthUm() });
@@ -427,15 +629,19 @@
     });
     bindButton("instrument-set-calibration-mode", () => {
       const select = byRole("instrument-calibration-mode");
+      syncCalibrationControlState("mode");
       postJson("set_calibration_mode", CALIBRATION_MODE_ENDPOINT, { mode: select ? select.value : "science" });
     });
     bindButton("instrument-set-calibration-lamp", () => {
       const select = byRole("instrument-calibration-lamp");
       const enabled = byRole("instrument-calibration-lamp-enabled");
+      syncCalibrationControlState("lamp_enable");
       postJson("set_calibration_lamp", CALIBRATION_LAMP_ENDPOINT, { lamp: select ? select.value : "flat", enabled: Boolean(enabled && enabled.checked) });
     });
+    bindButton("instrument-use-calibration-frame-defaults", applyCalibrationDefaultsForFrameType);
     bindButton("instrument-refresh-calibration", () => getJson("refresh_calibration", CALIBRATION_STATUS_ENDPOINT, updateCalibrationFields));
     bindButton("instrument-refresh-detector-config", () => getJson("refresh_detector_config", DETECTOR_CONFIG_ENDPOINT, updateDetectorFields));
+    renderCalibrationFrameGuidance();
   }
 
   function start() {

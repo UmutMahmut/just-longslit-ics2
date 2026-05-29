@@ -423,19 +423,28 @@
                         <label>Lamp<select data-role="instrument-calibration-lamp"><option value="flat">flat</option><option value="arc_hgar">arc_hgar</option><option value="arc_ne">arc_ne</option></select></label>
                         <button class="btn" type="button" data-action="instrument-set-calibration-mode" disabled>Set Mode</button>
                         <button class="btn" type="button" data-action="instrument-set-calibration-lamp" disabled>Set Lamp</button>
-                        <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" checked /> Enable lamp</label>
-                        <button class="btn" type="button" data-action="instrument-refresh-calibration" disabled>Refresh</button>      
+                        <label><input type="checkbox" data-role="instrument-calibration-lamp-enabled" /> Enable lamp</label>
+                        <button class="btn" type="button" data-action="instrument-use-calibration-frame-defaults" disabled>Use Frame-Type Defaults</button>
+                        <button class="btn" type="button" data-action="instrument-refresh-calibration" disabled>Refresh</button>
                       </div>
+                      <p style="margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45;">
+                        Mode/Lamp must match the intended frame type. Science frames require science mode and lamps off; flat frames require calibration mode with the flat lamp; arc frames require calibration mode with an Hg(Ar) or Ne arc lamp. Dark/bias are future detector-only frames and keep lamps off.
+                      </p>
                       <dl class="kv compact-kv" style="margin-top: 8px;">
                         <dt>Mode</dt><dd><code data-bind="v7.instrument.calibration.mode">science</code></dd>
-                        <dt>Flat</dt><dd><code data-bind="v7.instrument.calibration.flat">off</code></dd>
-                        <dt>Arc</dt><dd><code data-bind="v7.instrument.calibration.arc">not connected</code></dd>
+                        <dt>Active Lamp</dt><dd><code data-bind="v7.instrument.calibration.active_lamp">none</code></dd>
+                        <dt>Lamp Enabled</dt><dd><code data-bind="v7.instrument.calibration.lamp_enabled">false</code></dd>
+                        <dt>Mirror / Path</dt><dd><code data-bind="v7.instrument.calibration.mirror_inserted">out</code></dd>
+                        <dt>Observe Frame</dt><dd><code data-bind="v7.instrument.calibration.frame_type_context">science</code></dd>
+                        <dt>Expected for Frame</dt><dd><code data-bind="v7.instrument.calibration.expected_for_frame">science mode + lamps off</code></dd>
+                        <dt>Compatibility</dt><dd><code data-bind="v7.instrument.calibration.compatibility">status not loaded</code></dd>
                       </dl>
                       <div class="badge-row" style="margin-top: 8px;">
                         <span class="badge live">flat</span>
                         <span class="badge live">Hg(Ar)</span>
                         <span class="badge live">Ne</span>
-                        <span class="badge future">mirror path pending</span>
+                        <span class="badge future">frame-type advisory</span>
+                        <span class="badge future">preview validation pending</span>
                       </div>
                     </div>
                   </section>

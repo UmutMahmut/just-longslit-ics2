@@ -2,28 +2,28 @@
 
 Instrument Control System (ICS) for the JUST Telescope **Long-Slit Spectrograph**.
 
-ICS 2.0 is intended to become the software control backbone for the JUST long-slit spectrograph. It is not only a web UI project. The repository currently contains a simulation-first, API-driven control stack and a staged operator-console frontend being developed toward later real-hardware integration.
+ICS 2.0 is intended to become the software control backbone for the JUST long-slit spectrograph. It is not only a web UI project. The repository currently contains a simulation-first, API-driven backend, a staged v7.1 operator-console prototype, and durable contracts that are being hardened before real-hardware integration.
 
 ---
 
 ## Current status
 
-The current `main` baseline has completed **Phase 2.9-A: durable Setup/Data Context**.
+The current `main` baseline is **after Phase 2.9-A closeout plus post-2.9-A maintenance fixes**.
 
-Current mainline commit:
+Current checkpoint before this docs sync:
 
 ```text
-08daffb observation: attach setup context snapshot on arm
+a955308 ui: clarify calibration mode lamp frame coupling
 ```
 
 Recent local validation reported by the user:
 
 ```text
 pytest -q
-202 passed in 1.38s
+202 passed in 1.40s
 ```
 
-Phase 2.9-A established the first durable backend fact source for observing setup/session metadata:
+Phase 2.9-A is closed. It established the first durable backend fact source for observing setup/session metadata:
 
 ```text
 Setup UI
@@ -34,9 +34,15 @@ Setup UI
   -> GET /api/v1/observation/status
 ```
 
-This completed the planned Setup/Data Context chain without expanding into a proposal database, scheduler, sequence runner, FITS writer, DataProduct pipeline, telescope control, or per-channel B/G/R exposure control.
+Post-2.9-A maintenance fixes are also closed:
 
-The next planned phase is:
+```text
+- Python packaging metadata restored through pyproject.toml / requirements.txt / .gitignore.
+- Local install instructions now use pip install -e ".[dev]" or pip install -r requirements.txt.
+- Instrument Calibration UI now preserves backend Mode/Lamp terminology and exposes frame-type advisory fields.
+```
+
+The next planned development phase remains:
 
 ```text
 Phase 2.9-B: Observation request/preview contract
@@ -67,11 +73,13 @@ This route switch does not mean v7.1 is a final product-grade GUI.
 
 - A layered Python backend organized around domain / kernel / application / API boundaries.
 - A FastAPI control and status interface under `/api/v1/*`.
+- Python packaging metadata for editable local development.
 - A simulation-first runtime for end-to-end development before full hardware availability.
 - Backend-served static frontends for zero-CORS local integration.
 - A v7.1 default operator-console prototype with explicit v5 fallback routes.
 - Durable setup/session context API, JSON-backed persistence, and v7 setup runtime binding.
 - Observation arm metadata handoff for `setup_context` and `data_preview` snapshots.
+- Instrument Calibration UI frame-type advisory for science/flat/arc Mode/Lamp compatibility.
 - Runtime-status, setup, instrument, preset, observe, and observe-guard runtime modules for v7.1, all opt-in behind runtime gates.
 - Regression tests covering API behavior, application/domain/kernel contracts, UI route/static asset behavior, runtime gates, preset safety, observe/status behavior, setup context persistence, and operator-console shell invariants.
 
@@ -92,7 +100,7 @@ Core design priorities:
 - Ensure backend capabilities are visible in the frontend when operationally relevant.
 - Prefer contracts and adapters before adopting specific hardware protocols or infrastructure technologies.
 
-The current design has been informed by mature spectrograph-control patterns and by earlier JUST ICS experience. The legacy ICS 1.0 repository is useful as an intent reference, especially for the minimal closed loop, SimHAL, capabilities map, slit/lamp control, SlitCam, B/G/R placeholders, and backend-served static UI. It is not the implementation source of truth for ICS 2.0.
+The legacy ICS 1.0 repository is useful as an intent reference, especially for the minimal closed loop, SimHAL, capabilities map, slit/lamp control, SlitCam, B/G/R placeholders, and backend-served static UI. It is not the implementation source of truth for ICS 2.0.
 
 ---
 
@@ -117,6 +125,7 @@ Phase 2.9 is **Contract Hardening**.
 
 ```text
 Phase 2.9-A  Setup/Data Context model + API + persistence + observation snapshot handoff  DONE
+Post-2.9-A  Packaging metadata + calibration UI frame-type advisory                    DONE
 Phase 2.9-B  Observation request/preview contract                                      NEXT
 Phase 2.9-C  Shared command/status feedback contract
 Phase 2.9-D  Data product and exposure-record contract
@@ -142,6 +151,22 @@ Operator-console requirements and capability visibility rules are maintained in:
 
 ```text
 docs/operator_console_requirements.md
+```
+
+---
+
+## Phase 2.9-B locked decisions
+
+The first Phase 2.9-B implementation slice must stay small and domain-first:
+
+```text
+- ObservationRequest uses exposures: list[ExposureSpec].
+- Initial preview/arm compatibility allows exactly one ExposureSpec only.
+- Multiple exposures are a shape reservation, not sequence-runner support.
+- frame_type is strict and initially execution-compatible with science / flat / arc / test.
+- TCS readiness may have a placeholder slot, but detailed TCS fields remain unavailable/unknown until a real interface exists.
+- ExposureRecord/DataProduct contract comes before sequence runner.
+- No database is introduced yet; keep protocol + JSON/JSONL style persistence until real operational needs appear.
 ```
 
 ---
@@ -200,17 +225,6 @@ $env:JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED="1"
 $env:JUSTLS_UI_V7_OBSERVE_GUARD_ENABLED="1"
 ```
 
-Runtime assets:
-
-```text
-src/justls/ics/app/ui/v7/runtime_status.js
-src/justls/ics/app/ui/v7/setup_runtime.js
-src/justls/ics/app/ui/v7/instrument_runtime.js
-src/justls/ics/app/ui/v7/preset_runtime.js
-src/justls/ics/app/ui/v7/observe_runtime.js
-src/justls/ics/app/ui/v7/observe_guard.js
-```
-
 Important rule:
 
 ```text
@@ -223,9 +237,7 @@ Runtime JS should not create competing duplicate UI panels unless it is a fallba
 
 ## API overview
 
-Current backend work is centered around the `/api/v1/*` namespace.
-
-Representative endpoints include:
+Representative current endpoints include:
 
 - `GET /api/v1/health`
 - `GET /api/v1/status`
@@ -295,10 +307,10 @@ Run tests locally with:
 pytest -q
 ```
 
-Current baseline reported by the user after Phase 2.9-A merge:
+Current baseline reported after post-2.9-A maintenance fixes:
 
 ```text
-202 passed in 1.38s
+202 passed in 1.40s
 ```
 
 Current test homes:
@@ -326,10 +338,10 @@ At the current stage:
 - v7 is now the default operator-console prototype, not a final product-grade GUI;
 - v7 runtime remains opt-in, not default-on;
 - setup/session metadata now has durable JSON-backed persistence and observation arm snapshot handoff;
-- Phase 2.9-B has not yet defined the ObservationRequest / ObservationPlan preview contract;
+- calibration UI now has frame-type advisory, but blocking validation still belongs to the future Observation preview contract;
+- Phase 2.9-B has not yet defined the ObservationRequest / Preview contract;
 - live image backend / quicklook / data watcher is not started;
 - sequence runner and durable observing plan execution remain deferred;
-- production preset UX still needs operator-facing diff tables and clearer risk presentation;
 - FITS/data-product pipeline and persistent observation log need future backend contracts;
 - role separation, authentication, and engineering/operator permission boundaries are future work;
 - real hardware communication protocols remain hardware-selection-driven and adapter-bounded, not preselected in the software roadmap.

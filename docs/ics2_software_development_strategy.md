@@ -1,12 +1,12 @@
 # JUST Long-Slit ICS 2.0 软件开发战略
 
 ```text
-文档日期: 2026-05-28
-版本: v2026.05.28-r2
-状态: Phase 2.9-A complete; Phase 2.9-B Observation request/preview contract next
+文档日期: 2026-05-29
+版本: v2026.05.29-r3
+状态: Phase 2.9-A closed; post-2.9-A maintenance fixes closed; Phase 2.9-B1 next
 适用范围: JUST 长缝光谱仪 ICS 2.0 软件主线开发
-当前 mainline: 08daffb observation: attach setup context snapshot on arm
-当前验证: pytest -q -> 202 passed in 1.38s
+当前 mainline checkpoint before this docs sync: a955308 ui: clarify calibration mode lamp frame coupling
+当前验证: pytest -q -> 202 passed in 1.40s
 ```
 
 ## 1. 战略定位
@@ -144,7 +144,7 @@ HTML owns durable structure.
 Runtime JS enhances durable HTML skeletons.
 ```
 
-v7 runtime 仍然 opt-in。新增 Setup runtime 也遵守同样策略：`JUSTLS_UI_V7_RUNTIME_ENABLED=1` + `JUSTLS_UI_V7_SETUP_RUNTIME_ENABLED=1` 才注入 `setup_runtime.js`。
+v7 runtime 仍然 opt-in。Setup runtime 也遵守同样策略：`JUSTLS_UI_V7_RUNTIME_ENABLED=1` + `JUSTLS_UI_V7_SETUP_RUNTIME_ENABLED=1` 才注入 `setup_runtime.js`。
 
 ### 5.2 后端 API 基线
 
@@ -205,30 +205,21 @@ Job 层能记录 command request、job status、accepted/running/succeeded/faile
 ```text
 Phase 2.6:
   GUI 与运行状态基础。
-  完成 /api/v1/status/full、operational status 思路、v6 review shell、v5 adapter、UI safety switches 和 X-Request-ID / latest-job 方向。
 
 Phase 2.7:
   Preset operational hardening。
-  完成 preset category / risk_level / requires_confirmation、side-effect-free preview、guarded apply、latest-job linkage。
 
-Phase 2.8-G:
-  v7 runtime 架构稳定。
-  完成 v7 runtime master gate、模块级 runtime gates、status/preset/observe/guard runtime 的 skeleton-aware 化。
-
-Phase 2.8-H:
-  v5 到 v7 feature parity pass。
-  完成 v7.1 IA、Instrument / Configure 页面、feedback rail、Observe Finish baseline、Instrument API alignment、slit arcsec/um dual-unit correction。
-
-Phase 2.8-I/J:
-  command feedback unification 与 v7 default route switch。
-  /ui 默认进入 v7.1 operator-console prototype，/ui/v5 和 /ui/legacy 保留 fallback。
-
-v7 UI IA cleanup:
-  ui_operational_v7.html 成为 served layout source；Instrument 页面压缩为 operator-facing compact structure；Setup 页面改为 action-oriented structure；MODS-inspired gap review 写入 operator-console requirements。
+Phase 2.8-G/H/I/J:
+  v7 runtime、v7 IA、v7 default route、UI cleanup。
 
 Phase 2.9-A:
   durable Setup/Data Context 已完成并入 main。
   完成 SessionDataContext domain model、GET/PUT/reload API、JSON store、v7 setup runtime binding、ObservationMeta.setup_context/data_preview handoff。
+
+Post-2.9-A maintenance:
+  Python packaging metadata restored。
+  README install instructions synced。
+  Instrument Calibration UI Mode/Lamp frame-type advisory merged。
 ```
 
 P0/v5 slit-width 单位合同继续保留：
@@ -251,7 +242,7 @@ backend command unit = um
 | v7 default UI | 已切换 | 是默认 prototype，不是 final GUI |
 | v7 runtime | 默认关闭 | 保持显式 opt-in，避免扩大控制面 |
 | Slit control | 基础可用 | arcsec/um 双单位合同必须固定 |
-| Calibration | 基础可见/可控 | 后续需区分 lamp/source/path/mirror，不要简化成 lamp on/off |
+| Calibration | 基础可见/可控 + Mode/Lamp frame-type advisory | 真正 blocking validation 放到 Observation preview contract |
 | Detector config | 可见，部分可写 | routine UI 不应急着开放复杂 detector write |
 | B/G/R channels | UI summary 级别可见 | 真实三通道硬件控制是后续硬件集成 |
 | OCS | 未实现 | 2.9-B 先定义 request/preview contract；adapter 后置 |
@@ -301,57 +292,9 @@ flowchart TB
   KERNEL --> DATA
 ```
 
-关键点：OCS/TCS/DataProduct/未来硬件接口都不应绕过 Application/Kernel 直接进入 UI 或硬件。所有命令必须穿过统一的状态、审计、错误和安全边界。底层硬件通信协议保持 TBD，由真实硬件选型反向驱动。
+关键点：OCS/TCS/DataProduct/未来硬件接口都不应绕过 Application/Kernel 直接进入 UI 或硬件。所有命令必须穿过统一的状态、审计、错误和安全边界。
 
-## 9. 数据与控制流目标
-
-```mermaid
-sequenceDiagram
-    participant O as Operator / OCS / Script
-    participant API as FastAPI API
-    participant APP as Application Service
-    participant D as Domain Models
-    participant K as Kernel Runtime / Jobs
-    participant A as Adapter
-    participant HW as Driver / Hardware
-    participant DP as Data Product Layer
-
-    O->>API: SetupContext / ObservationRequest / Command
-    API->>APP: validate request schema
-    APP->>D: validate domain contract
-    APP->>K: create CommandRequest + JobRecord
-    K->>K: check state / interlocks / capability
-    K->>A: dispatch safe command
-    A->>HW: sim or real operation
-    HW-->>A: status/result
-    A-->>K: normalized result/error
-    K->>K: update state + latest_job
-    K->>DP: record exposure/event metadata
-    DP-->>APP: data product reference
-    APP-->>API: response with request_id/latest_job/result
-    API-->>O: operator-facing result
-```
-
-目标不是让每个按钮直接控制硬件，而是让每个操作都成为可追踪、可恢复、可解释的 command lifecycle。
-
-## 10. 产品级目标定义
-
-ICS 2.0 达到产品级，并不意味着“没有任何 bug”。更实际的定义是：
-
-```text
-- routine observing 可以通过 v7 operator console 完成；
-- OCS 可以提交观测请求，并查询状态和结果；
-- TCS 状态可以进入 readiness 判断，但早期不由 ICS 控制 TCS；
-- Setup、仪器配置、曝光、定标、数据产品和错误都具备统一生命周期；
-- 所有高影响操作都有 request_id、latest_job、result_summary、last_error；
-- Abort / discard / preset apply / engineering action 有明确 guard；
-- 真实硬件接入遵守 adapter contract，不破坏模拟链路；
-- 故障可以被检测、隔离、解释，并有人工恢复路径；
-- 数据产品至少包含可追溯 metadata、quicklook 入口和后续 FITS/manifest 合同；
-- operator flow 和 diagnostics flow 明确分离。
-```
-
-## 11. Phase 2.9：Contract Hardening
+## 9. Phase 2.9：Contract Hardening
 
 Phase 2.9 的核心不是“大规模实现”，而是把 Phase 3.x/4.x 需要的合同定稳。
 
@@ -359,61 +302,42 @@ Phase 2.9 的核心不是“大规模实现”，而是把 Phase 3.x/4.x 需要�
 
 状态：完成。
 
-完成内容：
-
-```text
-SessionDataContext
-SetupContextService
-SetupContextStore protocol
-JsonSetupContextStore
-GET /api/v1/setup/context
-PUT /api/v1/setup/context
-POST /api/v1/setup/context/reload
-v7 setup_runtime.js opt-in binding
-ObservationMeta.setup_context
-ObservationMeta.data_preview
-```
-
-完成后的闭环：
-
-```text
-Setup UI
-  -> GET/PUT/reload /api/v1/setup/context
-  -> JsonSetupContextStore
-  -> ObservationService.arm()
-  -> ObservationMeta.setup_context + data_preview
-  -> GET /api/v1/observation/status
-```
-
-明确未做：
-
-```text
-- 不递增 next_frame_index；
-- 不占号；
-- 不写 FITS；
-- 不创建 DataProduct；
-- 不做 proposal database；
-- 不做 scheduler；
-- 不做 sequence runner；
-- 不接 TCS/OCS 控制。
-```
-
 ### 2.9-B：Observation request/preview contract
 
 状态：下一阶段。
 
 目标：定义 observation intent 的稳定领域/API 合同，而不是立即实现完整 sequence runner。
 
+已锁定决策：
+
+```text
+- ObservationRequest 使用 exposures: list[ExposureSpec]。
+- Phase 2.9-B 初期只允许 exactly one ExposureSpec 进入 preview/arm compatibility。
+- 多 exposure 是合同形状预留，不代表 sequence runner 已实现。
+- frame_type 采用严格枚举。
+- 初期 execution-compatible frame_type 维持 science / flat / arc / test。
+- TCS readiness slot 可以存在，但详细 TCS 字段长期保持 unavailable/unknown，直到真实接口到位。
+- ExposureRecord/DataProduct contract 先于 sequence runner。
+- 暂不引入数据库；先使用 protocol + JSON/JSONL store。
+```
+
 候选产物：
 
 ```text
 ObservationRequest
-ObservationPlan
 ExposureSpec
-SequenceStep
 ObservationPreviewResult
 ValidationIssue
 ReadinessSnapshot
+PreviewSideEffectContract
+```
+
+暂缓产物：
+
+```text
+ObservationPlan
+SequenceStep
+SequenceRun
 AbortPolicy
 RecoveryPolicy
 ```
@@ -426,6 +350,7 @@ RecoveryPolicy
 - 可 preview；
 - 可表达 single-exposure baseline；
 - 可为后续 sequence runner 预留结构；
+- preview 必须 side-effect-free；
 - 不直接执行完整 sequence；
 - 不接真实 OCS；
 - 不控制真实 TCS；
@@ -437,7 +362,7 @@ RecoveryPolicy
 
 ```text
 2.9-B1:
-  domain model for ObservationRequest / ExposureSpec / ObservationPreviewResult
+  domain model for ObservationRequest / ExposureSpec / ObservationPreviewResult / ValidationIssue / ReadinessSnapshot
   domain tests only
 
 不做:
@@ -450,137 +375,56 @@ RecoveryPolicy
 
 ### 2.9-C：Shared command/status feedback contract
 
-候选产物：
-
-```text
-CommandFeedback
-EventEnvelope
-CommandResultEnvelope
-LifecycleEvent
-ErrorEnvelope
-```
-
-统一字段：
-
-```text
-event_id
-request_id
-observation_id
-command_id
-job_id
-source
-severity
-timestamp
-state_before
-state_after
-last_command
-latest_job
-last_error
-result_summary
-error_code
-payload_ref
-freshness
-```
+候选产物：CommandFeedback、EventEnvelope、CommandResultEnvelope、LifecycleEvent、ErrorEnvelope。
 
 ### 2.9-D：Data product and exposure-record contract
 
-候选产物：
-
-```text
-ExposureRecord
-FrameRecord
-DataProductRef
-QuicklookRef
-FitsHeaderSummary
-QualityFlag
-SequenceManifest
-```
+候选产物：ExposureRecord、FrameRecord、DataProductRef、QuicklookRef、FitsHeaderSummary、QualityFlag、SequenceManifest。
 
 目标：先把“曝光成功”和“数据产品存在”区分开。
 
 ### 2.9-E：Read-only observatory/TCS context
 
-候选产物：
+早期只读字段候选包括 connected、stale、tracking_state、target_name、ra_dec、alt_az、rotator_angle、focus_position、weather_ok、dome_ready、telescope_ready、last_updated。
 
-```text
-TcsStatus
-ObservatoryContext
-ReadinessStatus
-```
-
-早期只读字段候选：
-
-```text
-connected
-stale
-tracking_state
-target_name
-ra_dec
-alt_az
-rotator_angle
-focus_position
-focus_validity
-weather_ok
-dome_ready
-telescope_ready
-last_updated
-```
-
-明确不做：
-
-```text
-- 不 slew；
-- 不 focus adjustment；
-- 不 rotator command；
-- 不 guiding command；
-- 不 dome command；
-- 不 weather authority；
-- 不伪造真实 telescope telemetry。
-```
+明确不做：slew、focus adjustment、rotator command、guiding command、dome command、weather authority、伪造 telescope telemetry。
 
 ### 2.9-F：Operator workflow polish
 
-重点：
+重点：Presets preview diff、Setup persisted contract visibility、Diagnostics raw payload/requests/latest_job/errors、Instrument/Observe/Presets busy/blocked/error/result 语言统一、Housekeeping/Engineer 边界。
+
+## 10. Phase 3.x：Simulator-backed workflow
+
+Phase 3.x 才开始把“合同”变成“端到端模拟观测系统”。推荐顺序：
 
 ```text
-- Presets preview 从 raw JSON 走向 operator-facing diff；
-- Setup 显示 persisted contract / runtime-derived 状态；
-- Diagnostics 成为 raw payload、runtime、request、latest_job、error 的主入口；
-- Instrument / Observe / Presets 的 busy / blocked / error / result visual language 统一；
-- Housekeeping 与 Engineer 的 routine/unsafe 边界逐步明确。
-```
-
-## 12. Phase 3.x：Simulated End-to-End Observatory Workflow
-
-Phase 3.x 才开始把“合同”变成“端到端模拟观测系统”。
-
-```text
-Phase 3.0 Sequence Runner MVP
-Phase 3.1 OCS Adapter MVP
-Phase 3.2 TCS read-only sync
-Phase 3.3 Data product / quicklook backend
-Phase 3.4 Realtime event push, if still justified
-Phase 3.5 v7 production-candidate hardening
+Phase 3.0 Single-exposure closed-loop rehearsal
+Phase 3.1 ExposureRecord / DataProduct contract and persistence
+Phase 3.2 Calibration/slit readiness integration
+Phase 3.3 Minimal linear sequence runner
+Phase 3.4 Abort/recovery hardening
+Phase 3.5 Quicklook/data watcher prototype
+Phase 3.6 OCS adapter contract draft
 ```
 
 实时推送不宜早于 EventEnvelope 和 sequence lifecycle 稳定；如果 polling + command feedback 足够支持当前阶段，则继续保留为后续候选。
 
-## 13. Phase 4.x：Hardware Commissioning
+## 11. Phase 4.x：Hardware Commissioning
 
 Phase 4.x 是真实硬件接入和现场 commissioning，不是简单地把 simulator 替换为 hardware。
 
 ```text
 Phase 4.0 Hardware adapter contract freeze
-Phase 4.1 Slit / calibration bring-up
-Phase 4.2 Detector B/G/R bring-up
-Phase 4.3 Slit monitor / guider integration
-Phase 4.4 Hardware communication and realtime feedback integration, if required
+Phase 4.1 Read-only real-hardware status first
+Phase 4.2 Slit / calibration bring-up
+Phase 4.3 Detector B/G/R bring-up
+Phase 4.4 Slit monitor / guider integration
 Phase 4.5 Nightly commissioning
 ```
 
-真实硬件通信协议不在软件阶段预先指定。Phase 4.x 根据最终硬件、控制器、厂商 SDK、PLC/fieldbus 架构和现场 commissioning 需求决定接入方式。若硬件确实使用某种 fieldbus、motion controller、PLC、EPICS IOC、串口、USB、以太网或厂商 SDK，ICS 只通过 adapter/gateway 进入，不让 routine operator UI 直接面对底层接口。
+真实硬件通信协议不在软件阶段预先指定。若硬件使用 fieldbus、motion controller、PLC、EPICS IOC、串口、USB、以太网或厂商 SDK，ICS 只通过 adapter/gateway 进入，不让 routine operator UI 直接面对底层接口。
 
-## 14. 现在到下一步的优先级
+## 12. 现在到下一步的优先级
 
 ### P0：Phase 2.9-B 必须保持克制
 
@@ -607,11 +451,12 @@ Phase 4.5 Nightly commissioning
 ### P2：Phase 3.x
 
 ```text
-1. Sequence Runner MVP；
-2. OCS Adapter MVP；
-3. TCS read-only sync；
-4. Data product / quicklook backend；
-5. Event push if justified。
+1. single-exposure closed-loop rehearsal；
+2. ExposureRecord / DataProduct contract and persistence；
+3. calibration/slit readiness integration；
+4. minimal linear sequence runner；
+5. quicklook/data watcher prototype；
+6. OCS adapter contract draft。
 ```
 
 ### P3：Phase 4.x
@@ -624,7 +469,7 @@ Phase 4.5 Nightly commissioning
 5. commissioning checklists and drills。
 ```
 
-## 15. 硬件现实约束
+## 13. 硬件现实约束
 
 后续所有软件设计必须遵守以下原则：
 
@@ -643,27 +488,28 @@ Phase 4.5 Nightly commissioning
 - B/G/R 三通道必须始终按 JUST 模型表达，不能退化为 Blue/Red 两通道；
 - slit width 控制必须保留 arcsec 和 um 双单位；
 - 1 arcsec = 128.34 um 是软件控制合同；
-- calibration 不只是 lamp on/off，还包括 source、mode、path、mirror 等后续合同；
+- calibration 不只是 lamp on/off，还包括 source、mode、path、mirror 以及 frame-type 兼容性；
 - slit monitor / guider 是一等子系统，不应从 UI 架构中消失；
 - TCS context 是 readiness 的组成部分，但早期只读；
 - 底层通信协议由硬件选型决定；当前阶段不预设任何具体 fieldbus 或厂商接口。
 ```
 
-## 16. 新聊天启动建议
+## 14. 新聊天启动建议
 
-新聊天可直接从 Phase 2.9-B 开始，第一步不要写代码，先定义边界和模型/API/service/test 拆分。
+新聊天可直接从 Phase 2.9-B1 开始。第一步不要改 API/UI/service，先做 domain model + domain tests。
 
 建议关注问题：
 
 ```text
 ObservationRequest 与当前 /api/v1/observation/arm 的关系是什么？
-ExposureSpec 是否只覆盖 single exposure，还是要预留 sequence step？
+ExposureSpec 如何预留 exposures list 但限制初期 exactly one exposure？
 Preview result 应该返回哪些 validation/readiness/side-effect 信息？
 SetupContext snapshot 是否作为 ObservationRequest 的输入之一，还是 preview 时从 backend current context 读取？
+Calibration Mode/Lamp/frame_type 兼容性如何进入 readiness validation？
 哪些字段是 Phase 2.9-B 必须稳定的，哪些应推迟到 2.9-D DataProduct？
 ```
 
-## 17. 成功标准
+## 15. 成功标准
 
 短期成功：
 

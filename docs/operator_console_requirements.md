@@ -104,11 +104,13 @@ JUST-specific correction:
 JUST is a B/G/R three-channel spectrograph, not a MODS Blue/Red two-channel instrument.
 ```
 
-### MODS-inspired operational gap review before Phase 2.9
+---
 
-MODS is not a visual style target for ICS 2.0. Its control-panel screens are dense and old-fashioned by modern web standards. The useful lesson is operational completeness: mature spectrograph-control software tends to make the observing loop, data naming, command/status feedback, channel state, and observatory context visible to the operator.
+## MODS-inspired operational gap review before Phase 2.9
 
-Use MODS as a checklist for Phase 2.9 planning, not as a widget-by-widget UI template.
+MODS is not a visual style target for ICS 2.0. Its useful lesson is operational completeness: mature spectrograph-control software tends to make the observing loop, data naming, command/status feedback, channel state, and observatory context visible to the operator.
+
+Use MODS as a checklist for planning, not as a widget-by-widget UI template.
 
 ```text
 Do not copy:
@@ -125,9 +127,7 @@ Do translate:
   - clear separation of Setup, Instrument, Observe, Housekeeping, and Engineer responsibilities.
 ```
 
-Phase 2.9 gaps are not only frontend gaps. Each item below records the required software boundary before implementation.
-
-#### Setup and data naming
+### Setup and data naming
 
 Scope:
 
@@ -138,30 +138,31 @@ frontend + API + application service + persistence
 Current state:
 
 ```text
-- Setup now exposes observer/project/session context.
+- Setup exposes observer/project/session context.
 - Root name, date prefix, next frame token, and data directory have visible frontend locations.
-- No durable session persistence contract exists yet.
-- No persisted FITS/data-naming state is available to downstream observation commands yet.
+- Durable SessionDataContext exists.
+- Setup context has GET/PUT/reload API endpoints.
+- Setup context has service and JSON-store persistence.
+- Observation arm attaches setup_context and data_preview snapshots into ObservationMeta.
+- FITS/DataProduct persistence is still future work.
 ```
 
-Phase 2.9 decision:
+Phase 2.9-A decision:
 
 ```text
-Adopt durable Setup persistence.
+Durable Setup persistence is complete.
 ```
 
 Required direction:
 
 ```text
-- Define a session/data-context domain model.
-- Add API/application service support for save/apply/reload of observing-session context.
-- Preserve a visible filename/data preview in Setup.
-- Keep the implementation storage-simple at first if needed, but do not leave Setup as frontend-only state.
+- Keep Setup as the durable session/data-context source.
+- Preserve visible filename/data preview in Setup.
+- Reuse setup_context/data_preview in ObservationRequest preview and later ExposureRecord/DataProduct contracts.
+- Do not over-scope this into a full observatory scheduler or proposal database.
 ```
 
-Do not over-scope this into a full observatory scheduler or proposal database.
-
-#### Global command and status feedback
+### Global command and status feedback
 
 Scope:
 
@@ -195,7 +196,7 @@ result_summary
 connection/freshness when runtime polling is enabled
 ```
 
-#### B/G/R channel context
+### B/G/R channel context
 
 Scope:
 
@@ -226,7 +227,7 @@ Required direction:
 - Revisit channel readiness/control only when camera hardware and backend contracts are available.
 ```
 
-#### Telescope and external observatory context
+### Telescope and external observatory context
 
 Scope:
 
@@ -256,14 +257,7 @@ ICS 2.0 must not bypass OCS/TCS authority.
 Telescope pointing, rotator, guiding, offsets, dome, and weather authority remain outside routine ICS write-control unless a formal OCS/TCS interface contract says otherwise.
 ```
 
-Future candidate:
-
-```text
-ICS 2.0 may later provide advisory or feedback information to OCS, such as slit/instrument readiness, recommended offset context, exposure/data status, or instrument-side constraints.
-This is an information-level loop to OCS, not direct telescope control.
-```
-
-#### Instrument mode, mask, and disperser semantics
+### Instrument mode, mask, and disperser semantics
 
 Scope:
 
@@ -286,7 +280,7 @@ Keep mask/disperser/channel-mode semantics as TBD unless current JUST hardware/d
 
 Do not import MODS-specific slit-mask/dichroic/grating/prism controls unless they map to a real JUST mechanism and a real backend/hardware contract.
 
-#### Housekeeping and Engineer boundary
+### Housekeeping and Engineer boundary
 
 Scope:
 
@@ -445,45 +439,6 @@ Common v7.1 slit-width shortcuts:
 
 Do not use `0.1 arcsec` as a common default. The P0 design range remains 0.5-5.0 arcsec, but normal UI shortcuts should focus on 1.0, 1.5, 2.0, and 3.0 arcsec unless later operations experience changes this.
 
-### Working environment and envelope
-
-These facts should inform future Housekeeping / Engineer / Diagnostics views, even if not controlled in Phase 2.8-H:
-
-```text
-working temperature:
-  -25 C (TBD) to -20 C as written in P0; retain TBD and do not over-normalize
-
-temperature gradient:
-  3 C / h (TBD)
-
-humidity:
-  < 70%
-
-site:
-  Lenghu B platform, altitude 4300 m
-
-outside-dome wind speed:
-  <= 12 m/s
-
-sand/dust:
-  TBD
-
-moon/sky-background operation:
-  must work under Lenghu sky-background and moon-phase conditions
-
-mass:
-  <= 650 kg, target 400 kg
-
-envelope:
-  < Phi 1500 mm x 1500 mm
-
-first mode:
-  >= 100 Hz (TBD)
-
-design lifetime:
-  >= 10 years
-```
-
 ### Calibration system
 
 The calibration system must support flat-field and wavelength calibration.
@@ -527,9 +482,25 @@ calibration optics:
 v7.1 implication:
 
 ```text
-Calibration Configuration must distinguish mode/path and lamp/source state.
+Calibration Configuration must distinguish mode/path, lamp/source state, and frame-type compatibility.
 It must not collapse the system into a generic lamp on/off control.
 If the mirror/path, shutter, power, or integrating-sphere details are not wired yet, show them as backend-contract placeholders rather than real controls.
+```
+
+Current UI decision:
+
+```text
+- Keep backend-aligned Mode/Lamp terminology in routine UI.
+- Lamp selection is a candidate selector.
+- Enable lamp determines whether the selected lamp is actually enabled.
+- Set Lamp with Enable lamp off turns calibration lamps off and returns to science mode in the simulator.
+- Set Lamp with Enable lamp on enters calibration mode and enables the selected lamp in the simulator.
+- Science frame advisory: science mode + lamps off.
+- Flat frame advisory: calibration mode + flat lamp.
+- Arc frame advisory: calibration mode + Hg(Ar) or Ne arc lamp.
+- Observe Frame, Expected for Frame, and Compatibility advisory fields should remain visible.
+- Use Frame-Type Defaults may prepare the local form but must not dispatch commands by itself.
+- Blocking validation belongs to the future Observation preview contract, not frontend-only logic.
 ```
 
 ### Slit monitor / slit camera / guider
@@ -543,54 +514,16 @@ functions:
   monitor science target or calibration source at the slit;
   measure slit width.
 
-slit-monitor camera field:
-  must cover the slit region
-
-working band:
-  > 450 nm - 800 nm
-
-slit-width measurement accuracy:
-  1 um (TBD)
-
-slit optical geometry:
-  slit is tilted by 12 degrees relative to telescope optical axis
-  residual starlight is reflected twice and imaged onto CMOS
-  slit surface has gold reflective coating
-
-lens:
-  DTCM175-136H-M58-AL dual-telecentric lens
-
-lens key parameters:
-  object FOV: Phi 136 mm
-  magnification: 0.213
-  view range on 1.75-inch chip: 105.8 mm x 79.3 mm
-  working distance: 682 mm
-  supported CMOS size: Phi 29 mm
-  image-side best F/#: 6.8
-  MTF30: > 120 lp/mm
-  object depth of field: +/-6 mm @ F/6.8
-  distortion max: 0.03%
-  object-side telecentricity max: 0.1 deg
-  wavelength: 420 nm - 660 nm
-  mechanical interface: M58
-  lens length: 408.7 mm
-  net weight: 4.7 kg
-
 camera:
   QHY268M
   Sony IMX571M
   26 MP
   pixel size 3.76 um x 3.76 um
-  6252 x 4176
   native 16-bit ADC
-  1 GB DDR3 buffer
-  exposure time 30 us - 3600 s
   two-stage semiconductor cooling
-  read noise 1.1-5.5 e-
 
 combined slit-camera result:
   field of view: 14.3 arcmin x 9.6 arcmin
-  corresponding physical field: 110 mm x 74 mm
   sampling: 0.1375 arcsec / pixel
   0.5 arcsec slit sampling: 3.63 pixel
 ```
@@ -622,7 +555,7 @@ P0 observation flow involves the whole observatory, not just detector exposure:
 13. dome closes.
 ```
 
-Current Phase 2.8-H may keep Observe as a single-exposure control baseline. Later phases must not forget the broader OCS/TCS/weather/dome/data workflow.
+Current Phase 2.9 may keep Observe as a single-exposure control baseline. Later phases must not forget the broader OCS/TCS/weather/dome/data workflow.
 
 ### Electrical/control-system scope
 
@@ -665,7 +598,7 @@ P0 describes the long-slit OCS as the interaction interface between JUST termina
 - spectrograph exposure-control module split into B, G, and R channels.
 ```
 
-P0 also references an LRS observing-plan GUI and NGPS OTM-like planning fields:
+P0 also references observing-plan fields:
 
 ```text
 - target status;
@@ -673,11 +606,11 @@ P0 also references an LRS observing-plan GUI and NGPS OTM-like planning fields:
 - RA;
 - DEC;
 - required exposure time;
-- designed exposure time, automatically calculated;
+- designed exposure time;
 - required slit width;
 - designed slit width;
 - required slit angle;
-- set slit angle, automatically set;
+- set slit angle;
 - airmass;
 - OTMSNR;
 - note;
@@ -707,7 +640,7 @@ Responsibilities:
 
 ```text
 Setup
-  Observer/project/session/file/data context. Local placeholders until durable backend contracts exist.
+  Durable observer/project/session/file/data context backed by setup context API and JSON persistence.
 
 Instrument / Configure
   Routine operator configuration and visibility for slit, calibration, detector profile, and B/G/R channel summary.
@@ -813,7 +746,14 @@ v7.1 requirements:
 ```text
 - Calibration mode and lamp state must be visible in Instrument / Configure.
 - Prefer the newer calibration endpoints over the legacy /api/v1/lamp path for v7.1 operator controls.
-- UI text should preserve the real calibration concept: flat source, Hg(Ar), Ne, possible ThAr/FeAr, and science/calibration path switching.
+- Keep backend-aligned Mode/Lamp terminology in routine UI.
+- Lamp selection is a candidate selector; Enable lamp determines whether the selected lamp is actually enabled.
+- Science frame advisory: science mode + lamps off.
+- Flat frame advisory: calibration mode + flat lamp.
+- Arc frame advisory: calibration mode + Hg(Ar) or Ne arc lamp.
+- Observe Frame, Expected for Frame, and Compatibility advisory fields should remain visible.
+- Use Frame-Type Defaults may prepare the local form but must not dispatch commands by itself.
+- Blocking validation belongs to the future Observation preview contract, not frontend-only logic.
 - Unsafe/low-level lamp, mirror, shutter, or power behavior belongs outside the routine operator flow unless the backend contract is explicit.
 ```
 
@@ -829,10 +769,10 @@ POST /api/v1/detector/config
 v7.1 requirements:
 
 ```text
-- Detector profile/config and B/G/R channel summaries must be visible in Instrument / Configure.
-- Direct detector config write control requires caution and may be deferred.
-- Full B/G/R hardware-control contracts are later backend/hardware work.
-- B/G/R channel UI must reflect the P0 wavelength definitions and must not use Blue/Red two-channel shortcuts.
+- Detector profile/config visibility is useful in Instrument / Configure.
+- Complex detector write controls should remain limited until detector hardware and safety contracts are clearer.
+- B/G/R must remain visible as three JUST channels, not as MODS Blue/Red.
+- Per-channel exposure readiness/control must not be faked.
 ```
 
 ### Observation
@@ -851,86 +791,14 @@ POST /api/v1/observation/abort_discard
 v7.1 requirements:
 
 ```text
-- Observe must cover the single-exposure lifecycle.
-- Arm / Start / Finish / Stop & Readout / Abort & Discard belong in Observe.
-- Abort/discard needs explicit confirmation.
-- Request ID, latest job, last error, and state transition feedback must be visible.
-- Sequence-runner behavior requires later backend contracts.
-```
-
-### Presets
-
-Relevant current capabilities:
-
-```text
-GET  /api/v1/presets
-POST /api/v1/presets/preview
-POST /api/v1/presets/apply
-```
-
-v7.1 requirements:
-
-```text
-- Preset catalog, preview, and guarded apply must remain available.
-- Confirmation-required and high-risk semantics must not be bypassed.
-- Operator-facing diff/risk/affected-subsystem presentation belongs to the next UI workflow pass.
-```
-
----
-
-## Live image and preview requirement
-
-The live/latest exposure preview is a first-class operator-console requirement.
-
-Minimum v7.1 requirement:
-
-```text
-- Preserve a visible Latest Exposure Preview region in Observe.
-- Preserve B/G/R preview placeholders.
-- Preserve slit monitor / guider visibility.
-- Preserve explicit LIVE / DEMO / NOT WIRED or equivalent honesty labels.
-- Keep image feed diagnostics in Diagnostics.
-```
-
-Deferred backend contracts:
-
-```text
-- latest exposure image endpoint;
-- detector preview endpoint;
-- quicklook/data watcher;
-- slit-monitor/guider image feed;
-- frame freshness and last-frame metadata;
-- slit-width measurement feed.
-```
-
----
-
-## Current v7.1 implementation requirements
-
-The current v7.1 default console must preserve these baseline requirements:
-
-```text
-Must do:
-  - keep /ui and /ui/v7 aligned;
-  - keep /ui/v5 and /ui/legacy as v5 fallback routes;
-  - maintain runtime gates and do not enable v7 mutation modules by default;
-  - keep Instrument / Observe / Presets command-feedback bindings visible;
-  - maintain request_id / last_command / latest_job / last_error / result_summary visibility;
-  - keep raw JSON secondary, not the dominant visual element;
-  - use SLIT_UM_PER_ARCSEC = 128.34 as the single slit conversion constant.
-
-Must not do:
-  - no 0.1 arcsec common shortcut;
-  - no premature detector config write UI;
-  - no full B/G/R hardware control before backend/hardware contracts;
-  - no low-level hardware bus, PLC, power, or vendor-SDK controls in routine operator UI;
-  - no unsafe maintenance actions in routine pages;
-  - no sequence runner before observation-plan contracts;
-  - no fake telemetry.
+- Observe should preserve the single-exposure lifecycle until ObservationRequest/Preview and sequence contracts exist.
+- Arm/start/finish/stop/abort controls must remain auditable and expose latest status.
+- Do not imply that sequence runner, scheduler, OCS, FITS writer, or DataProduct pipeline exists before the backend does.
+- Frame-type calibration compatibility should be advisory in the current UI and become blocking only through the future Observation preview contract.
 ```
 
 ---
 
 ## Documentation policy
 
-Do not add one-off phase notes for each small batch. Durable requirements belong here. Current phase state belongs in `project_status.md`. Temporary analysis may stay local or in conversation history rather than becoming permanent repository files.
+Keep this requirements document durable. Do not add one-off phase notes here. Fold only long-lived requirements, capability classifications, and boundary decisions into this file.

@@ -13,10 +13,10 @@ The software-development strategy and phase roadmap are maintained in `docs/ics2
 ## Current snapshot
 
 ```text
-Date/context: after Phase 2.9-A closeout, packaging metadata recovery, README install sync, and calibration Mode/Lamp frame-type advisory fix
-Mainline checkpoint before this docs sync: a955308 ui: clarify calibration mode lamp frame coupling
-Validation: pytest -q -> 202 passed in 1.40s
-Current phase status: Phase 2.9-A closed; post-2.9-A maintenance fixes closed; Phase 2.9-B1 next
+Date/context: after Phase 2.9-B1/B2 observation request/preview contract slices
+Mainline checkpoint before this docs sync: 034e826 observation: add preview application service
+Validation: pytest -q -> 220 passed, 1 warning in 1.00s
+Current phase status: Phase 2.9-A closed; post-2.9-A maintenance fixes closed; Phase 2.9-B in progress; B1/B2 landed; B3 API preview endpoint next candidate
 ```
 
 Phase 2.9-A is merged into `main` and closed.
@@ -46,11 +46,30 @@ Setup UI
   -> GET /api/v1/observation/status
 ```
 
-Explicitly not done in Phase 2.9-A:
+Phase 2.9-B has started and now has a domain + application foundation:
 
 ```text
-- no proposal database;
-- no scheduler;
+ObservationRequest / ExposureSpec
+  -> ObservationPreviewService.preview_request()
+  -> ObservationPreviewResult / ValidationIssue / ReadinessSnapshot
+```
+
+The current observation preview loop is application-level only:
+
+```text
+ObservationRequest
+  -> ObservationPreviewService
+  -> optional SetupContextService snapshot attachment
+  -> runtime detector/slit/calibration readiness checks
+  -> ObservationPreviewResult
+```
+
+Explicitly not done yet:
+
+```text
+- no observation preview API endpoint;
+- no preview UI binding;
+- no ObservationService.arm() preview gate;
 - no sequence runner;
 - no FITS writer;
 - no DataProduct pipeline;
@@ -193,6 +212,7 @@ Key durable outcomes:
 - Instrument Calibration UI preserves backend Mode/Lamp terminology.
 - Calibration UI exposes Observe Frame, Expected for Frame, and Compatibility advisory fields.
 - Use Frame-Type Defaults is UI-only and does not dispatch hardware/API commands by itself.
+- OpenAPI detector config schema-name test accepts current FastAPI/Pydantic naming variants.
 ```
 
 Calibration UI fix boundary:
@@ -205,6 +225,48 @@ Calibration UI fix boundary:
 - no real hardware behavior implied.
 ```
 
+### Phase 2.9-B1/B2: Observation request/preview domain + application foundation
+
+In progress; B1/B2 landed on `main`.
+
+Key durable outcomes so far:
+
+```text
+- ObservationFrameType strict enum exists for science / flat / arc / test.
+- ExposureSpec exists with positive exp_time_s and frame_type.
+- ObservationRequest uses exposures: list[ExposureSpec].
+- Initial single-exposure compatibility is represented separately from the request shape.
+- Multiple exposures are allowed as request shape reservation but blocked for current compatibility.
+- ValidationIssue and ValidationSeverity exist.
+- ReadinessItem, ReadinessState, and ReadinessSnapshot exist.
+- ObservationPreviewResult represents side_effect_free, blocked, readiness, validation_issues, and single_exposure_compatible.
+- ObservationPreviewService exists in the application layer.
+- ObservationPreviewService can attach current Setup/Data Context when missing from the request.
+- ObservationPreviewService reads simulator runtime state for detector, slit, and calibration readiness.
+- ObservationPreviewService performs minimal science/flat/arc calibration mode/lamp readiness validation.
+- ObservationPreviewService is side-effect-free: it does not arm/start/finish exposure, create jobs, or write data products.
+```
+
+B1/B2 closeout evidence:
+
+```text
+B1  Observation request/preview domain contract + domain tests       done
+B2  ObservationPreviewService application layer + application tests  done
+Validation after B2: pytest -q -> 220 passed, 1 warning in 1.00s
+```
+
+B1/B2 boundary:
+
+```text
+- no API endpoint yet;
+- no UI binding yet;
+- no ObservationService.arm() preview gate yet;
+- no sequence runner;
+- no OCS adapter;
+- no TCS control;
+- no FITS/DataProduct implementation.
+```
+
 ---
 
 ## Current capability status
@@ -214,15 +276,19 @@ Calibration UI fix boundary:
 | Layered architecture | Established | Continue Domain / Kernel / Application / API / UI / Adapter separation. |
 | Request ID / Job audit | Established | Future OCS, sequence, and data product work must preserve it. |
 | Setup/Data Context | Durable backend + UI binding + observation snapshot handoff | Phase 2.9-A complete. |
-| Observation single exposure | Available | Keep as baseline while defining ObservationRequest/Preview in 2.9-B. |
+| Observation single exposure | Available | Keep as baseline while request/preview contract matures in 2.9-B. |
+| Observation request/preview domain | Available | B1 landed; this is a contract foundation, not sequence execution. |
+| Observation preview application service | Available | B2 landed; side-effect-free preview can evaluate setup/runtime readiness in simulation. |
+| Observation preview API | Not implemented | Candidate for 2.9-B3. |
+| Observation preview UI | Not implemented | Later; do not expose placeholder readiness as real hardware telemetry. |
 | Preset preview/apply | Available | Needs later operator-facing diff polish. |
 | v7 default UI | Default prototype | Not final production GUI. |
 | v7 runtime | Opt-in | Keep explicit gates. |
 | Slit control | Basic available | Preserve arcsec/um contract. |
-| Calibration | Basic visible/control + Mode/Lamp frame-type advisory | Current UI shows science/flat/arc compatibility; future preview contract should enforce readiness. |
+| Calibration | Basic visible/control + Mode/Lamp frame-type advisory + application preview readiness checks | Current preview can check science/flat/arc compatibility in simulation. |
 | Detector config | Visible, partially writable | Avoid expanding routine detector write UI prematurely. |
 | B/G/R channels | Honest summary only | No per-channel exposure readiness/control yet. |
-| OCS | Not implemented | Phase 2.9-B starts request/preview contract; actual adapter later. |
+| OCS | Not implemented | Request/preview contract foundation exists; actual adapter later. |
 | TCS | Not implemented | Future read-only readiness; no telescope control. |
 | Data product | Not implemented | Phase 2.9-D contract later. |
 | Hardware protocols | Not selected | Remain hardware-selection-driven and adapter-bounded. |
@@ -231,28 +297,54 @@ Calibration UI fix boundary:
 
 ## Phase 2.9-B next
 
-Phase 2.9-B should define the **Observation request/preview contract**.
+Phase 2.9-B defines the **Observation request/preview contract**.
 
-Locked decisions for the first implementation slice:
+Locked decisions for the first implementation slices:
 
 ```text
-- ObservationRequest should use exposures: list[ExposureSpec].
+- ObservationRequest uses exposures: list[ExposureSpec].
 - Phase 2.9-B initial compatibility allows exactly one ExposureSpec only.
 - Multiple exposures are a shape reservation, not sequence-runner support.
-- frame_type should be a strict enum.
+- frame_type is a strict enum.
 - The execution-compatible initial frame types remain science / flat / arc / test unless explicitly extended.
 - TCS readiness slot may exist in the contract, but detailed TCS fields remain unavailable/unknown for now.
 - ExposureRecord/DataProduct contract should come before sequence runner.
 - Do not introduce a database yet; keep protocol + JSON/JSONL style stores until real query/operations needs appear.
 ```
 
-Expected first discussion:
+Completed slices:
 
 ```text
-- ObservationRequest fields and minimal schema;
-- ExposureSpec boundaries;
-- ObservationPreviewResult shape;
-- ValidationIssue and ReadinessSnapshot semantics;
+2.9-B1: domain model for ObservationRequest / ExposureSpec / ObservationPreviewResult / ValidationIssue / ReadinessSnapshot + domain tests only  DONE
+2.9-B2: application-level ObservationPreviewService + setup/runtime/calibration readiness checks + application tests                          DONE
+```
+
+Candidate next slices:
+
+```text
+2.9-B3: API endpoint for side-effect-free observation preview
+  Candidate endpoint: POST /api/v1/observation/preview
+  Boundary: no arm/start/finish dispatch; no UI binding; no sequence runner
+
+2.9-B4: optional ObservationService.arm() preview gate
+  Boundary: reuse preview contract before dispatch; preserve current single-exposure lifecycle; avoid hidden hardware behavior changes
+
+2.9-B5: optional v7 Observe preview/readiness visibility
+  Boundary: display preview result honestly; keep runtime gated; do not present unavailable TCS/BGR as real telemetry
+```
+
+Open decisions before B3/B4/B5:
+
+```text
+- Whether the preview API should accept the domain-shaped ObservationRequest directly or use API DTO aliases.
+- Whether the endpoint path should be /api/v1/observation/preview or a more explicit request-preview path.
+- Whether B4 arm gating should be introduced immediately after B3 or deferred until operator workflow expectations are clearer.
+- How much calibration readiness detail should be returned to routine UI versus diagnostics.
+```
+
+Expected continuing discussion:
+
+```text
 - relationship to current single-exposure arm/start/finish lifecycle;
 - side-effect-free preview guarantees;
 - calibration Mode/Lamp/frame-type readiness checks;
@@ -261,12 +353,6 @@ Expected first discussion:
 - no OCS adapter yet;
 - no TCS control;
 - no FITS/DataProduct implementation.
-```
-
-First slice:
-
-```text
-2.9-B1: domain model for ObservationRequest / ExposureSpec / ObservationPreviewResult / ValidationIssue / ReadinessSnapshot + domain tests only
 ```
 
 ---

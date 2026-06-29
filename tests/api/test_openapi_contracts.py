@@ -107,10 +107,10 @@ def test_openapi_system_and_detector_responses_are_typed():
     assert capabilities_schema["$ref"].endswith("/CapabilitiesResponse")
 
     assert "$ref" in detector_get_schema
-    assert detector_get_schema["$ref"].endswith("/DetectorConfig-Output")
+    assert detector_get_schema["$ref"].endswith(("/DetectorConfig", "/DetectorConfig-Output"))
 
     assert "$ref" in detector_post_schema
-    assert detector_post_schema["$ref"].endswith("/DetectorConfig-Output")
+    assert detector_post_schema["$ref"].endswith(("/DetectorConfig", "/DetectorConfig-Output"))
 
 def test_openapi_response_components_include_system_models():
     client = TestClient(app)

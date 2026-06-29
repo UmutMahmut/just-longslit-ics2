@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any
 from uuid import uuid4
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def utc_now() -> datetime:
@@ -132,3 +135,149 @@ class ObservationMeta:
             "data_preview": self.data_preview,
             "frame_results": self.frame_results,
         }
+
+
+class ObservationFrameType(str, Enum):
+    SCIENCE = "science"
+    FLAT = "flat"
+    ARC = "arc"
+    TEST = "test"
+
+
+class ExposureSpec(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    frame_type: ObservationFrameType = ObservationFrameType.SCIENCE
+    exp_time_s: float = Field(..., gt=0)
+    label: str | None = None
+
+
+class ValidationSeverity(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+class ValidationIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    severity: ValidationSeverity
+    message: str
+    field: str | None = None
+
+
+class ReadinessState(str, Enum):
+    READY = "ready"
+    BLOCKED = "blocked"
+    UNKNOWN = "unknown"
+    UNAVAILABLE = "unavailable"
+
+
+class ReadinessItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    state: ReadinessState = ReadinessState.UNKNOWN
+    message: str | None = None
+    updated_at_utc: str | None = None
+
+    def is_blocking(self) -> bool:
+        return self.state == ReadinessState.BLOCKED
+
+
+class ReadinessSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detector: ReadinessItem = Field(default_factory=ReadinessItem)
+    calibration: ReadinessItem = Field(default_factory=ReadinessItem)
+    slit: ReadinessItem = Field(default_factory=ReadinessItem)
+    tcs: ReadinessItem = Field(
+        default_factory=lambda: ReadinessItem(
+            state=ReadinessState.UNAVAILABLE,
+            message="TCS readiness is not implemented yet.",
+        )
+    )
+
+    def blocked_components(self) -> list[str]:
+        blocked: list[str] = []
+        for name in ("detector", "calibration", "slit", "tcs"):
+            item = getattr(self, name)
+            if item.is_blocking():
+                blocked.append(name)
+        return blocked
+
+    def is_blocked(self) -> bool:
+        return bool(self.blocked_components())
+
+
+class ObservationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str | None = None
+    target_name: str | None = None
+    exposures: list[ExposureSpec] = Field(..., min_length=1)
+    operator_note: str | None = None
+    setup_context: dict[str, Any] | None = None
+
+    def single_exposure_spec(self) -> ExposureSpec | None:
+        if len(self.exposures) != 1:
+            return None
+        return self.exposures[0]
+
+    def compatibility_issues(self) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+
+        if len(self.exposures) != 1:
+            issues.append(
+                ValidationIssue(
+                    code="multiple_exposures_not_supported",
+                    severity=ValidationSeverity.ERROR,
+                    field="exposures",
+                    message=(
+                        "Initial observation preview compatibility requires "
+                        "exactly one ExposureSpec. Multiple exposures are only "
+                        "a contract shape reservation at this phase."
+                    ),
+                )
+            )
+
+        return issues
+
+
+class ObservationPreviewResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request: ObservationRequest
+    readiness: ReadinessSnapshot
+    validation_issues: list[ValidationIssue]
+    side_effect_free: bool
+    single_exposure_compatible: bool
+    blocked: bool
+
+    @classmethod
+    def from_request(
+        cls,
+        request: ObservationRequest,
+        *,
+        readiness: ReadinessSnapshot | None = None,
+        validation_issues: list[ValidationIssue] | None = None,
+    ) -> "ObservationPreviewResult":
+        readiness = readiness or ReadinessSnapshot()
+        issues = list(request.compatibility_issues())
+
+        if validation_issues:
+            issues.extend(validation_issues)
+
+        has_error = any(issue.severity == ValidationSeverity.ERROR for issue in issues)
+        blocked = has_error or readiness.is_blocked()
+
+        return cls(
+            request=request,
+            readiness=readiness,
+            validation_issues=issues,
+            side_effect_free=True,
+            single_exposure_compatible=(
+                request.single_exposure_spec() is not None and not blocked
+            ),
+            blocked=blocked,
+        )

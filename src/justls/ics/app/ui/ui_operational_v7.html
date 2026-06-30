@@ -566,6 +566,7 @@
                   <dt>Runtime State</dt><dd><code data-bind="v7.observe.runtime_state">static fallback</code></dd>
                 </dl>
                 <div class="badge-row">
+                  <button class="btn" type="button" data-action="obs-preview" disabled>Preview</button>
                   <button class="btn primary" type="button" data-action="obs-arm" disabled>Arm</button>
                   <button class="btn primary" type="button" data-action="obs-start" disabled>Start</button>
                   <button class="btn" type="button" data-action="obs-finish" disabled>Finish</button>
@@ -573,6 +574,22 @@
                   <button class="btn danger" type="button" data-action="obs-abort-discard" disabled>Abort & Discard</button>
                 </div>
                 <label><input type="checkbox" data-role="obs-abort-confirm" /> Enable abort/discard command</label>
+                <section class="subpanel" data-role="v7-observe-preview-panel">
+                  <h3>Observation Preview - Readiness / Validation</h3>
+                  <dl class="kv">
+                    <dt>Preview Endpoint</dt><dd><code>/api/v1/observation/preview</code></dd>
+                    <dt>Preview</dt><dd><code data-bind="v7.observe.preview.blocked">not checked</code></dd>
+                    <dt>Execution</dt><dd><code data-bind="v7.observe.preview.single_exposure_compatible">not checked</code></dd>
+                    <dt>Detector</dt><dd><code data-bind="v7.observe.preview.detector_state">unknown</code></dd>
+                    <dt>Calibration</dt><dd><code data-bind="v7.observe.preview.calibration_state">not checked</code></dd>
+                    <dt>Slit</dt><dd><code data-bind="v7.observe.preview.slit_state">unknown</code></dd>
+                    <dt>TCS</dt><dd><code data-bind="v7.observe.preview.tcs_state">unavailable</code></dd>
+                    <dt>Setup/Data</dt><dd><code data-bind="v7.observe.preview.setup_context">unknown</code></dd>
+                    <dt>Issues</dt><dd><code data-bind="v7.observe.preview.issues">not checked</code></dd>
+                    <dt>Summary</dt><dd><code data-bind="v7.observe.preview.summary">Preview has not been requested.</code></dd>
+                  </dl>
+                  <pre data-bind="v7.observe.preview.raw">No observation preview requested. Preview is side-effect-free and does not arm the detector.</pre>
+                </section>
                 <pre data-bind="v7.observe.result">No observation command sent. Runtime observe binding is opt-in.</pre>
                 <span class="badge demo">Static fallback · observe runtime not enabled</span>
               </div>

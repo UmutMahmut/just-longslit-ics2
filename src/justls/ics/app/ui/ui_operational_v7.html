@@ -588,9 +588,15 @@
                     <dt>Issues</dt><dd><code data-bind="v7.observe.preview.issues">not checked</code></dd>
                     <dt>Summary</dt><dd><code data-bind="v7.observe.preview.summary">Preview has not been requested.</code></dd>
                   </dl>
-                  <pre data-bind="v7.observe.preview.raw">No observation preview requested. Preview is side-effect-free and does not arm the detector.</pre>
+                  <details class="dev-note" data-role="v7-observe-preview-raw">
+                    <summary>Raw Preview JSON</summary>
+                    <pre data-bind="v7.observe.preview.raw">No observation preview requested. Preview is side-effect-free and does not arm the detector.</pre>
+                  </details>
                 </section>
-                <pre data-bind="v7.observe.result">No observation command sent. Runtime observe binding is opt-in.</pre>
+                <details class="dev-note" data-role="v7-observe-command-raw">
+                  <summary>Raw Command JSON</summary>
+                  <pre data-bind="v7.observe.result">No observation command sent. Runtime observe binding is opt-in.</pre>
+                </details>
                 <span class="badge demo">Static fallback · observe runtime not enabled</span>
               </div>
             </section>

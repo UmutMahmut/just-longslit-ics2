@@ -94,9 +94,15 @@
             <dt>Issues</dt><dd><code data-bind="v7.observe.preview.issues">not checked</code></dd>
             <dt>Summary</dt><dd><code data-bind="v7.observe.preview.summary">Preview has not been requested.</code></dd>
           </dl>
-          <pre data-bind="v7.observe.preview.raw">No observation preview requested. Preview is side-effect-free and does not arm the detector.</pre>
+          <details class="dev-note" data-role="v7-observe-preview-raw">
+            <summary>Raw Preview JSON</summary>
+            <pre data-bind="v7.observe.preview.raw">No observation preview requested. Preview is side-effect-free and does not arm the detector.</pre>
+          </details>
         </section>
-        <pre data-bind="v7.observe.result">No observation command sent.</pre>
+        <details class="dev-note" data-role="v7-observe-command-raw">
+          <summary>Raw Command JSON</summary>
+          <pre data-bind="v7.observe.result">No observation command sent.</pre>
+        </details>
       </div>`;
     host.insertBefore(panel, host.firstChild);
     return panel;
@@ -120,10 +126,18 @@
     });
   }
 
+  function setPanelButtonsDisabled(panel, disabled) {
+    if (!panel) return;
+    panel.querySelectorAll("button[data-action]").forEach((button) => {
+      button.disabled = disabled;
+    });
+  }
+
   function enhancePanel(panel) {
     panel.setAttribute("data-runtime", "enabled");
     panel.setAttribute("data-phase", "2.9-B4-runtime-opt-in");
     bindPanelEvents(panel);
+    setPanelButtonsDisabled(panel, false);
     return panel;
   }
 
@@ -153,9 +167,7 @@
     refreshRuntimeState();
     const panel = ensurePanel();
     if (!panel) return;
-    panel.querySelectorAll("button[data-action]").forEach((button) => {
-      button.disabled = value;
-    });
+    setPanelButtonsDisabled(panel, value);
   }
 
   function readArmPayload() {

@@ -14,6 +14,10 @@ def test_v7_observe_static_shell_exposes_preview_panel() -> None:
     html = response.text
 
     assert "Observation Preview - Readiness / Validation" in html
+    assert 'data-role="v7-observe-preview-raw"' in html
+    assert 'data-role="v7-observe-command-raw"' in html
+    assert "Raw Preview JSON" in html
+    assert "Raw Command JSON" in html
     assert "/api/v1/observation/preview" in html
     assert 'data-action="obs-preview"' in html
     assert 'data-role="v7-observe-preview-panel"' in html
@@ -38,6 +42,11 @@ def test_v7_observe_runtime_asset_binds_preview_endpoint_and_current_api_shape()
     assert "function readPreviewPayload()" in js
     assert "async function previewObservation()" in js
     assert "function renderPreview(payload)" in js
+    assert "Raw Preview JSON" in js
+    assert "Raw Command JSON" in js
+    assert "function setPanelButtonsDisabled(panel, disabled)" in js
+    assert "setPanelButtonsDisabled(panel, false)" in js
+    assert "setPanelButtonsDisabled(panel, value)" in js
     assert "single_exposure_compatible" in js
     assert "validation_issues" in js
     assert "readiness.detector" in js

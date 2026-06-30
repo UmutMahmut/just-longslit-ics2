@@ -6,7 +6,7 @@ from justls.ics.app.api.dependencies import (
     ObservationPreviewServiceDep,
     ObservationServiceDep,
 )
-from justls.ics.app.api.errors import raise_dispatch_failure
+from justls.ics.app.api.errors import raise_api_error, raise_dispatch_failure
 from justls.ics.app.api.schemas.observation import ObservationArmReq
 from justls.ics.app.api.schemas.observation_preview import (
     ObservationPreviewReq,
@@ -17,6 +17,7 @@ from justls.ics.app.api.schemas.responses import (
     ObservationStatusResponse,
 )
 from justls.ics.application.dispatcher import DispatchResult
+from justls.ics.kernel.errors import ICSException
 
 router = APIRouter(prefix="/api/v1", tags=["observation"])
 
@@ -56,11 +57,20 @@ def arm_observation(
     req: ObservationArmReq,
     observation_service: ObservationServiceDep,
 ) -> ObservationStatusResponse:
-    result = observation_service.arm(
-        exp_time_s=req.exp_time_s,
-        frame_type=req.frame_type,
-        operator_note=req.operator_note,
-    )
+    try:
+        result = observation_service.arm(
+            exp_time_s=req.exp_time_s,
+            frame_type=req.frame_type,
+            operator_note=req.operator_note,
+        )
+    except ICSException as exc:
+        raise_api_error(
+            status_code=400,
+            code=exc.code.value,
+            message=exc.info.message,
+            subsystem=exc.info.subsystem,
+            details=exc.info.details,
+        )
     return _unwrap_observation_result(result)
 
 

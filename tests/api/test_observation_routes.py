@@ -139,7 +139,7 @@ def test_api_observation_stop_readout():
 
     arm = client.post(
         "/api/v1/observation/arm",
-        json={"exp_time_s": 8.0, "frame_type": "flat", "operator_note": "early-stop-case"},
+        json={"exp_time_s": 8.0, "frame_type": "science", "operator_note": "early-stop-case"},
     )
     assert arm.status_code == 200
 
@@ -153,7 +153,7 @@ def test_api_observation_stop_readout():
     assert data["state"] == "completed"
     assert data["armed_exposure"] is None
     assert data["last_exposure"] is not None
-    assert data["last_exposure"]["frame_type"] == "flat"
+    assert data["last_exposure"]["frame_type"] == "science"
     assert data["last_exposure"]["kept"] is True
     assert data["last_exposure"]["early_stop"] is True
     assert data["last_exposure"]["discarded"] is False
@@ -168,7 +168,7 @@ def test_api_observation_abort_discard():
 
     arm = client.post(
         "/api/v1/observation/arm",
-        json={"exp_time_s": 10.0, "frame_type": "flat", "operator_note": "discard-case"},
+        json={"exp_time_s": 10.0, "frame_type": "science", "operator_note": "discard-case"},
     )
     assert arm.status_code == 200
 
@@ -179,7 +179,7 @@ def test_api_observation_abort_discard():
     assert data["state"] == "discarded"
     assert data["armed_exposure"] is None
     assert data["last_exposure"] is not None
-    assert data["last_exposure"]["frame_type"] == "flat"
+    assert data["last_exposure"]["frame_type"] == "science"
     assert data["last_exposure"]["kept"] is False
     assert data["last_exposure"]["early_stop"] is False
     assert data["last_exposure"]["discarded"] is True

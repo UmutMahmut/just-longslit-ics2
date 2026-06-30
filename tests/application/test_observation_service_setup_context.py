@@ -1,5 +1,6 @@
 from justls.ics.application.services.observation_service import ObservationService
 from justls.ics.application.services.setup_context_service import SetupContextService
+from justls.ics.kernel.runtime import RuntimeAssembler
 from justls.ics.domain.setup import SessionDataContext
 
 
@@ -28,7 +29,7 @@ def test_observation_service_attaches_setup_context_to_arm_request() -> None:
         )
     )
     service = ObservationService(
-        runtime=object(),  # not used by arm() before dispatch
+        runtime=RuntimeAssembler().build(),
         dispatcher=dispatcher,
         setup_context_service=setup_service,
     )

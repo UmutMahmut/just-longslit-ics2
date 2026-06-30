@@ -2,9 +2,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from justls.ics.app.api.dependencies import ObservationServiceDep
+from justls.ics.app.api.dependencies import (
+    ObservationPreviewServiceDep,
+    ObservationServiceDep,
+)
 from justls.ics.app.api.errors import raise_dispatch_failure
 from justls.ics.app.api.schemas.observation import ObservationArmReq
+from justls.ics.app.api.schemas.observation_preview import (
+    ObservationPreviewReq,
+    ObservationPreviewResponse,
+)
 from justls.ics.app.api.schemas.responses import (
     ApiErrorResponse,
     ObservationStatusResponse,
@@ -25,6 +32,19 @@ def _unwrap_observation_result(result: DispatchResult) -> ObservationStatusRespo
 def get_observation_status(observation_service: ObservationServiceDep) -> ObservationStatusResponse:
     payload = observation_service.get_exposure_status()
     return ObservationStatusResponse.model_validate(payload)
+
+
+
+@router.post(
+    "/observation/preview",
+    response_model=ObservationPreviewResponse,
+)
+def preview_observation(
+    req: ObservationPreviewReq,
+    observation_preview_service: ObservationPreviewServiceDep,
+) -> ObservationPreviewResponse:
+    preview = observation_preview_service.preview_request(req.to_domain())
+    return ObservationPreviewResponse.model_validate(preview.model_dump(mode="json"))
 
 
 @router.post(

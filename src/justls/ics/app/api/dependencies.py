@@ -10,6 +10,7 @@ from justls.ics.application.dispatcher import CommandDispatcher, validate_requir
 from justls.ics.application.services.health_service import HealthService
 from justls.ics.application.services.management_service import ManagementService
 from justls.ics.application.services.observation_service import ObservationService
+from justls.ics.application.services.observation_preview_service import ObservationPreviewService
 from justls.ics.application.services.setup_context_service import SetupContextService
 from justls.ics.application.services.setup_context_store import JsonSetupContextStore
 from justls.ics.kernel.errors import InvalidStateError, UnsupportedError
@@ -232,6 +233,19 @@ DispatcherDep = Annotated[CommandDispatcher, Depends(get_dispatcher)]
 HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]
 ManagementServiceDep = Annotated[ManagementService, Depends(get_management_service)]
 SetupContextServiceDep = Annotated[SetupContextService, Depends(get_setup_context_service)]
+
+def get_observation_preview_service(
+    runtime: RuntimeDep,
+    setup_context_service: SetupContextServiceDep,
+) -> ObservationPreviewService:
+    return ObservationPreviewService(runtime, setup_context_service)
+
+
+ObservationPreviewServiceDep = Annotated[
+    ObservationPreviewService,
+    Depends(get_observation_preview_service),
+]
+
 
 
 def get_observation_service(

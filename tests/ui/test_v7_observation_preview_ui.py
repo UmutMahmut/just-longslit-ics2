@@ -42,6 +42,11 @@ def test_v7_observe_runtime_asset_binds_preview_endpoint_and_current_api_shape()
     assert "function readPreviewPayload()" in js
     assert "async function previewObservation()" in js
     assert "function renderPreview(payload)" in js
+    assert "function setPanelButtonsDisabled(panel, disabled)" in js
+    assert "setPanelButtonsDisabled(panel, false)" in js
+    assert "setPanelButtonsDisabled(panel, value)" in js
+    assert "Raw Preview JSON" in js
+    assert "Raw Command JSON" in js
     assert "Raw Preview JSON" in js
     assert "Raw Command JSON" in js
     assert "function setPanelButtonsDisabled(panel, disabled)" in js

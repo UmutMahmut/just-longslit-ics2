@@ -1,4 +1,4 @@
-﻿# Consolidated preset API contract tests.
+# Consolidated preset API contract tests.
 
 # Source: test_presets_metadata.py
 import os

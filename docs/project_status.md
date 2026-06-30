@@ -13,10 +13,10 @@ The software-development strategy and phase roadmap are maintained in `docs/ics2
 ## Current snapshot
 
 ```text
-Date/context: after Phase 2.9-B1/B2 observation request/preview contract slices
-Mainline checkpoint before this docs sync: 034e826 observation: add preview application service
-Validation: pytest -q -> 220 passed, 1 warning in 1.00s
-Current phase status: Phase 2.9-A closed; post-2.9-A maintenance fixes closed; Phase 2.9-B in progress; B1/B2 landed; B3 API preview endpoint next candidate
+Date/context: after Phase 2.9-B1 through B5 observation request/preview/readiness-gate slices, plus small maintenance cleanup.
+Mainline checkpoint before this docs sync: after backend arm gate and maintenance cleanup on main.
+Validation: pytest -q passed locally after B5 and maintenance cleanup; warning filter added for the known Starlette TestClient deprecation warning.
+Current phase status: Phase 2.9-A closed; Phase 2.9-B in progress; B1-B5 landed; Phase 2.9-B closeout still pending.
 ```
 
 Phase 2.9-A is merged into `main` and closed.
@@ -46,15 +46,18 @@ Setup UI
   -> GET /api/v1/observation/status
 ```
 
-Phase 2.9-B has started and now has a domain + application foundation:
+Phase 2.9-B now has a working request/preview/gate chain:
 
 ```text
 ObservationRequest / ExposureSpec
   -> ObservationPreviewService.preview_request()
   -> ObservationPreviewResult / ValidationIssue / ReadinessSnapshot
+  -> POST /api/v1/observation/preview
+  -> v7 Observe preview/readiness visibility
+  -> ObservationService.arm() backend preview gate
 ```
 
-The current observation preview loop is application-level only:
+The current observation preview loop is:
 
 ```text
 ObservationRequest
@@ -62,21 +65,33 @@ ObservationRequest
   -> optional SetupContextService snapshot attachment
   -> runtime detector/slit/calibration readiness checks
   -> ObservationPreviewResult
+  -> API/UI preview visibility or backend arm gate
+```
+
+The current backend arm gate loop is:
+
+```text
+POST /api/v1/observation/arm
+  -> ObservationService.arm()
+  -> build single-exposure ObservationRequest
+  -> ObservationPreviewService.preview_request()
+  -> if preview.blocked or not single_exposure_compatible: raise interlock_blocked
+  -> otherwise dispatch detector.arm_exposure
 ```
 
 Explicitly not done yet:
 
 ```text
-- no observation preview API endpoint;
-- no preview UI binding;
-- no ObservationService.arm() preview gate;
-- no sequence runner;
+- no multi-exposure sequence runner;
 - no FITS writer;
 - no DataProduct pipeline;
-- no frame-index consumption/auto-increment policy;
-- no TCS/OCS control;
+- no frame-index consumption/auto-increment policy beyond current preview/snapshot behavior;
+- no OCS adapter;
+- no TCS control;
 - no telescope pointing/rotator/guiding/dome/weather authority;
-- no per-channel B/G/R exposure readiness/control.
+- no real TCS readiness integration;
+- no per-channel B/G/R exposure readiness/control;
+- no UI-enforced Arm disable based on preview result.
 ```
 
 ---
@@ -136,6 +151,7 @@ Runtime policy:
 ```text
 - v7 runtime remains opt-in through JUSTLS_UI_V7_RUNTIME_ENABLED=1.
 - Setup runtime is separately gated by JUSTLS_UI_V7_SETUP_RUNTIME_ENABLED=1.
+- Observe runtime is separately gated by JUSTLS_UI_V7_OBSERVE_RUNTIME_ENABLED=1.
 - Status runtime remains the safest first runtime module when the master gate is enabled.
 - Instrument / Presets / Observe / Guard runtime modules remain individually gated.
 - Backend API semantics are not changed merely by route selection.
@@ -147,14 +163,14 @@ Runtime policy:
 
 Every phase, PR, and commit should pass these checks:
 
-| Guardrail | Question | Purpose |
-|---|---|---|
-| Contract first | Is this stabilizing a domain/API contract, or merely piling UI/implementation detail? | Prevent UI-first semantic drift. |
-| Simulation parity | Can the simulator and future real hardware keep the same contract? | Prevent real-only hacks. |
-| No telescope overreach | Does this bypass OCS/TCS authority for pointing, rotator, guiding, dome, weather, or telescope control? | Prevent ICS boundary violations. |
-| No fake capability | Does this present a placeholder as a real capability? | Prevent operator misunderstanding. |
-| Auditable command lifecycle | Do high-impact actions have request_id, latest_job, result, and error visibility? | Prevent untraceable operations. |
-| Layer boundary | Are domain/application/kernel/api/ui/adapter responsibilities still separated? | Preserve maintainability. |
+| Guardrail                   | Question                                                                                                | Purpose                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Contract first              | Is this stabilizing a domain/API contract, or merely piling UI/implementation detail?                   | Prevent UI-first semantic drift.   |
+| Simulation parity           | Can the simulator and future real hardware keep the same contract?                                      | Prevent real-only hacks.           |
+| No telescope overreach      | Does this bypass OCS/TCS authority for pointing, rotator, guiding, dome, weather, or telescope control? | Prevent ICS boundary violations.   |
+| No fake capability          | Does this present a placeholder as a real capability?                                                   | Prevent operator misunderstanding. |
+| Auditable command lifecycle | Do high-impact actions have request_id, latest_job, result, and error visibility?                       | Prevent untraceable operations.    |
+| Layer boundary              | Are domain/application/kernel/api/ui/adapter responsibilities still separated?                          | Preserve maintainability.          |
 
 ---
 
@@ -162,15 +178,48 @@ Every phase, PR, and commit should pass these checks:
 
 ### Phase 2.6: GUI and runtime operational maturity foundation
 
-Closed. Key durable outcomes: `/api/v1/status/full`, operational-status direction, v6 review shell, v5 adapter, UI safety switches, and X-Request-ID/latest-job thinking.
+Closed.
+
+Key durable outcomes:
+
+```text
+- /api/v1/status/full;
+- operational-status direction;
+- v6 review shell;
+- v5 adapter;
+- UI safety switches;
+- X-Request-ID/latest-job thinking.
+```
 
 ### Phase 2.7: Preset operational hardening
 
-Closed. Key durable outcomes: preset category/risk/confirmation metadata, side-effect-free preview, guarded apply, structured apply result, latest-job linkage, and observation arm attachment of latest successful preset summary.
+Closed.
+
+Key durable outcomes:
+
+```text
+- preset category/risk/confirmation metadata;
+- side-effect-free preset preview;
+- guarded preset apply;
+- structured apply result;
+- latest-job linkage;
+- observation arm attachment of latest successful preset summary.
+```
 
 ### Phase 2.8-G/H/I/J and v7 UI IA cleanup
 
-Closed. Key durable outcomes: v7 runtime gates, `/ui` default to v7.1 prototype, v5 fallback routes, served `ui_operational_v7.html`, compact operator-facing Instrument/Setup pages, and HTML-owned durable structures enhanced by runtime JS.
+Closed.
+
+Key durable outcomes:
+
+```text
+- v7 runtime gates;
+- /ui default to v7.1 prototype;
+- v5 fallback routes;
+- served ui_operational_v7.html;
+- compact operator-facing Instrument/Setup pages;
+- HTML-owned durable structures enhanced by runtime JS.
+```
 
 ### Phase 2.9-A: durable Setup/Data Context
 
@@ -220,16 +269,15 @@ Calibration UI fix boundary:
 ```text
 - no backend calibration API change;
 - no domain model change;
-- no observation preview implementation yet;
 - no sequence runner;
 - no real hardware behavior implied.
 ```
 
-### Phase 2.9-B1/B2: Observation request/preview domain + application foundation
+### Phase 2.9-B1: Observation request/preview domain contract
 
-In progress; B1/B2 landed on `main`.
+Landed on `main`.
 
-Key durable outcomes so far:
+Key durable outcomes:
 
 ```text
 - ObservationFrameType strict enum exists for science / flat / arc / test.
@@ -240,6 +288,25 @@ Key durable outcomes so far:
 - ValidationIssue and ValidationSeverity exist.
 - ReadinessItem, ReadinessState, and ReadinessSnapshot exist.
 - ObservationPreviewResult represents side_effect_free, blocked, readiness, validation_issues, and single_exposure_compatible.
+```
+
+Boundary:
+
+```text
+- no sequence runner;
+- no multi-exposure execution;
+- no OCS adapter;
+- no TCS control;
+- no FITS/DataProduct implementation.
+```
+
+### Phase 2.9-B2: ObservationPreviewService application layer
+
+Landed on `main`.
+
+Key durable outcomes:
+
+```text
 - ObservationPreviewService exists in the application layer.
 - ObservationPreviewService can attach current Setup/Data Context when missing from the request.
 - ObservationPreviewService reads simulator runtime state for detector, slit, and calibration readiness.
@@ -247,59 +314,158 @@ Key durable outcomes so far:
 - ObservationPreviewService is side-effect-free: it does not arm/start/finish exposure, create jobs, or write data products.
 ```
 
-B1/B2 closeout evidence:
+Boundary:
 
 ```text
-B1  Observation request/preview domain contract + domain tests       done
-B2  ObservationPreviewService application layer + application tests  done
-Validation after B2: pytest -q -> 220 passed, 1 warning in 1.00s
+- no API endpoint in B2;
+- no UI binding in B2;
+- no arm gate in B2;
+- no sequence runner;
+- no OCS/TCS integration;
+- no FITS/DataProduct implementation.
 ```
 
-B1/B2 boundary:
+### Phase 2.9-B3: side-effect-free observation preview API
+
+Landed on `main`.
+
+Key durable outcomes:
 
 ```text
-- no API endpoint yet;
-- no UI binding yet;
-- no ObservationService.arm() preview gate yet;
+- POST /api/v1/observation/preview exists.
+- API request shape maps to the ObservationRequest domain contract.
+- API response exposes ObservationPreviewResult shape.
+- Preview endpoint is side-effect-free.
+- Preview endpoint does not arm/start/finish exposure.
+- Preview endpoint can return blocked, single_exposure_compatible, readiness, and validation_issues.
+- OpenAPI response shape is tested.
+```
+
+Boundary:
+
+```text
+- no UI binding in B3;
+- no arm gate in B3;
 - no sequence runner;
+- no OCS/TCS integration;
+- no FITS/DataProduct implementation.
+```
+
+### Phase 2.9-B4: v7 Observe preview/readiness visibility
+
+Landed on `main`.
+
+Key durable outcomes:
+
+```text
+- v7 Observe page exposes a Preview button.
+- v7 Observe page exposes Observation Preview - Readiness / Validation.
+- Opt-in observe runtime can call POST /api/v1/observation/preview.
+- Preview summary displays blocked / execution compatibility / detector / calibration / slit / TCS / setup-data / issues / summary.
+- Preview raw JSON is available but collapsed by default.
+- Command raw JSON is available but collapsed by default.
+- Main operator flow shows summaries first; raw payloads are kept as diagnostics details.
+- Runtime-enabled Observe controls are enabled when the opt-in observe runtime takes over the static fallback page.
+```
+
+Boundary:
+
+```text
+- preview visibility does not disable Arm in the UI;
+- preview visibility does not change backend execution semantics by itself;
+- no sequence runner;
+- no OCS/TCS integration;
+- no FITS/DataProduct implementation.
+```
+
+### Phase 2.9-B5: backend arm gate via preview readiness
+
+Landed on `main`.
+
+Key durable outcomes:
+
+```text
+- ObservationService.arm() now builds a single-exposure ObservationRequest before dispatch.
+- ObservationService.arm() calls ObservationPreviewService.preview_request().
+- If preview.blocked is true, arm is rejected before detector.arm_exposure dispatch.
+- If preview.single_exposure_compatible is false, arm is rejected before dispatch.
+- Blocked arm returns interlock_blocked through the API with preview details.
+- Calibration/frame-type mismatch blocks arm.
+- Detector busy/armed state blocks repeated arm.
+- Blocked arm does not dispatch detector.arm_exposure.
+- Existing start/finish/stop_readout/abort_discard paths remain separate.
+- Setup context and data preview are still attached to arm metadata when the gate passes.
+```
+
+Boundary:
+
+```text
+- no multi-exposure sequence runner;
 - no OCS adapter;
 - no TCS control;
-- no FITS/DataProduct implementation.
+- no real TCS readiness integration;
+- no FITS/DataProduct implementation;
+- no UI-enforced Arm disable based on preview result.
+```
+
+### Post-B5 maintenance cleanup
+
+Landed on `main`.
+
+Key durable outcomes:
+
+```text
+- Known Starlette TestClient deprecation warning is filtered precisely in pytest configuration.
+- .gitattributes exists to establish text/binary and LF policy for future commits.
+- UTF-8 BOM was removed from touched test files.
+- One touched mixed-line-ending test file was normalized.
+- B4 UI tests now cover raw preview/command JSON collapsible sections.
+- B4 UI tests now cover observe runtime button enabling behavior.
+```
+
+Boundary:
+
+```text
+- no full-repository line-ending renormalization was performed;
+- existing CRLF-only files are not treated as blocking;
+- no dependency migration to httpx2 was performed;
+- no functional backend/API behavior was changed by this maintenance cleanup.
 ```
 
 ---
 
 ## Current capability status
 
-| Capability | Current state | Strategy judgment |
-|---|---|---|
-| Layered architecture | Established | Continue Domain / Kernel / Application / API / UI / Adapter separation. |
-| Request ID / Job audit | Established | Future OCS, sequence, and data product work must preserve it. |
-| Setup/Data Context | Durable backend + UI binding + observation snapshot handoff | Phase 2.9-A complete. |
-| Observation single exposure | Available | Keep as baseline while request/preview contract matures in 2.9-B. |
-| Observation request/preview domain | Available | B1 landed; this is a contract foundation, not sequence execution. |
-| Observation preview application service | Available | B2 landed; side-effect-free preview can evaluate setup/runtime readiness in simulation. |
-| Observation preview API | Not implemented | Candidate for 2.9-B3. |
-| Observation preview UI | Not implemented | Later; do not expose placeholder readiness as real hardware telemetry. |
-| Preset preview/apply | Available | Needs later operator-facing diff polish. |
-| v7 default UI | Default prototype | Not final production GUI. |
-| v7 runtime | Opt-in | Keep explicit gates. |
-| Slit control | Basic available | Preserve arcsec/um contract. |
-| Calibration | Basic visible/control + Mode/Lamp frame-type advisory + application preview readiness checks | Current preview can check science/flat/arc compatibility in simulation. |
-| Detector config | Visible, partially writable | Avoid expanding routine detector write UI prematurely. |
-| B/G/R channels | Honest summary only | No per-channel exposure readiness/control yet. |
-| OCS | Not implemented | Request/preview contract foundation exists; actual adapter later. |
-| TCS | Not implemented | Future read-only readiness; no telescope control. |
-| Data product | Not implemented | Phase 2.9-D contract later. |
-| Hardware protocols | Not selected | Remain hardware-selection-driven and adapter-bounded. |
+| Capability                              | Current state                                                                    | Strategy judgment                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Layered architecture                    | Established                                                                      | Continue Domain / Kernel / Application / API / UI / Adapter separation.              |
+| Request ID / Job audit                  | Established                                                                      | Future OCS, sequence, and data product work must preserve it.                        |
+| Setup/Data Context                      | Durable backend + UI binding + observation snapshot handoff                      | Phase 2.9-A complete.                                                                |
+| Observation single exposure             | Available with backend preview gate                                              | Keep as baseline while higher-level observation planning matures.                    |
+| Observation request/preview domain      | Available                                                                        | B1 landed; this is a contract foundation, not sequence execution.                    |
+| Observation preview application service | Available                                                                        | B2 landed; side-effect-free preview evaluates setup/runtime readiness in simulation. |
+| Observation preview API                 | Available                                                                        | B3 landed; POST /api/v1/observation/preview is side-effect-free.                     |
+| Observation preview UI                  | Available as v7 Observe visibility                                               | B4 landed; summary-first UI with collapsed raw JSON.                                 |
+| Observation arm gate                    | Available in backend                                                             | B5 landed; arm checks preview readiness before dispatch.                             |
+| Preset preview/apply                    | Available                                                                        | Needs later operator-facing diff polish.                                             |
+| v7 default UI                           | Default prototype                                                                | Not final production GUI.                                                            |
+| v7 runtime                              | Opt-in                                                                           | Keep explicit gates.                                                                 |
+| Slit control                            | Basic available                                                                  | Preserve arcsec/um contract.                                                         |
+| Calibration                             | Basic visible/control + Mode/Lamp frame-type advisory + preview readiness checks | Current preview/gate can check science/flat/arc compatibility in simulation.         |
+| Detector config                         | Visible, partially writable                                                      | Avoid expanding routine detector write UI prematurely.                               |
+| B/G/R channels                          | Honest summary only                                                              | No per-channel exposure readiness/control yet.                                       |
+| OCS                                     | Not implemented                                                                  | Request/preview/gate foundation exists; actual adapter later.                        |
+| TCS                                     | Not implemented                                                                  | Future read-only readiness; no telescope control.                                    |
+| Data product                            | Not implemented                                                                  | Phase 2.9-D contract later.                                                          |
+| Hardware protocols                      | Not selected                                                                     | Remain hardware-selection-driven and adapter-bounded.                                |
 
 ---
 
-## Phase 2.9-B next
+## Phase 2.9-B status and closeout path
 
-Phase 2.9-B defines the **Observation request/preview contract**.
+Phase 2.9-B defines the **Observation request/preview/readiness gate contract**.
 
-Locked decisions for the first implementation slices:
+Locked decisions for the current implementation:
 
 ```text
 - ObservationRequest uses exposures: list[ExposureSpec].
@@ -315,44 +481,72 @@ Locked decisions for the first implementation slices:
 Completed slices:
 
 ```text
-2.9-B1: domain model for ObservationRequest / ExposureSpec / ObservationPreviewResult / ValidationIssue / ReadinessSnapshot + domain tests only  DONE
-2.9-B2: application-level ObservationPreviewService + setup/runtime/calibration readiness checks + application tests                          DONE
+2.9-B1: domain model for ObservationRequest / ExposureSpec / ObservationPreviewResult / ValidationIssue / ReadinessSnapshot + domain tests         DONE
+2.9-B2: application-level ObservationPreviewService + setup/runtime/calibration readiness checks + application tests                            DONE
+2.9-B3: POST /api/v1/observation/preview side-effect-free API endpoint + API tests                                                           DONE
+2.9-B4: v7 Observe preview/readiness visibility + compact raw JSON diagnostics + UI tests                                                     DONE
+2.9-B5: backend ObservationService.arm() preview readiness gate + API/application tests                                                       DONE
 ```
 
-Candidate next slices:
+Phase 2.9-B is not formally closed yet. Before closeout, do a short final review around:
 
 ```text
-2.9-B3: API endpoint for side-effect-free observation preview
-  Candidate endpoint: POST /api/v1/observation/preview
-  Boundary: no arm/start/finish dispatch; no UI binding; no sequence runner
-
-2.9-B4: optional ObservationService.arm() preview gate
-  Boundary: reuse preview contract before dispatch; preserve current single-exposure lifecycle; avoid hidden hardware behavior changes
-
-2.9-B5: optional v7 Observe preview/readiness visibility
-  Boundary: display preview result honestly; keep runtime gated; do not present unavailable TCS/BGR as real telemetry
+- whether backend arm gate behavior and error payload are acceptable as the stable contract;
+- whether UI should add a non-blocking advisory around backend gate failures;
+- whether any B5 details should be summarized in README or operator docs;
+- whether docs/project_status.md and docs/ics2_software_development_strategy.md agree on the next phase;
+- whether the old reference branch should be retained as reference, archived, or deleted after closeout.
 ```
 
-Open decisions before B3/B4/B5:
+Expected next discussion after B5:
 
 ```text
-- Whether the preview API should accept the domain-shaped ObservationRequest directly or use API DTO aliases.
-- Whether the endpoint path should be /api/v1/observation/preview or a more explicit request-preview path.
-- Whether B4 arm gating should be introduced immediately after B3 or deferred until operator workflow expectations are clearer.
-- How much calibration readiness detail should be returned to routine UI versus diagnostics.
-```
-
-Expected continuing discussion:
-
-```text
-- relationship to current single-exposure arm/start/finish lifecycle;
-- side-effect-free preview guarantees;
-- calibration Mode/Lamp/frame-type readiness checks;
-- setup context snapshot use;
-- no actual sequence runner yet;
+- whether to add UI advisory around backend gate errors;
+- whether Phase 2.9-B can be closed after documentation review;
+- whether Phase 2.9-C should focus on sequence/plan skeleton, ExposureRecord, or DataProduct contract;
+- no actual multi-exposure sequence runner until the contract boundary is explicitly chosen;
 - no OCS adapter yet;
-- no TCS control;
-- no FITS/DataProduct implementation.
+- no real TCS control;
+- no FITS/DataProduct implementation yet.
+```
+
+---
+
+## Known follow-up items
+
+### Reference branch
+
+There is a reference branch with more aggressive Phase 2.9-B work. It can be used for selective design comparison, especially around API/UI/test ideas, but it should not be merged directly.
+
+Current decision:
+
+```text
+- keep the branch for reference for now;
+- do not merge it into main;
+- revisit after Phase 2.9-B closeout;
+- delete or archive only after confirming no useful design/test material remains.
+```
+
+### Line endings and encoding
+
+Current decision:
+
+```text
+- .gitattributes establishes future LF and binary policy.
+- Do not run full-repository git add --renormalize . as part of ordinary feature work.
+- Existing CRLF-only files are not blocking.
+- Mixed line endings in touched files should be fixed when encountered.
+- UTF-8 BOM should be removed from touched source/test/doc files.
+```
+
+### TestClient deprecation warning
+
+Current decision:
+
+```text
+- The known Starlette TestClient deprecation warning is filtered precisely for now.
+- Do not migrate to httpx2 or rewrite the test client stack during observation preview/gate work.
+- Revisit dependency/test-client strategy as a dedicated maintenance task later.
 ```
 
 ---
@@ -390,7 +584,7 @@ These must remain true unless explicitly changed by a major decision:
 - v7 module-level runtime gates remain opt-in or master-gated.
 - runtime JS must enhance durable skeletons and avoid duplicate competing panels.
 - routine pages show command summaries first.
-- raw JSON belongs in page detail areas and Diagnostics, not as the dominant main flow.
+- raw JSON belongs in collapsible page detail areas and Diagnostics, not as the dominant main flow.
 - unsafe engineering actions belong in Engineer/Housekeeping/Diagnostics, not routine operator flow.
 - bottom-layer hardware protocols remain hardware-selection-driven and adapter-bounded.
 ```

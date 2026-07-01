@@ -213,7 +213,7 @@ Code closed.
 
 Observation command feedback contract, API response migration, request ID/error preservation, v7 Observe runtime feedback rendering, and default Observe runtime injection are implemented and tested.
 
-Documentation closeout is in progress through README/docs rewrite.
+Documentation closeout is complete for the Phase 2.9-C repository-docs refresh.
 
 ## Recommended next feature phase
 

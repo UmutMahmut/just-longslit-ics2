@@ -38,11 +38,22 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
+def _feedback_payload(data: dict, *, command: str) -> dict:
+    assert data["command"] == command
+    assert data["ok"] is True
+    assert data["status"] == "succeeded"
+    return data["details"]["payload"]
+
+
 def test_api_observation_invalid_start_does_not_fault_runtime_state():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/start")
     assert response.status_code == 400
+    data = response.json()
+    assert data["command"] == "start"
+    assert data["ok"] is False
+    assert data["status"] == "failed"
 
     health = client.get("/api/v1/health")
     assert health.status_code == 200
@@ -52,6 +63,7 @@ def test_api_observation_invalid_start_does_not_fault_runtime_state():
     assert runtime_state["overall_state"] != "fault"
     assert runtime_state["subsystems"]["detector"]["state"] == "idle"
     assert runtime_state["exposure_state"] == "ready_to_arm"
+
 
 def test_api_health_runtime_exposure_state_matches_observation_status_across_flow():
     client = TestClient(app)
@@ -67,6 +79,7 @@ def test_api_health_runtime_exposure_state_matches_observation_status_across_flo
         json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "api-sync-check"},
     )
     assert arm.status_code == 200
+    assert _feedback_payload(arm.json(), command="arm")["state"] == "armed"
 
     armed_health = client.get("/api/v1/health")
     armed_obs = client.get("/api/v1/observation/status")
@@ -76,6 +89,7 @@ def test_api_health_runtime_exposure_state_matches_observation_status_across_flo
 
     start = client.post("/api/v1/observation/start")
     assert start.status_code == 200
+    assert _feedback_payload(start.json(), command="start")["state"] == "exposing"
 
     exposing_health = client.get("/api/v1/health")
     exposing_obs = client.get("/api/v1/observation/status")
@@ -85,12 +99,14 @@ def test_api_health_runtime_exposure_state_matches_observation_status_across_flo
 
     finish = client.post("/api/v1/observation/finish")
     assert finish.status_code == 200
+    assert _feedback_payload(finish.json(), command="finish")["state"] == "completed"
 
     completed_health = client.get("/api/v1/health")
     completed_obs = client.get("/api/v1/observation/status")
     assert completed_health.status_code == 200
     assert completed_obs.status_code == 200
     assert completed_health.json()["runtime"]["state"]["exposure_state"] == completed_obs.json()["state"] == "completed"
+
 
 def test_armed_blocks_detector_config_mutation():
     client = TestClient(app)
@@ -100,6 +116,7 @@ def test_armed_blocks_detector_config_mutation():
         json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "lock-detector"},
     )
     assert arm.status_code == 200
+    assert _feedback_payload(arm.json(), command="arm")["state"] == "armed"
 
     response = client.post(
         "/api/v1/detector/config",
@@ -118,6 +135,7 @@ def test_armed_blocks_detector_config_mutation():
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "invalid_state"
 
+
 def test_armed_blocks_preset_apply():
     client = TestClient(app)
 
@@ -126,10 +144,12 @@ def test_armed_blocks_preset_apply():
         json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "lock-preset"},
     )
     assert arm.status_code == 200
+    assert _feedback_payload(arm.json(), command="arm")["state"] == "armed"
 
     response = client.post("/api/v1/presets/apply", json={"name": "science_default"})
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "invalid_state"
+
 
 def test_armed_blocks_slit_and_calibration_mutation():
     client = TestClient(app)
@@ -139,6 +159,7 @@ def test_armed_blocks_slit_and_calibration_mutation():
         json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "lock-slit-cal"},
     )
     assert arm.status_code == 200
+    assert _feedback_payload(arm.json(), command="arm")["state"] == "armed"
 
     slit = client.post("/api/v1/slit", json={"width_um": 140.0})
     assert slit.status_code == 400
@@ -147,6 +168,7 @@ def test_armed_blocks_slit_and_calibration_mutation():
     calibration = client.post("/api/v1/calibration/mode", json={"mode": "calibration"})
     assert calibration.status_code == 400
     assert calibration.json()["detail"]["code"] == "invalid_state"
+
 
 def test_armed_still_allows_observation_start():
     client = TestClient(app)
@@ -159,7 +181,8 @@ def test_armed_still_allows_observation_start():
 
     start = client.post("/api/v1/observation/start")
     assert start.status_code == 200
-    assert start.json()["state"] == "exposing"
+    assert _feedback_payload(start.json(), command="start")["state"] == "exposing"
+
 
 def test_exposing_blocks_detector_preset_and_slit_mutation():
     client = TestClient(app)
@@ -172,7 +195,7 @@ def test_exposing_blocks_detector_preset_and_slit_mutation():
 
     start = client.post("/api/v1/observation/start")
     assert start.status_code == 200
-    assert start.json()["state"] == "exposing"
+    assert _feedback_payload(start.json(), command="start")["state"] == "exposing"
 
     detector = client.post(
         "/api/v1/detector/config",
@@ -199,6 +222,7 @@ def test_exposing_blocks_detector_preset_and_slit_mutation():
     assert slit.status_code == 400
     assert slit.json()["detail"]["code"] == "invalid_state"
 
+
 def test_exposing_still_allows_observation_finish():
     client = TestClient(app)
 
@@ -210,8 +234,8 @@ def test_exposing_still_allows_observation_finish():
 
     start = client.post("/api/v1/observation/start")
     assert start.status_code == 200
-    assert start.json()["state"] == "exposing"
+    assert _feedback_payload(start.json(), command="start")["state"] == "exposing"
 
     finish = client.post("/api/v1/observation/finish")
     assert finish.status_code == 200
-    assert finish.json()["state"] == "completed"
+    assert _feedback_payload(finish.json(), command="finish")["state"] == "completed"

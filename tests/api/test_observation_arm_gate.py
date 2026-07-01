@@ -29,13 +29,24 @@ def test_api_observation_arm_rejected_when_preview_blocks_calibration_mismatch()
     )
 
     assert response.status_code == 400
-    detail = response.json()["detail"]
-    assert detail["code"] == "interlock_blocked"
-    assert detail["subsystem"] == "detector"
-    assert detail["details"]["preview"]["blocked"] is True
-    assert detail["details"]["preview"]["single_exposure_compatible"] is False
-    assert detail["details"]["blocked_components"] == ["calibration"]
-    assert detail["details"]["validation_issue_codes"] == [
+    data = response.json()
+
+    assert data["command"] == "arm"
+    assert data["ok"] is False
+    assert data["status"] == "blocked"
+    assert data["blocked"] is True
+    assert data["blocked_reason"] == "readiness_gate"
+    assert data["error"]["code"] == "interlock_blocked"
+    assert data["error"]["details"]["preview"]["blocked"] is True
+    assert data["error"]["details"]["preview"]["single_exposure_compatible"] is False
+    assert data["blocked_components"] == ["calibration"]
+    assert data["details"]["blocked_components"] == ["calibration"]
+    assert data["details"]["validation_issue_codes"] == [
+        "science_calibration_not_ready"
+    ]
+    assert data["preview"]["blocked"] is True
+    assert data["preview"]["single_exposure_compatible"] is False
+    assert [issue["code"] for issue in data["validation_issues"]] == [
         "science_calibration_not_ready"
     ]
 
@@ -52,6 +63,10 @@ def test_api_observation_arm_rejected_when_detector_is_already_armed() -> None:
         json={"frame_type": "science", "exp_time_s": 5.0},
     )
     assert first.status_code == 200
+    first_data = first.json()
+    assert first_data["command"] == "arm"
+    assert first_data["ok"] is True
+    assert first_data["status"] == "succeeded"
 
     second = client.post(
         "/api/v1/observation/arm",
@@ -59,11 +74,19 @@ def test_api_observation_arm_rejected_when_detector_is_already_armed() -> None:
     )
 
     assert second.status_code == 400
-    detail = second.json()["detail"]
-    assert detail["code"] == "interlock_blocked"
-    assert detail["details"]["preview"]["readiness"]["detector"]["state"] == "blocked"
-    assert detail["details"]["blocked_components"] == ["detector"]
-    assert detail["details"]["validation_issue_codes"] == []
+    data = second.json()
+
+    assert data["command"] == "arm"
+    assert data["ok"] is False
+    assert data["status"] == "blocked"
+    assert data["blocked"] is True
+    assert data["blocked_reason"] == "readiness_gate"
+    assert data["error"]["code"] == "interlock_blocked"
+    assert data["preview"]["readiness"]["detector"]["state"] == "blocked"
+    assert data["blocked_components"] == ["detector"]
+    assert data["details"]["blocked_components"] == ["detector"]
+    assert data["details"]["validation_issue_codes"] == []
+    assert data["validation_issues"] == []
 
     status = client.get("/api/v1/observation/status").json()
     assert status["state"] == "armed"

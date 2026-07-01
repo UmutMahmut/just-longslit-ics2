@@ -45,10 +45,15 @@ def test_api_observation_invalid_start_returns_structured_error():
     assert response.status_code == 400
 
     data = response.json()
-    assert "detail" in data
-    assert data["detail"]["code"] == "invalid_state"
-    assert isinstance(data["detail"]["message"], str)
-    assert data["detail"]["message"]
+    assert data["command"] == "start"
+    assert data["ok"] is False
+    assert data["status"] == "failed"
+    assert data["blocked"] is False
+    assert data["error"]["code"] == "invalid_state"
+    assert isinstance(data["error"]["message"], str)
+    assert data["error"]["message"]
+    assert "payload" in data["details"]
+
 
 def test_api_apply_unknown_preset_returns_structured_error():
     client = TestClient(app)
@@ -61,6 +66,7 @@ def test_api_apply_unknown_preset_returns_structured_error():
     assert data["detail"]["code"] == "preset_not_found"
     assert data["detail"]["message"] == "Preset not found: not_exists"
 
+
 def test_api_success_response_includes_request_id_header():
     client = TestClient(app)
 
@@ -68,6 +74,7 @@ def test_api_success_response_includes_request_id_header():
     assert response.status_code == 200
     assert "X-Request-ID" in response.headers
     assert response.headers["X-Request-ID"]
+
 
 def test_api_preserves_incoming_request_id_header():
     client = TestClient(app)
@@ -79,6 +86,7 @@ def test_api_preserves_incoming_request_id_header():
     assert response.status_code == 200
     assert response.headers["X-Request-ID"] == "test-req-123"
 
+
 def test_api_validation_error_includes_request_id_header():
     client = TestClient(app)
 
@@ -86,6 +94,7 @@ def test_api_validation_error_includes_request_id_header():
     assert response.status_code == 422
     assert "X-Request-ID" in response.headers
     assert response.headers["X-Request-ID"]
+
 
 def test_api_internal_error_includes_request_id_header_and_detail():
     route_path = "/api/v1/_test/internal-error-request-id"

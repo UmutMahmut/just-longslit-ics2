@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from justls.ics.application.dispatcher import DispatchResult
 from justls.ics.application.services.observation_preview_service import (
     ObservationPreviewService,
@@ -7,10 +9,13 @@ from justls.ics.application.services.observation_preview_service import (
 from justls.ics.application.services.setup_context_service import SetupContextService
 from justls.ics.domain.observation.models import (
     ExposureSpec,
+    ObservationCommandError,
+    ObservationCommandFeedback,
+    ObservationCommandName,
     ObservationPreviewResult,
     ObservationRequest,
 )
-from justls.ics.kernel.errors import InterlockBlockedError
+from justls.ics.kernel.errors import ICSException, InterlockBlockedError
 from justls.ics.kernel.jobs import CommandRequest
 from justls.ics.kernel.runtime import Runtime
 from justls.ics.kernel.states import CommandSource
@@ -118,6 +123,109 @@ class ObservationService:
             )
 
         return preview
+
+    def _job_payload(self, result: DispatchResult) -> dict[str, Any]:
+        job = result.job
+
+        if hasattr(job, "to_dict"):
+            payload = job.to_dict()
+            if isinstance(payload, dict):
+                return payload
+
+        if hasattr(job, "model_dump"):
+            payload = job.model_dump(mode="json")
+            if isinstance(payload, dict):
+                return payload
+
+        status = getattr(job, "status", None)
+        return {
+            "job_id": getattr(job, "job_id", None),
+            "subsystem": getattr(job, "subsystem", None),
+            "action": getattr(job, "action", None),
+            "status": getattr(status, "value", status),
+        }
+
+    def _observation_state_from_payload(self, payload: dict[str, Any]) -> str | None:
+        state = payload.get("state") or payload.get("observation_state")
+        return str(state) if state is not None else None
+
+    def feedback_from_dispatch_result(
+        self,
+        command: ObservationCommandName | str,
+        result: DispatchResult,
+        *,
+        request_id: str | None = None,
+    ) -> ObservationCommandFeedback:
+        payload = result.payload if isinstance(result.payload, dict) else {}
+        latest_job = self._job_payload(result)
+
+        if result.job.status.value == "failed":
+            return ObservationCommandFeedback.failed(
+                command,
+                message="Observation command dispatch failed.",
+                request_id=request_id,
+                error=ObservationCommandError(
+                    code="invalid_state",
+                    message="Observation command dispatch failed.",
+                    details={
+                        "job": latest_job,
+                        "payload": payload,
+                    },
+                ),
+                details={
+                    "payload": payload,
+                },
+            )
+
+        return ObservationCommandFeedback.succeeded(
+            command,
+            message="Observation command accepted.",
+            request_id=request_id,
+            observation_state=self._observation_state_from_payload(payload),
+            latest_job=latest_job,
+            details={
+                "payload": payload,
+            },
+        )
+
+    def feedback_from_exception(
+        self,
+        command: ObservationCommandName | str,
+        exc: ICSException,
+        *,
+        request_id: str | None = None,
+    ) -> ObservationCommandFeedback:
+        details = exc.info.details or {}
+        preview_payload = details.get("preview")
+        preview: ObservationPreviewResult | None = None
+
+        if isinstance(preview_payload, dict):
+            preview = ObservationPreviewResult.model_validate(preview_payload)
+
+        error = ObservationCommandError(
+            code=exc.code.value,
+            message=exc.info.message,
+            details=details,
+        )
+
+        if exc.code.value == "interlock_blocked":
+            return ObservationCommandFeedback.blocked_by_readiness_gate(
+                command,
+                message=exc.info.message,
+                request_id=request_id,
+                preview=preview,
+                blocked_components=details.get("blocked_components"),
+                error=error,
+                details=details,
+            )
+
+        return ObservationCommandFeedback.failed(
+            command,
+            message=exc.info.message,
+            request_id=request_id,
+            error=error,
+            details=details,
+        )
 
     def arm(
         self,

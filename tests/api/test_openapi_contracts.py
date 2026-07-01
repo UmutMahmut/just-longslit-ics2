@@ -52,6 +52,7 @@ def test_openapi_presets_responses_are_typed():
     assert "$ref" in apply_schema
     assert apply_schema["$ref"].endswith("/PresetApplyResponse")
 
+
 def test_openapi_observation_responses_are_typed():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
@@ -65,9 +66,10 @@ def test_openapi_observation_responses_are_typed():
     assert "$ref" in status_schema
     assert status_schema["$ref"].endswith("/ObservationStatusResponse")
     assert "$ref" in arm_schema
-    assert arm_schema["$ref"].endswith("/ObservationStatusResponse")
+    assert arm_schema["$ref"].endswith("/ObservationCommandFeedbackResponse")
     assert "$ref" in start_schema
-    assert start_schema["$ref"].endswith("/ObservationStatusResponse")
+    assert start_schema["$ref"].endswith("/ObservationCommandFeedbackResponse")
+
 
 def test_openapi_response_components_include_new_models():
     client = TestClient(app)
@@ -80,6 +82,9 @@ def test_openapi_response_components_include_new_models():
     assert "PresetListResponse" in schemas
     assert "PresetApplyResponse" in schemas
     assert "ObservationStatusResponse" in schemas
+    assert "ObservationCommandFeedbackResponse" in schemas
+    assert "ObservationCommandErrorResponse" in schemas
+
 
 def test_openapi_system_and_detector_responses_are_typed():
     client = TestClient(app)
@@ -112,6 +117,7 @@ def test_openapi_system_and_detector_responses_are_typed():
     assert "$ref" in detector_post_schema
     assert detector_post_schema["$ref"].endswith(("/DetectorConfig", "/DetectorConfig-Output"))
 
+
 def test_openapi_response_components_include_system_models():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
@@ -127,6 +133,7 @@ def test_openapi_response_components_include_system_models():
     assert "RuntimeStatusResponse" in schemas
     assert "RuntimeStateResponse" in schemas
     assert "RuntimeSubsystemStateResponse" in schemas
+
 
 def test_openapi_control_responses_are_typed():
     client = TestClient(app)
@@ -159,6 +166,7 @@ def test_openapi_control_responses_are_typed():
     assert "$ref" in slit_angle_schema
     assert slit_angle_schema["$ref"].endswith("/StateDtoResponse")
 
+
 def test_openapi_control_response_components_exist():
     client = TestClient(app)
     openapi = client.get("/openapi.json")
@@ -169,6 +177,7 @@ def test_openapi_control_response_components_exist():
 
     assert "CalibrationStatusResponse" in schemas
     assert "StateDtoResponse" in schemas
+
 
 def test_openapi_error_response_models_are_declared():
     client = TestClient(app)
@@ -182,7 +191,7 @@ def test_openapi_error_response_models_are_declared():
     preset_apply_404 = data["paths"]["/api/v1/presets/apply"]["post"]["responses"]["404"]["content"]["application/json"]["schema"]
 
     assert "$ref" in obs_start_400
-    assert obs_start_400["$ref"].endswith("/ApiErrorResponse")
+    assert obs_start_400["$ref"].endswith("/ObservationCommandFeedbackResponse")
 
     assert "$ref" in slit_400
     assert slit_400["$ref"].endswith("/ApiErrorResponse")
@@ -192,6 +201,7 @@ def test_openapi_error_response_models_are_declared():
 
     assert "$ref" in preset_apply_404
     assert preset_apply_404["$ref"].endswith("/ApiErrorResponse")
+
 
 def test_openapi_error_components_exist():
     client = TestClient(app)

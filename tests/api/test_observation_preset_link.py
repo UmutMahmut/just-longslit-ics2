@@ -17,6 +17,12 @@ def teardown_function():
     reset_runtime()
 
 
+def _feedback_payload(data: dict) -> dict:
+    assert data["ok"] is True
+    assert data["status"] == "succeeded"
+    return data["details"]["payload"]
+
+
 def test_observation_arm_records_latest_successful_preset_apply():
     client = TestClient(app)
 
@@ -32,7 +38,9 @@ def test_observation_arm_records_latest_successful_preset_apply():
         json={"exp_time_s": 5.0, "frame_type": "flat", "operator_note": "preset-link"},
     )
     assert armed.status_code == 200
-    meta = armed.json()["observation_meta"]
+    data = armed.json()
+    assert data["command"] == "arm"
+    meta = _feedback_payload(data)["observation_meta"]
 
     assert meta["preset_apply"]["job_id"] == apply_data["job_id"]
     assert meta["preset_apply"]["preset"] == "calib_flat_default"
@@ -52,7 +60,9 @@ def test_observation_arm_without_prior_preset_has_null_preset_reference():
         json={"exp_time_s": 5.0, "frame_type": "science", "operator_note": "no-preset"},
     )
     assert armed.status_code == 200
-    meta = armed.json()["observation_meta"]
+    data = armed.json()
+    assert data["command"] == "arm"
+    meta = _feedback_payload(data)["observation_meta"]
 
     assert meta["preset_apply"] is None
 
@@ -72,6 +82,9 @@ def test_status_full_observation_meta_exposes_preset_reference():
         json={"exp_time_s": 6.0, "frame_type": "flat", "operator_note": "status-preset-link"},
     )
     assert armed.status_code == 200
+    data = armed.json()
+    assert data["command"] == "arm"
+    assert data["ok"] is True
 
     status = client.get("/api/v1/status/full")
     assert status.status_code == 200
@@ -98,11 +111,13 @@ def test_api_observation_arm_reflects_applied_calib_preset():
     )
     assert response.status_code == 200
     data = response.json()
+    assert data["command"] == "arm"
+    payload = _feedback_payload(data)
 
-    assert data["observation_meta"]["detector_config"]["profile_name"] == "calib-flat-default"
-    assert data["observation_meta"]["calibration_snapshot"]["mode"] == "calibration"
-    assert data["observation_meta"]["calibration_snapshot"]["active_lamp"] == "flat"
-    assert data["observation_meta"]["calibration_snapshot"]["lamp_enabled"] is True
+    assert payload["observation_meta"]["detector_config"]["profile_name"] == "calib-flat-default"
+    assert payload["observation_meta"]["calibration_snapshot"]["mode"] == "calibration"
+    assert payload["observation_meta"]["calibration_snapshot"]["active_lamp"] == "flat"
+    assert payload["observation_meta"]["calibration_snapshot"]["lamp_enabled"] is True
 
 
 def test_api_status_full_reflects_observation_meta_and_detector_config():
@@ -118,6 +133,9 @@ def test_api_status_full_reflects_observation_meta_and_detector_config():
         json={"exp_time_s": 8.0, "frame_type": "flat", "operator_note": "full-status-check"},
     )
     assert arm.status_code == 200
+    data = arm.json()
+    assert data["command"] == "arm"
+    assert data["ok"] is True
 
     response = client.get("/api/v1/status/full")
     assert response.status_code == 200

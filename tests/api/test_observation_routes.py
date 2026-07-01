@@ -38,6 +38,23 @@ def _reset_runtime_singleton():
     reset_runtime()
 
 
+def _assert_command_succeeded(data: dict, command: str) -> dict:
+    assert data["command"] == command
+    assert data["ok"] is True
+    assert data["status"] == "succeeded"
+    assert data["blocked"] is False
+    assert data["error"] is None
+    return data["details"]["payload"]
+
+
+def _assert_command_failed(data: dict, command: str) -> None:
+    assert data["command"] == command
+    assert data["ok"] is False
+    assert data["status"] == "failed"
+    assert data["blocked"] is False
+    assert data["error"]["code"] == "invalid_state"
+
+
 def test_api_observation_initial_status():
     client = TestClient(app)
 
@@ -49,6 +66,7 @@ def test_api_observation_initial_status():
     assert data["armed_exposure"] is None
     assert data["last_exposure"] is None
     assert data["observation_meta"] is None
+
 
 def test_api_observation_arm_includes_detector_config():
     client = TestClient(app)
@@ -74,15 +92,18 @@ def test_api_observation_arm_includes_detector_config():
     )
     assert response.status_code == 200
     data = response.json()
+    payload = _assert_command_succeeded(data, "arm")
 
-    assert data["state"] == "armed"
-    assert data["armed_exposure"] is not None
-    assert data["armed_exposure"]["operator_note"] == "detector-config-link"
-    assert data["observation_meta"] is not None
-    assert data["observation_meta"]["detector_config"]["profile_name"] == "rgb-safe-default"
-    assert data["observation_meta"]["detector_config"]["channels"]["B"]["enabled"] is True
-    assert data["observation_meta"]["detector_config"]["channels"]["G"]["enabled"] is False
-    assert data["observation_meta"]["detector_config"]["channels"]["R"]["enabled"] is True
+    assert data["observation_state"] == "armed"
+    assert payload["state"] == "armed"
+    assert payload["armed_exposure"] is not None
+    assert payload["armed_exposure"]["operator_note"] == "detector-config-link"
+    assert payload["observation_meta"] is not None
+    assert payload["observation_meta"]["detector_config"]["profile_name"] == "rgb-safe-default"
+    assert payload["observation_meta"]["detector_config"]["channels"]["B"]["enabled"] is True
+    assert payload["observation_meta"]["detector_config"]["channels"]["G"]["enabled"] is False
+    assert payload["observation_meta"]["detector_config"]["channels"]["R"]["enabled"] is True
+
 
 def test_api_observation_start_returns_exposing():
     client = TestClient(app)
@@ -96,14 +117,17 @@ def test_api_observation_start_returns_exposing():
     response = client.post("/api/v1/observation/start")
     assert response.status_code == 200
     data = response.json()
+    payload = _assert_command_succeeded(data, "start")
 
-    assert data["state"] == "exposing"
-    assert data["armed_exposure"] is not None
-    assert data["armed_exposure"]["frame_type"] == "science"
-    assert data["last_exposure"] is None
-    assert data["observation_meta"] is not None
-    assert data["observation_meta"]["state"] == "exposing"
-    assert data["observation_meta"]["started_at_utc"] is not None
+    assert data["observation_state"] == "exposing"
+    assert payload["state"] == "exposing"
+    assert payload["armed_exposure"] is not None
+    assert payload["armed_exposure"]["frame_type"] == "science"
+    assert payload["last_exposure"] is None
+    assert payload["observation_meta"] is not None
+    assert payload["observation_meta"]["state"] == "exposing"
+    assert payload["observation_meta"]["started_at_utc"] is not None
+
 
 def test_api_observation_finish():
     client = TestClient(app)
@@ -120,19 +144,22 @@ def test_api_observation_finish():
     response = client.post("/api/v1/observation/finish")
     assert response.status_code == 200
     data = response.json()
+    payload = _assert_command_succeeded(data, "finish")
 
-    assert data["state"] == "completed"
-    assert data["armed_exposure"] is None
-    assert data["last_exposure"] is not None
-    assert data["last_exposure"]["frame_type"] == "science"
-    assert data["last_exposure"]["kept"] is True
-    assert data["last_exposure"]["early_stop"] is False
-    assert data["last_exposure"]["discarded"] is False
-    assert data["observation_meta"] is not None
-    assert data["observation_meta"]["state"] == "completed"
-    assert len(data["observation_meta"]["frame_results"]) == 1
-    assert data["observation_meta"]["frame_results"][0]["kept"] is True
-    assert data["observation_meta"]["frame_results"][0]["early_stop"] is False
+    assert data["observation_state"] == "completed"
+    assert payload["state"] == "completed"
+    assert payload["armed_exposure"] is None
+    assert payload["last_exposure"] is not None
+    assert payload["last_exposure"]["frame_type"] == "science"
+    assert payload["last_exposure"]["kept"] is True
+    assert payload["last_exposure"]["early_stop"] is False
+    assert payload["last_exposure"]["discarded"] is False
+    assert payload["observation_meta"] is not None
+    assert payload["observation_meta"]["state"] == "completed"
+    assert len(payload["observation_meta"]["frame_results"]) == 1
+    assert payload["observation_meta"]["frame_results"][0]["kept"] is True
+    assert payload["observation_meta"]["frame_results"][0]["early_stop"] is False
+
 
 def test_api_observation_stop_readout():
     client = TestClient(app)
@@ -149,19 +176,22 @@ def test_api_observation_stop_readout():
     response = client.post("/api/v1/observation/stop_readout")
     assert response.status_code == 200
     data = response.json()
+    payload = _assert_command_succeeded(data, "stop_readout")
 
-    assert data["state"] == "completed"
-    assert data["armed_exposure"] is None
-    assert data["last_exposure"] is not None
-    assert data["last_exposure"]["frame_type"] == "science"
-    assert data["last_exposure"]["kept"] is True
-    assert data["last_exposure"]["early_stop"] is True
-    assert data["last_exposure"]["discarded"] is False
-    assert data["observation_meta"] is not None
-    assert data["observation_meta"]["state"] == "completed"
-    assert len(data["observation_meta"]["frame_results"]) == 1
-    assert data["observation_meta"]["frame_results"][0]["kept"] is True
-    assert data["observation_meta"]["frame_results"][0]["early_stop"] is True
+    assert data["observation_state"] == "completed"
+    assert payload["state"] == "completed"
+    assert payload["armed_exposure"] is None
+    assert payload["last_exposure"] is not None
+    assert payload["last_exposure"]["frame_type"] == "science"
+    assert payload["last_exposure"]["kept"] is True
+    assert payload["last_exposure"]["early_stop"] is True
+    assert payload["last_exposure"]["discarded"] is False
+    assert payload["observation_meta"] is not None
+    assert payload["observation_meta"]["state"] == "completed"
+    assert len(payload["observation_meta"]["frame_results"]) == 1
+    assert payload["observation_meta"]["frame_results"][0]["kept"] is True
+    assert payload["observation_meta"]["frame_results"][0]["early_stop"] is True
+
 
 def test_api_observation_abort_discard():
     client = TestClient(app)
@@ -175,24 +205,29 @@ def test_api_observation_abort_discard():
     response = client.post("/api/v1/observation/abort_discard")
     assert response.status_code == 200
     data = response.json()
+    payload = _assert_command_succeeded(data, "abort_discard")
 
-    assert data["state"] == "discarded"
-    assert data["armed_exposure"] is None
-    assert data["last_exposure"] is not None
-    assert data["last_exposure"]["frame_type"] == "science"
-    assert data["last_exposure"]["kept"] is False
-    assert data["last_exposure"]["early_stop"] is False
-    assert data["last_exposure"]["discarded"] is True
-    assert data["observation_meta"] is not None
-    assert data["observation_meta"]["state"] == "discarded"
-    assert len(data["observation_meta"]["frame_results"]) == 1
-    assert data["observation_meta"]["frame_results"][0]["discarded"] is True
+    assert data["observation_state"] == "discarded"
+    assert payload["state"] == "discarded"
+    assert payload["armed_exposure"] is None
+    assert payload["last_exposure"] is not None
+    assert payload["last_exposure"]["frame_type"] == "science"
+    assert payload["last_exposure"]["kept"] is False
+    assert payload["last_exposure"]["early_stop"] is False
+    assert payload["last_exposure"]["discarded"] is True
+    assert payload["observation_meta"] is not None
+    assert payload["observation_meta"]["state"] == "discarded"
+    assert len(payload["observation_meta"]["frame_results"]) == 1
+    assert payload["observation_meta"]["frame_results"][0]["discarded"] is True
+
 
 def test_api_observation_invalid_start_before_arm():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/start")
     assert response.status_code == 400
+    _assert_command_failed(response.json(), "start")
+
 
 def test_api_observation_invalid_finish_before_start():
     client = TestClient(app)
@@ -205,15 +240,20 @@ def test_api_observation_invalid_finish_before_start():
 
     response = client.post("/api/v1/observation/finish")
     assert response.status_code == 400
+    _assert_command_failed(response.json(), "finish")
+
 
 def test_api_observation_invalid_stop_before_start():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/stop_readout")
     assert response.status_code == 400
+    _assert_command_failed(response.json(), "stop_readout")
+
 
 def test_api_observation_invalid_abort_before_arm():
     client = TestClient(app)
 
     response = client.post("/api/v1/observation/abort_discard")
     assert response.status_code == 400
+    _assert_command_failed(response.json(), "abort_discard")

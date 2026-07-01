@@ -281,3 +281,143 @@ class ObservationPreviewResult(BaseModel):
             ),
             blocked=blocked,
         )
+
+
+class ObservationCommandName(str, Enum):
+    STATUS = "status"
+    PREVIEW = "preview"
+    ARM = "arm"
+    START = "start"
+    FINISH = "finish"
+    STOP_READOUT = "stop_readout"
+    ABORT_DISCARD = "abort_discard"
+
+
+class ObservationCommandStatus(str, Enum):
+    SUCCEEDED = "succeeded"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+
+
+class ObservationCommandBlockedReason(str, Enum):
+    READINESS_GATE = "readiness_gate"
+    INTERLOCK = "interlock"
+    VALIDATION = "validation"
+    API_ERROR = "api_error"
+    UNKNOWN = "unknown"
+
+
+class ObservationCommandError(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    message: str
+    details: dict[str, Any] | None = None
+
+
+class ObservationCommandFeedback(BaseModel):
+    """Normalized feedback for an observation command.
+
+    Preview remains an advisory/readiness command. Arm remains an explicit command
+    and must run its own backend readiness gate at execution time. A blocked arm
+    may include the backend gate's preview snapshot, but that snapshot is not a
+    prerequisite produced by the UI Preview action.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    command: ObservationCommandName
+    ok: bool
+    status: ObservationCommandStatus
+    message: str | None = None
+    request_id: str | None = None
+    observation_state: str | None = None
+    latest_job: dict[str, Any] | None = None
+    error: ObservationCommandError | None = None
+    blocked: bool = False
+    blocked_reason: ObservationCommandBlockedReason | None = None
+    blocked_components: list[str] = Field(default_factory=list)
+    preview: ObservationPreviewResult | None = None
+    validation_issues: list[ValidationIssue] = Field(default_factory=list)
+    details: dict[str, Any] = Field(default_factory=dict)
+
+    @classmethod
+    def succeeded(
+        cls,
+        command: ObservationCommandName | str,
+        *,
+        message: str | None = None,
+        request_id: str | None = None,
+        observation_state: str | None = None,
+        latest_job: dict[str, Any] | None = None,
+        preview: ObservationPreviewResult | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> "ObservationCommandFeedback":
+        return cls(
+            command=ObservationCommandName(command),
+            ok=True,
+            status=ObservationCommandStatus.SUCCEEDED,
+            message=message,
+            request_id=request_id,
+            observation_state=observation_state,
+            latest_job=latest_job,
+            blocked=False,
+            preview=preview,
+            validation_issues=list(preview.validation_issues) if preview else [],
+            details=details or {},
+        )
+
+    @classmethod
+    def blocked_by_readiness_gate(
+        cls,
+        command: ObservationCommandName | str,
+        *,
+        message: str | None = None,
+        request_id: str | None = None,
+        preview: ObservationPreviewResult | None = None,
+        blocked_components: list[str] | None = None,
+        error: ObservationCommandError | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> "ObservationCommandFeedback":
+        if preview is not None:
+            components = blocked_components or preview.readiness.blocked_components()
+            issues = list(preview.validation_issues)
+        else:
+            components = blocked_components or []
+            issues = []
+
+        return cls(
+            command=ObservationCommandName(command),
+            ok=False,
+            status=ObservationCommandStatus.BLOCKED,
+            message=message or "Observation command blocked by readiness gate.",
+            request_id=request_id,
+            error=error,
+            blocked=True,
+            blocked_reason=ObservationCommandBlockedReason.READINESS_GATE,
+            blocked_components=components,
+            preview=preview,
+            validation_issues=issues,
+            details=details or {},
+        )
+
+    @classmethod
+    def failed(
+        cls,
+        command: ObservationCommandName | str,
+        *,
+        message: str | None = None,
+        request_id: str | None = None,
+        error: ObservationCommandError | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> "ObservationCommandFeedback":
+        return cls(
+            command=ObservationCommandName(command),
+            ok=False,
+            status=ObservationCommandStatus.FAILED,
+            message=message,
+            request_id=request_id,
+            error=error,
+            blocked=False,
+            details=details or {},
+        )

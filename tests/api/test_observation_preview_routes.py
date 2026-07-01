@@ -44,6 +44,11 @@ def test_api_observation_preview_returns_side_effect_free_response() -> None:
     assert data["request"]["setup_context"] is not None
     assert data["readiness"]["detector"]["state"] == "ready"
 
+    # Preview remains advisory and is not wrapped as command feedback.
+    assert "command" not in data
+    assert "ok" not in data
+    assert "status" not in data
+
     assert before["state"] == "ready_to_arm"
     assert after["state"] == "ready_to_arm"
     assert after["armed_exposure"] is None
@@ -99,6 +104,9 @@ def test_api_observation_preview_blocks_when_detector_is_already_armed() -> None
         json={"frame_type": "science", "exp_time_s": 5.0},
     )
     assert arm.status_code == 200
+    arm_data = arm.json()
+    assert arm_data["command"] == "arm"
+    assert arm_data["ok"] is True
 
     response = client.post(
         "/api/v1/observation/preview",
@@ -115,10 +123,13 @@ def test_api_observation_preview_blocks_when_detector_is_already_armed() -> None
     assert data["blocked"] is True
     assert data["single_exposure_compatible"] is False
     assert data["readiness"]["detector"]["state"] == "blocked"
+    assert "command" not in data
+    assert "ok" not in data
 
     status = client.get("/api/v1/observation/status").json()
     assert status["state"] == "armed"
     assert status["armed_exposure"] is not None
+
 
 def test_api_observation_preview_openapi_response_is_typed() -> None:
     client = TestClient(app)
@@ -129,4 +140,3 @@ def test_api_observation_preview_openapi_response_is_typed() -> None:
     assert "$ref" in schema
     assert schema["$ref"].endswith("/ObservationPreviewResponse")
     assert "ObservationPreviewResponse" in data["components"]["schemas"]
-

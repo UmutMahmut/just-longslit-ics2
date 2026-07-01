@@ -149,6 +149,51 @@ class ObservationService:
         state = payload.get("state") or payload.get("observation_state")
         return str(state) if state is not None else None
 
+    def _dispatch_error_from_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        latest_job: dict[str, Any],
+    ) -> ObservationCommandError:
+        raw_error = payload.get("error")
+        default_message = "Observation command dispatch failed."
+
+        if isinstance(raw_error, dict):
+            code = raw_error.get("code") or "invalid_state"
+            message = raw_error.get("message") or default_message
+            error_details = raw_error.get("details")
+            details: dict[str, Any] = {
+                "job": latest_job,
+                "payload": payload,
+            }
+            if isinstance(error_details, dict):
+                details["error_details"] = error_details
+
+            return ObservationCommandError(
+                code=str(code),
+                message=str(message),
+                details=details,
+            )
+
+        if isinstance(raw_error, str) and raw_error:
+            return ObservationCommandError(
+                code=str(payload.get("code") or payload.get("error_code") or "invalid_state"),
+                message=raw_error,
+                details={
+                    "job": latest_job,
+                    "payload": payload,
+                },
+            )
+
+        return ObservationCommandError(
+            code=str(payload.get("code") or payload.get("error_code") or "invalid_state"),
+            message=str(payload.get("message") or default_message),
+            details={
+                "job": latest_job,
+                "payload": payload,
+            },
+        )
+
     def feedback_from_dispatch_result(
         self,
         command: ObservationCommandName | str,
@@ -160,18 +205,12 @@ class ObservationService:
         latest_job = self._job_payload(result)
 
         if result.job.status.value == "failed":
+            error = self._dispatch_error_from_payload(payload, latest_job=latest_job)
             return ObservationCommandFeedback.failed(
                 command,
-                message="Observation command dispatch failed.",
+                message=error.message,
                 request_id=request_id,
-                error=ObservationCommandError(
-                    code="invalid_state",
-                    message="Observation command dispatch failed.",
-                    details={
-                        "job": latest_job,
-                        "payload": payload,
-                    },
-                ),
+                error=error,
                 details={
                     "payload": payload,
                 },

@@ -41,18 +41,48 @@ def _reset_runtime_singleton():
 def test_api_observation_invalid_start_returns_structured_error():
     client = TestClient(app)
 
-    response = client.post("/api/v1/observation/start")
+    response = client.post(
+        "/api/v1/observation/start",
+        headers={"X-Request-ID": "obs-invalid-start-req"},
+    )
     assert response.status_code == 400
+    assert response.headers["X-Request-ID"] == "obs-invalid-start-req"
 
     data = response.json()
     assert data["command"] == "start"
+    assert data["request_id"] == "obs-invalid-start-req"
     assert data["ok"] is False
     assert data["status"] == "failed"
     assert data["blocked"] is False
     assert data["error"]["code"] == "invalid_state"
     assert isinstance(data["error"]["message"], str)
     assert data["error"]["message"]
+    assert data["error"]["message"] != "Observation command dispatch failed."
+    assert data["error"]["details"]["payload"]["error"]["code"] == "invalid_state"
     assert "payload" in data["details"]
+
+
+def test_api_observation_command_success_feedback_includes_request_id_body():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/observation/arm",
+        json={
+            "exp_time_s": 5.0,
+            "frame_type": "science",
+            "operator_note": "request-id-body-check",
+        },
+        headers={"X-Request-ID": "obs-command-success-req"},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "obs-command-success-req"
+
+    data = response.json()
+    assert data["command"] == "arm"
+    assert data["request_id"] == "obs-command-success-req"
+    assert data["ok"] is True
+    assert data["status"] == "succeeded"
+    assert data["details"]["payload"]["state"] == "armed"
 
 
 def test_api_apply_unknown_preset_returns_structured_error():

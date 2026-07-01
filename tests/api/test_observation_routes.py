@@ -53,6 +53,8 @@ def _assert_command_failed(data: dict, command: str) -> None:
     assert data["status"] == "failed"
     assert data["blocked"] is False
     assert data["error"]["code"] == "invalid_state"
+    assert data["error"]["message"] != "Observation command dispatch failed."
+    assert data["error"]["details"]["payload"]["error"]["code"] == "invalid_state"
 
 
 def test_api_observation_initial_status():

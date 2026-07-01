@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from justls.ics.app.api.dependencies import (
@@ -26,6 +26,11 @@ from justls.ics.kernel.errors import ICSException
 router = APIRouter(prefix="/api/v1", tags=["observation"])
 
 
+def _request_id_from(request: Request) -> str | None:
+    value = getattr(request.state, "request_id", None)
+    return str(value) if value else None
+
+
 def _feedback_response(
     feedback: ObservationCommandFeedback,
 ) -> ObservationCommandFeedbackResponse:
@@ -48,8 +53,13 @@ def _observation_command_response(
     command: ObservationCommandName,
     result: DispatchResult,
     observation_service: ObservationServiceDep,
+    request_id: str | None,
 ) -> ObservationCommandFeedbackResponse | JSONResponse:
-    feedback = observation_service.feedback_from_dispatch_result(command, result)
+    feedback = observation_service.feedback_from_dispatch_result(
+        command,
+        result,
+        request_id=request_id,
+    )
     if feedback.ok:
         return _feedback_response(feedback)
     return _feedback_error_response(feedback, status_code=400)
@@ -60,8 +70,13 @@ def _observation_exception_response(
     command: ObservationCommandName,
     exc: ICSException,
     observation_service: ObservationServiceDep,
+    request_id: str | None,
 ) -> JSONResponse:
-    feedback = observation_service.feedback_from_exception(command, exc)
+    feedback = observation_service.feedback_from_exception(
+        command,
+        exc,
+        request_id=request_id,
+    )
     return _feedback_error_response(feedback, status_code=400)
 
 
@@ -95,8 +110,10 @@ def preview_observation(
 )
 def arm_observation(
     req: ObservationArmReq,
+    request: Request,
     observation_service: ObservationServiceDep,
 ) -> ObservationCommandFeedbackResponse | JSONResponse:
+    request_id = _request_id_from(request)
     try:
         result = observation_service.arm(
             exp_time_s=req.exp_time_s,
@@ -108,12 +125,14 @@ def arm_observation(
             command=ObservationCommandName.ARM,
             exc=exc,
             observation_service=observation_service,
+            request_id=request_id,
         )
 
     return _observation_command_response(
         command=ObservationCommandName.ARM,
         result=result,
         observation_service=observation_service,
+        request_id=request_id,
     )
 
 
@@ -128,8 +147,10 @@ def arm_observation(
     },
 )
 def start_observation(
+    request: Request,
     observation_service: ObservationServiceDep,
 ) -> ObservationCommandFeedbackResponse | JSONResponse:
+    request_id = _request_id_from(request)
     try:
         result = observation_service.start()
     except ICSException as exc:
@@ -137,12 +158,14 @@ def start_observation(
             command=ObservationCommandName.START,
             exc=exc,
             observation_service=observation_service,
+            request_id=request_id,
         )
 
     return _observation_command_response(
         command=ObservationCommandName.START,
         result=result,
         observation_service=observation_service,
+        request_id=request_id,
     )
 
 
@@ -157,8 +180,10 @@ def start_observation(
     },
 )
 def finish_observation(
+    request: Request,
     observation_service: ObservationServiceDep,
 ) -> ObservationCommandFeedbackResponse | JSONResponse:
+    request_id = _request_id_from(request)
     try:
         result = observation_service.finish()
     except ICSException as exc:
@@ -166,12 +191,14 @@ def finish_observation(
             command=ObservationCommandName.FINISH,
             exc=exc,
             observation_service=observation_service,
+            request_id=request_id,
         )
 
     return _observation_command_response(
         command=ObservationCommandName.FINISH,
         result=result,
         observation_service=observation_service,
+        request_id=request_id,
     )
 
 
@@ -186,8 +213,10 @@ def finish_observation(
     },
 )
 def stop_readout_observation(
+    request: Request,
     observation_service: ObservationServiceDep,
 ) -> ObservationCommandFeedbackResponse | JSONResponse:
+    request_id = _request_id_from(request)
     try:
         result = observation_service.stop_readout()
     except ICSException as exc:
@@ -195,12 +224,14 @@ def stop_readout_observation(
             command=ObservationCommandName.STOP_READOUT,
             exc=exc,
             observation_service=observation_service,
+            request_id=request_id,
         )
 
     return _observation_command_response(
         command=ObservationCommandName.STOP_READOUT,
         result=result,
         observation_service=observation_service,
+        request_id=request_id,
     )
 
 
@@ -215,8 +246,10 @@ def stop_readout_observation(
     },
 )
 def abort_discard_observation(
+    request: Request,
     observation_service: ObservationServiceDep,
 ) -> ObservationCommandFeedbackResponse | JSONResponse:
+    request_id = _request_id_from(request)
     try:
         result = observation_service.abort_discard()
     except ICSException as exc:
@@ -224,10 +257,12 @@ def abort_discard_observation(
             command=ObservationCommandName.ABORT_DISCARD,
             exc=exc,
             observation_service=observation_service,
+            request_id=request_id,
         )
 
     return _observation_command_response(
         command=ObservationCommandName.ABORT_DISCARD,
         result=result,
         observation_service=observation_service,
+        request_id=request_id,
     )

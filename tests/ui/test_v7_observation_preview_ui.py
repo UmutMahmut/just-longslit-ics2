@@ -59,6 +59,13 @@ def test_v7_observe_runtime_asset_binds_preview_endpoint_and_current_api_shape()
     assert "readiness.slit" in js
     assert "readiness.tcs" in js
 
+    assert "function isCommandFeedback(payload)" in js
+    assert "function commandFeedbackSummary(command, feedback)" in js
+    assert "function renderCommandFeedback(command, feedback)" in js
+    assert "blocked_components" in js
+    assert "blocked_reason" in js
+    assert "interlock_blocked" not in js
+
     # Do not regress to the older reference-branch response shape.
     assert "execution_compatible" not in js
     assert re.search(r"\bpayload\.valid\b", js) is None

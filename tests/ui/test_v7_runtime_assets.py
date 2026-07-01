@@ -147,6 +147,11 @@ def test_v7_observe_runtime_is_singleton_safe_and_skeleton_aware():
     assert "dataset.bound" in observe.text
     assert "justls:v7-observe-state" in observe.text
     assert "v7.observe.runtime_state" in observe.text
+    assert "isCommandFeedback" in observe.text
+    assert "commandFeedbackSummary" in observe.text
+    assert "renderCommandFeedback" in observe.text
+    assert "blocked_components" in observe.text
+    assert "blocked_reason" in observe.text
 
 
 def test_v7_observe_guard_is_singleton_safe_and_narrowly_observed():

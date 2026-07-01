@@ -170,6 +170,12 @@ def test_v7_observe_runtime_and_guard_assets_target_existing_observe_skeleton():
     assert "v7.observe.latest_job" in runtime_js
     assert "v7.observe.last_error" in runtime_js
     assert "requestIdFrom" in runtime_js
+    assert "isCommandFeedback" in runtime_js
+    assert "commandFeedbackSummary" in runtime_js
+    assert "renderCommandFeedback" in runtime_js
+    assert "blocked_components" in runtime_js
+    assert "blocked_reason" in runtime_js
+    assert "validation_issues" in runtime_js
     assert "__JUSTLS_V7_OBSERVE_GUARD__" in guard_js
     assert 'document.getElementById("v7-observe-controls")' in guard_js
     assert 'data-role="obs-abort-confirm"' in guard_js

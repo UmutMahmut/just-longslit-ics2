@@ -156,9 +156,9 @@ def phase_2d8_v7_enabled() -> bool:
 
 
 def phase_2d8_v7_runtime_enabled() -> bool:
-    # Keep the v7 static shell safe by default. Runtime add-ons can be enabled
-    # explicitly during targeted debugging/local testing.
-    return env_flag(PHASE_2D8_V7_RUNTIME_ENABLED_ENV, default=False)
+    # v7 runtime is now the default operator workflow. Operators can still set
+    # JUSTLS_UI_V7_RUNTIME_ENABLED=0 to force the static shell.
+    return env_flag(PHASE_2D8_V7_RUNTIME_ENABLED_ENV, default=True)
 
 
 def phase_2d8_v7_runtime_status_enabled() -> bool:
@@ -178,11 +178,11 @@ def phase_2d8_v7_preset_runtime_enabled() -> bool:
 
 
 def phase_2d8_v7_observe_runtime_enabled() -> bool:
-    return env_flag(PHASE_2D8_V7_OBSERVE_RUNTIME_ENABLED_ENV, default=False)
+    return env_flag(PHASE_2D8_V7_OBSERVE_RUNTIME_ENABLED_ENV, default=True)
 
 
 def phase_2d8_v7_observe_guard_enabled() -> bool:
-    return env_flag(PHASE_2D8_V7_OBSERVE_GUARD_ENABLED_ENV, default=False)
+    return env_flag(PHASE_2D8_V7_OBSERVE_GUARD_ENABLED_ENV, default=True)
 
 
 def phase_2d8_v7_runtime_module_flags() -> dict[str, bool]:

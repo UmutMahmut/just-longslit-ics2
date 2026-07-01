@@ -215,6 +215,50 @@
     return [job.status, job.subsystem, job.action, job.job_id].filter(Boolean).join(" - ");
   }
 
+  function isObject(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function isCommandFeedback(payload) {
+    return (
+      isObject(payload) &&
+      typeof payload.command === "string" &&
+      typeof payload.status === "string" &&
+      Object.prototype.hasOwnProperty.call(payload, "ok")
+    );
+  }
+
+  function commandFeedbackPayload(feedback) {
+    if (!isCommandFeedback(feedback) || !isObject(feedback.details)) return null;
+    return isObject(feedback.details.payload) ? feedback.details.payload : null;
+  }
+
+  function errorLabel(error) {
+    if (!error) return "none";
+    if (!isObject(error)) return text(error, "failed");
+
+    const code = error.code || "error";
+    const message = error.message || "command failed";
+    return `${code} - ${message}`;
+  }
+
+  function listLabel(values, fallback) {
+    if (!Array.isArray(values) || values.length === 0) return fallback;
+    return values.filter(Boolean).join(", ") || fallback;
+  }
+
+  function validationIssueCodes(feedback) {
+    const direct = isObject(feedback) && Array.isArray(feedback.validation_issues)
+      ? feedback.validation_issues
+      : [];
+    const preview = isObject(feedback && feedback.preview) && Array.isArray(feedback.preview.validation_issues)
+      ? feedback.preview.validation_issues
+      : [];
+    return direct.concat(preview)
+      .map((issue) => issue && issue.code)
+      .filter(Boolean);
+  }
+
   function resultSummary(command, payload) {
     if (!command) return "none";
     if (!payload || typeof payload !== "object") return `${command}: done`;
@@ -231,7 +275,51 @@
     return parts.join(" - ");
   }
 
+  function commandFeedbackSummary(command, feedback) {
+    if (!isCommandFeedback(feedback)) return resultSummary(command, feedback);
+
+    const name = feedback.command || command || "command";
+    const payload = commandFeedbackPayload(feedback) || {};
+    const state = feedback.observation_state || payload.state || payload.observation_state;
+
+    if (feedback.status === "blocked" || feedback.blocked === true) {
+      const parts = [name, "blocked"];
+      if (feedback.blocked_reason) parts.push(String(feedback.blocked_reason).replace(/_/g, " "));
+      const components = listLabel(feedback.blocked_components, "none");
+      if (components !== "none") parts.push(components);
+      const issueCodes = listLabel(validationIssueCodes(feedback), "none");
+      if (issueCodes !== "none") parts.push(issueCodes);
+      return parts.join(" - ");
+    }
+
+    if (feedback.status === "failed" || feedback.ok === false) {
+      const parts = [name, "failed"];
+      if (feedback.error && feedback.error.code) parts.push(feedback.error.code);
+      if (feedback.error && feedback.error.message) parts.push(feedback.error.message);
+      return parts.join(" - ");
+    }
+
+    const last = payload.last_exposure || payload.armed_exposure || {};
+    const frame = last.frame_type || payload.frame_type;
+    const exp = last.exp_time_s || payload.exp_time_s;
+    const parts = [name, feedback.status || "succeeded"];
+    if (state) parts.push(state);
+    if (frame) parts.push(frame);
+    if (exp) parts.push(`${exp} s`);
+    return parts.join(" - ");
+  }
+
   function bindStructuredResult(command, payload, error) {
+    if (isCommandFeedback(payload)) {
+      runtime.lastRequestId = payload.request_id || runtime.lastRequestId;
+      setText(bind("v7.observe.last_command"), payload.command || command || "none");
+      setText(bind("v7.observe.request_id"), payload.request_id || runtime.lastRequestId || "not available");
+      setText(bind("v7.observe.latest_job"), latestJobLabel(payload));
+      setText(bind("v7.observe.last_error"), payload.ok === false ? errorLabel(payload.error) : "none");
+      setText(bind("v7.observe.result_summary"), commandFeedbackSummary(command, payload));
+      return;
+    }
+
     setText(bind("v7.observe.last_command"), command || "none");
     setText(bind("v7.observe.request_id"), runtime.lastRequestId || "not available");
     setText(bind("v7.observe.latest_job"), latestJobLabel(payload));
@@ -334,7 +422,32 @@
     window.dispatchEvent(new CustomEvent("justls:v7-observe-state", { detail: runtime.lastStatus }));
   }
 
+  function renderCommandFeedback(command, feedback) {
+    const payload = commandFeedbackPayload(feedback);
+    if (payload) renderStatus(payload);
+
+    runtime.lastCommand = feedback.command || command;
+    runtime.lastResult = feedback;
+    runtime.lastError = feedback.ok === false ? errorLabel(feedback.error) : null;
+    runtime.lastRequestId = feedback.request_id || runtime.lastRequestId;
+
+    bindStructuredResult(command, feedback, runtime.lastError);
+    setText(
+      bind("v7.observe.result"),
+      JSON.stringify({
+        command: feedback.command || command,
+        request_id: runtime.lastRequestId,
+        feedback,
+      }, null, 2),
+    );
+  }
+
   function renderResult(command, payload) {
+    if (isCommandFeedback(payload)) {
+      renderCommandFeedback(command, payload);
+      return;
+    }
+
     renderStatus(payload);
     runtime.lastCommand = command;
     runtime.lastResult = payload;
@@ -348,6 +461,11 @@
   }
 
   function renderError(command, error) {
+    if (isCommandFeedback(error)) {
+      renderCommandFeedback(command, error);
+      return;
+    }
+
     runtime.lastCommand = command;
     runtime.lastError = text(error, "failed");
     setText(bind("v7.observe.last_command"), command);
@@ -375,9 +493,8 @@
 
       if (response.ok) {
         renderStatus(payload);
-        bindStructuredResult(runtime.lastCommand, payload, null);
       } else {
-        renderError("status", `HTTP ${response.status}`);
+        renderError("status", `HTTP ${response.status}: ${JSON.stringify(payload)}`);
       }
     } catch (error) {
       renderError("status", error && error.message);
@@ -434,7 +551,9 @@
       runtime.lastRequestId = requestIdFrom(response);
       const payload = await response.json();
 
-      if (response.ok) {
+      if (isCommandFeedback(payload)) {
+        renderCommandFeedback(command, payload);
+      } else if (response.ok) {
         renderResult(command, payload);
       } else {
         renderError(command, `HTTP ${response.status}: ${JSON.stringify(payload)}`);

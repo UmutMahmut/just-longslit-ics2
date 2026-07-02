@@ -98,6 +98,7 @@ Responsibility:
 - preview readiness/validation visibility;
 - arm/start/finish/stop-readout/abort-discard command path;
 - command feedback summary;
+- latest exposure record and data-product reference summary;
 - latest preview/placeholder image areas.
 
 Observe is not a sequence runner until sequence contracts exist.
@@ -121,6 +122,8 @@ Responsibility:
 - latest job;
 - last error;
 - runtime status;
+- latest exposure record and simulated/real data-product distinction;
+- read-only observatory context;
 - troubleshooting payloads.
 
 Routine pages should show summaries first. Raw JSON belongs in collapsible detail areas and Diagnostics.
@@ -313,8 +316,8 @@ Unavailable or stale context must be shown honestly.
 | Observation preview | `/observation/preview` | Observe | advisory | Side-effect-free. |
 | Observation commands | `/observation/arm/start/finish/stop_readout/abort_discard` | Observe | operator control | Returns command feedback. |
 | B/G/R channels | detector/config summary only | Instrument / Configure | visible placeholder/status | No fake telemetry. |
-| TCS/observatory | not implemented | future Setup/Observe/Diagnostics | deferred read-only | No telescope control. |
-| Data products | not implemented | future Diagnostics/Observe | deferred contract | Do not imply FITS writer exists. |
+| TCS/observatory | `GET /observatory/context`, `/status/full` | future Setup/Observe/Diagnostics | visible placeholder/status | Read-only and unavailable by default; no telescope control. |
+| Data products | `latest_exposure_record` on observation/status payloads | future Diagnostics/Observe | visible status | Simulator references only; do not imply FITS writer exists. |
 | Engineer controls | not implemented | Engineer | deferred | Future role gating. |
 
 ## Reference usage
@@ -375,11 +378,11 @@ The following remain deferred:
 - sequence runner;
 - observing plan editor/executor;
 - FITS writer;
-- durable DataProduct pipeline;
+- durable DataProduct pipeline beyond current data-product reference contract;
 - quicklook/data watcher;
 - real B/G/R camera control;
 - slit monitor image backend;
-- read-only observatory/TCS context;
+- real observatory/TCS integration beyond unavailable read-only placeholders;
 - OCS adapter;
 - auth/role model;
 - engineer recovery controls.

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from justls.ics.domain.observatory.context import ObservatoryContext
 from justls.ics.kernel.runtime import Runtime
 from justls.ics.kernel.states import ControlState, ExposureState
 
@@ -41,6 +42,11 @@ class HealthService:
         if self.runtime.detector is None:
             return None
         return self.runtime.detector.get_snapshot().to_dict()
+
+    def get_observatory_context(self) -> dict:
+        return ObservatoryContext.default_unavailable(
+            run_mode=self.runtime.config.run_mode.value,
+        ).model_dump(mode="json")
 
     def get_operational_status(self) -> dict[str, Any]:
         """
@@ -170,6 +176,7 @@ class HealthService:
             "capabilities": self.get_capabilities(),
             "calibration": self.get_calibration_status(),
             "observation": self.get_observation_status(),
+            "observatory": self.get_observatory_context(),
             "operational_status": self.get_operational_status(),
             "detector_config": self.runtime.get_detector_config_dict(),
             "hal": self.runtime.config.run_mode.value,

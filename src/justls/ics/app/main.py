@@ -14,6 +14,7 @@ from justls.ics.app.api.errors import build_api_error_detail
 from justls.ics.app.api.routers.detector import router as detector_router
 from justls.ics.app.api.routers.health import router as health_router
 from justls.ics.app.api.routers.lamps import router as lamps_router
+from justls.ics.app.api.routers.observatory import router as observatory_router
 from justls.ics.app.api.routers.observation import router as observation_router
 from justls.ics.app.api.routers.presets import router as presets_router
 from justls.ics.app.api.routers.setup import router as setup_router
@@ -96,6 +97,7 @@ app.include_router(setup_router)
 app.include_router(slit_router)
 app.include_router(lamps_router)
 app.include_router(observation_router)
+app.include_router(observatory_router)
 app.include_router(detector_router)
 app.include_router(presets_router)
 

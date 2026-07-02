@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from justls.ics.domain.detector.config import DetectorConfig
+from justls.ics.domain.observatory.context import ObservatoryContext
 
 
 class PresetListItemResponse(BaseModel):
@@ -117,6 +118,76 @@ class ObservationFrameResultResponse(BaseModel):
     channel: str | None = None
 
 
+class DataProductRefResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: str
+    kind: str
+    state: str
+    uri: str | None = None
+    exists: bool
+    simulated: bool
+    media_type: str | None = None
+    checksum: str | None = None
+    created_at_utc: str | None = None
+    message: str | None = None
+
+
+class FitsHeaderSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    obs_id: str
+    exp_id: str
+    frame_type: str
+    exp_time_s: float
+    detector_profile: str | None = None
+    setup_file_stem: str | None = None
+    cards: dict[str, Any] = Field(default_factory=dict)
+
+
+class FrameRecordResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    frame_id: str
+    obs_id: str
+    exp_id: str
+    frame_type: str
+    exp_time_s: float
+    state: str
+    frame_token: str | None = None
+    kept: bool
+    early_stop: bool
+    discarded: bool
+    started_at_utc: str | None = None
+    finished_at_utc: str | None = None
+    data_product: DataProductRefResponse
+    quicklook: DataProductRefResponse | None = None
+    fits_header: FitsHeaderSummaryResponse | None = None
+    quality_flags: list[str] = Field(default_factory=list)
+
+
+class ExposureRecordResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record_id: str
+    obs_id: str
+    exp_id: str
+    state: str
+    frame_type: str
+    exp_time_s: float
+    created_at_utc: str
+    started_at_utc: str | None = None
+    finished_at_utc: str | None = None
+    data_product_state: str
+    frames: list[FrameRecordResponse] = Field(default_factory=list)
+    primary_data_product: DataProductRefResponse | None = None
+    quicklook: DataProductRefResponse | None = None
+    fits_header: FitsHeaderSummaryResponse | None = None
+    quality_flags: list[str] = Field(default_factory=list)
+    simulated: bool
+    message: str | None = None
+
+
 class ObservationMetaResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -135,6 +206,10 @@ class ObservationMetaResponse(BaseModel):
     setup_context: dict[str, Any] | None = None
     data_preview: dict[str, Any] | None = None
     frame_results: list[ObservationFrameResultResponse] = Field(default_factory=list)
+    data_products: list[DataProductRefResponse] = Field(default_factory=list)
+    quicklooks: list[DataProductRefResponse] = Field(default_factory=list)
+    fits_header_summary: FitsHeaderSummaryResponse | None = None
+    exposure_record: ExposureRecordResponse | None = None
 
 
 class ObservationStatusResponse(BaseModel):
@@ -144,6 +219,7 @@ class ObservationStatusResponse(BaseModel):
     armed_exposure: ObservationExposureResponse | None = None
     last_exposure: ObservationExposureResponse | None = None
     observation_meta: ObservationMetaResponse | None = None
+    latest_exposure_record: ExposureRecordResponse | None = None
 
 
 class RuntimeSubsystemStateResponse(BaseModel):
@@ -233,6 +309,7 @@ class StatusFullResponse(BaseModel):
     capabilities: CapabilitiesResponse
     calibration: CalibrationStatusResponse | None = None
     observation: ObservationStatusResponse | None = None
+    observatory: ObservatoryContext
     operational_status: OperationalStatusResponse
     detector_config: DetectorConfig
     hal: str

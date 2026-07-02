@@ -6,13 +6,13 @@ This repository is not only a web UI prototype. It contains the current ICS 2.0 
 
 ## Current baseline
 
-Current code baseline: after Phase 2.9-C command-feedback closeout.
+Current code baseline: after Phase 2.9-E exposure-record and read-only observatory-context closeout.
 
 Validation baseline:
 
 ```text
 pytest -q
-233 passed
+244 passed
 ```
 
 Current default UI behavior:
@@ -36,6 +36,8 @@ Setup / Instrument context
   -> Observation preview
   -> backend readiness gate
   -> command feedback
+  -> ExposureRecord / simulated DataProductRef
+  -> read-only observatory context visibility
   -> v7 Observe command summary
   -> raw JSON diagnostics when needed
 ```
@@ -55,6 +57,11 @@ Implemented capabilities include:
 - Side-effect-free observation preview contract.
 - Backend arm gate based on current readiness preview.
 - Observation command feedback contract for success, blocked, and failed command results.
+- ExposureRecord, FrameRecord, DataProductRef, QuicklookRef-style references, FITS header summary placeholders, and quality flags.
+- Simulator-backed data-product references that explicitly do not claim real FITS files exist.
+- Read-only `/api/v1/observatory/context` for OCS/TCS/telescope/dome/weather/guider visibility with unavailable/stale-ready semantics reserved.
+- `/api/v1/status/full` includes observatory context and latest exposure-record visibility.
+- Simulator adapter contract tests for detector, slit, and calibration behavior.
 - v7 Observe runtime consumption of command feedback.
 - v7 route/runtime tests and API contract tests.
 
@@ -63,8 +70,8 @@ Implemented capabilities include:
 The repository intentionally does not yet implement:
 
 - multi-exposure sequence runner;
-- FITS writer;
-- durable DataProduct pipeline;
+- FITS writer or real file persistence;
+- durable DataProduct pipeline beyond current runtime/read-model contracts;
 - OCS adapter;
 - TCS telescope control;
 - real TCS readiness integration;
@@ -150,6 +157,7 @@ GET  /api/v1/health
 GET  /api/v1/status
 GET  /api/v1/status/full
 GET  /api/v1/capabilities
+GET  /api/v1/observatory/context
 
 GET  /api/v1/setup/context
 PUT  /api/v1/setup/context
@@ -184,6 +192,7 @@ Important contract split:
 GET  /observation/status  -> current observation state
 POST /observation/preview -> side-effect-free readiness/validation preview
 POST observation commands -> ObservationCommandFeedbackResponse
+latest_exposure_record -> exposure lifecycle + data-product reference contract
 ```
 
 Preview is advisory. Arm is an independent command. Every Arm call reruns the backend readiness gate.
@@ -212,6 +221,7 @@ Avoid adding one-off phase notes. If a decision remains useful, fold it into one
 ```text
 tests/api/          API behavior and response contracts
 tests/application/  application services and use-case contracts
+tests/adapters/     simulator adapter parity contracts
 tests/domain/       domain models and validation
 tests/kernel/       runtime, job, state, and guard behavior
 tests/ui/           UI routes, static shells, static assets, runtime gates

@@ -9,6 +9,9 @@ from fastapi import Depends
 from justls.ics.application.dispatcher import CommandDispatcher, validate_required_params
 from justls.ics.application.services.health_service import HealthService
 from justls.ics.application.services.management_service import ManagementService
+from justls.ics.application.services.observatory_context_service import (
+    ObservatoryContextService,
+)
 from justls.ics.application.services.observation_service import ObservationService
 from justls.ics.application.services.observation_preview_service import ObservationPreviewService
 from justls.ics.application.services.setup_context_service import SetupContextService
@@ -34,6 +37,10 @@ def get_health_service(runtime: RuntimeDep) -> HealthService:
 
 def get_management_service(runtime: RuntimeDep) -> ManagementService:
     return ManagementService(runtime)
+
+
+def get_observatory_context_service(runtime: RuntimeDep) -> ObservatoryContextService:
+    return ObservatoryContextService(runtime)
 
 
 def get_setup_context_path() -> Path:
@@ -232,6 +239,10 @@ def get_dispatcher(runtime: RuntimeDep) -> CommandDispatcher:
 DispatcherDep = Annotated[CommandDispatcher, Depends(get_dispatcher)]
 HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]
 ManagementServiceDep = Annotated[ManagementService, Depends(get_management_service)]
+ObservatoryContextServiceDep = Annotated[
+    ObservatoryContextService,
+    Depends(get_observatory_context_service),
+]
 SetupContextServiceDep = Annotated[SetupContextService, Depends(get_setup_context_service)]
 
 def get_observation_preview_service(

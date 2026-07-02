@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from justls.ics.adapters.detector.adapter import BaseDetectorAdapter
-from justls.ics.domain.observation.models import FrameResult, ObservationMeta, utc_now_iso
+from justls.ics.domain.observation.models import (
+    ExposureRecord,
+    FrameResult,
+    ObservationMeta,
+    utc_now_iso,
+)
 from justls.ics.kernel.errors import InvalidParamError, InvalidStateError
 from justls.ics.kernel.states import ExposureState
 
@@ -32,6 +37,7 @@ class ExposureSnapshot:
     armed_exposure: dict | None
     last_exposure: dict | None
     observation_meta: dict | None
+    latest_exposure_record: dict | None
 
     def to_dict(self) -> dict:
         return {
@@ -39,6 +45,7 @@ class ExposureSnapshot:
             "armed_exposure": self.armed_exposure,
             "last_exposure": self.last_exposure,
             "observation_meta": self.observation_meta,
+            "latest_exposure_record": self.latest_exposure_record,
         }
 
 
@@ -49,6 +56,7 @@ class DetectorSubsystem:
         self._armed: ArmedExposure | None = None
         self._last_exposure: dict | None = None
         self._observation_meta: ObservationMeta | None = None
+        self._latest_exposure_record: dict | None = None
 
     def get_snapshot(self) -> ExposureSnapshot:
         return ExposureSnapshot(
@@ -56,6 +64,7 @@ class DetectorSubsystem:
             armed_exposure=self._armed.to_dict() if self._armed is not None else None,
             last_exposure=self._last_exposure,
             observation_meta=self._observation_meta.to_dict() if self._observation_meta is not None else None,
+            latest_exposure_record=self._latest_exposure_record,
         )
 
     def arm(
@@ -165,6 +174,7 @@ class DetectorSubsystem:
         self._last_exposure = result
         self._observation_meta.add_frame_result(frame_result)
         self._observation_meta.mark_completed(finished_at_utc=result.get("finished_at"))
+        self._attach_latest_exposure_record(frame_result)
         self._armed = None
         self._state = ExposureState.COMPLETED
         return self.get_snapshot()
@@ -205,6 +215,7 @@ class DetectorSubsystem:
         self._last_exposure = result
         self._observation_meta.add_frame_result(frame_result)
         self._observation_meta.mark_completed(finished_at_utc=result.get("finished_at"))
+        self._attach_latest_exposure_record(frame_result)
         self._armed = None
         self._state = ExposureState.COMPLETED
         return self.get_snapshot()
@@ -248,6 +259,18 @@ class DetectorSubsystem:
 
         self._observation_meta.add_frame_result(frame_result)
         self._observation_meta.mark_discarded(finished_at_utc=finished_at)
+        self._attach_latest_exposure_record(frame_result)
         self._armed = None
         self._state = ExposureState.DISCARDED
         return self.get_snapshot()
+
+    def _attach_latest_exposure_record(self, frame_result: FrameResult) -> None:
+        if self._observation_meta is None:
+            return
+
+        exposure_record = ExposureRecord.from_frame_result(
+            observation_meta=self._observation_meta,
+            frame_result=frame_result,
+        )
+        self._observation_meta.attach_exposure_record(exposure_record)
+        self._latest_exposure_record = exposure_record.model_dump(mode="json")

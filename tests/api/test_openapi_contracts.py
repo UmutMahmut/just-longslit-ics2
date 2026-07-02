@@ -96,6 +96,7 @@ def test_openapi_system_and_detector_responses_are_typed():
     status_schema = data["paths"]["/api/v1/status"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     status_full_schema = data["paths"]["/api/v1/status/full"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     capabilities_schema = data["paths"]["/api/v1/capabilities"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    observatory_schema = data["paths"]["/api/v1/observatory/context"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     detector_get_schema = data["paths"]["/api/v1/detector/config"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     detector_post_schema = data["paths"]["/api/v1/detector/config"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
 
@@ -110,6 +111,9 @@ def test_openapi_system_and_detector_responses_are_typed():
 
     assert "$ref" in capabilities_schema
     assert capabilities_schema["$ref"].endswith("/CapabilitiesResponse")
+
+    assert "$ref" in observatory_schema
+    assert observatory_schema["$ref"].endswith("/ObservatoryContext")
 
     assert "$ref" in detector_get_schema
     assert detector_get_schema["$ref"].endswith(("/DetectorConfig", "/DetectorConfig-Output"))
@@ -133,6 +137,8 @@ def test_openapi_response_components_include_system_models():
     assert "RuntimeStatusResponse" in schemas
     assert "RuntimeStateResponse" in schemas
     assert "RuntimeSubsystemStateResponse" in schemas
+    assert "ObservatoryContext" in schemas
+    assert "ObservatoryComponentContext" in schemas
 
 
 def test_openapi_control_responses_are_typed():

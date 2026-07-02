@@ -25,6 +25,18 @@ def new_exp_id() -> str:
     return f"exp-{uuid4().hex[:12]}"
 
 
+def new_record_id() -> str:
+    return f"rec-{uuid4().hex[:12]}"
+
+
+def new_frame_id() -> str:
+    return f"frame-rec-{uuid4().hex[:12]}"
+
+
+def new_product_id() -> str:
+    return f"dp-{uuid4().hex[:12]}"
+
+
 @dataclass(slots=True)
 class FrameResult:
     frame_token: str | None
@@ -51,6 +63,265 @@ class FrameResult:
         }
 
 
+class DataProductKind(str, Enum):
+    FITS = "fits"
+    QUICKLOOK = "quicklook"
+
+
+class DataProductState(str, Enum):
+    NOT_CREATED = "not_created"
+    SIMULATED_REFERENCE = "simulated_reference"
+    AVAILABLE = "available"
+    FAILED = "failed"
+
+
+class QualityFlag(str, Enum):
+    UNKNOWN = "unknown"
+    SIMULATED = "simulated"
+    DISCARDED = "discarded"
+    NO_FITS_WRITER = "no_fits_writer"
+    EARLY_STOP = "early_stop"
+
+
+class DataProductRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: str = Field(default_factory=new_product_id)
+    kind: DataProductKind
+    state: DataProductState
+    uri: str | None = None
+    exists: bool = False
+    simulated: bool = False
+    media_type: str | None = None
+    checksum: str | None = None
+    created_at_utc: str | None = None
+    message: str | None = None
+
+    @classmethod
+    def simulated_fits(
+        cls,
+        *,
+        obs_id: str,
+        exp_id: str,
+        frame_token: str | None,
+        checksum: str | None = None,
+    ) -> "DataProductRef":
+        token = frame_token or "frame"
+        return cls(
+            kind=DataProductKind.FITS,
+            state=DataProductState.SIMULATED_REFERENCE,
+            uri=f"sim://justls/{obs_id}/{exp_id}/{token}.fits",
+            exists=False,
+            simulated=True,
+            media_type="application/fits",
+            checksum=checksum,
+            created_at_utc=utc_now_iso(),
+            message="Simulator reference only; no FITS file has been written.",
+        )
+
+    @classmethod
+    def simulated_quicklook(
+        cls,
+        *,
+        obs_id: str,
+        exp_id: str,
+        frame_token: str | None,
+    ) -> "DataProductRef":
+        token = frame_token or "frame"
+        return cls(
+            kind=DataProductKind.QUICKLOOK,
+            state=DataProductState.SIMULATED_REFERENCE,
+            uri=f"sim://justls/{obs_id}/{exp_id}/{token}-quicklook.png",
+            exists=False,
+            simulated=True,
+            media_type="image/png",
+            created_at_utc=utc_now_iso(),
+            message="Simulator quicklook reference only; no image file has been written.",
+        )
+
+    @classmethod
+    def not_created(
+        cls,
+        *,
+        kind: DataProductKind,
+        message: str,
+    ) -> "DataProductRef":
+        return cls(
+            kind=kind,
+            state=DataProductState.NOT_CREATED,
+            exists=False,
+            simulated=False,
+            created_at_utc=utc_now_iso(),
+            message=message,
+        )
+
+
+class FitsHeaderSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    obs_id: str
+    exp_id: str
+    frame_type: str
+    exp_time_s: float
+    detector_profile: str | None = None
+    setup_file_stem: str | None = None
+    cards: dict[str, Any] = Field(default_factory=dict)
+
+    @classmethod
+    def from_observation_meta(cls, observation_meta: Any) -> "FitsHeaderSummary":
+        detector_config = observation_meta.detector_config or {}
+        setup_context = observation_meta.setup_context or {}
+        detector_profile = (
+            detector_config.get("profile_name")
+            if isinstance(detector_config, dict)
+            else None
+        )
+        setup_file_stem = (
+            setup_context.get("file_stem")
+            if isinstance(setup_context, dict)
+            else None
+        )
+        return cls(
+            obs_id=observation_meta.obs_id,
+            exp_id=observation_meta.exp_id,
+            frame_type=observation_meta.frame_type,
+            exp_time_s=observation_meta.exp_time_s,
+            detector_profile=detector_profile,
+            setup_file_stem=setup_file_stem,
+            cards={
+                "OBS_ID": observation_meta.obs_id,
+                "EXP_ID": observation_meta.exp_id,
+                "FRAMETYP": observation_meta.frame_type,
+                "EXPTIME": observation_meta.exp_time_s,
+                "SIMULATE": True,
+            },
+        )
+
+
+class FrameRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    frame_id: str = Field(default_factory=new_frame_id)
+    obs_id: str
+    exp_id: str
+    frame_type: str
+    exp_time_s: float
+    state: str
+    frame_token: str | None = None
+    kept: bool
+    early_stop: bool
+    discarded: bool
+    started_at_utc: str | None = None
+    finished_at_utc: str | None = None
+    data_product: DataProductRef
+    quicklook: DataProductRef | None = None
+    fits_header: FitsHeaderSummary | None = None
+    quality_flags: list[QualityFlag] = Field(default_factory=list)
+
+
+class ExposureRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record_id: str = Field(default_factory=new_record_id)
+    obs_id: str
+    exp_id: str
+    state: str
+    frame_type: str
+    exp_time_s: float
+    created_at_utc: str
+    started_at_utc: str | None = None
+    finished_at_utc: str | None = None
+    data_product_state: DataProductState
+    frames: list[FrameRecord] = Field(default_factory=list)
+    primary_data_product: DataProductRef | None = None
+    quicklook: DataProductRef | None = None
+    fits_header: FitsHeaderSummary | None = None
+    quality_flags: list[QualityFlag] = Field(default_factory=list)
+    simulated: bool = True
+    message: str | None = None
+
+    @classmethod
+    def from_frame_result(
+        cls,
+        *,
+        observation_meta: Any,
+        frame_result: FrameResult,
+    ) -> "ExposureRecord":
+        discarded = frame_result.discarded or not frame_result.kept
+        fits_header = FitsHeaderSummary.from_observation_meta(observation_meta)
+
+        flags = [QualityFlag.SIMULATED]
+        if frame_result.early_stop:
+            flags.append(QualityFlag.EARLY_STOP)
+        if discarded:
+            flags.append(QualityFlag.DISCARDED)
+        else:
+            flags.append(QualityFlag.NO_FITS_WRITER)
+
+        if discarded:
+            data_product = DataProductRef.not_created(
+                kind=DataProductKind.FITS,
+                message="Exposure was discarded; no data product was created.",
+            )
+            quicklook = None
+            state = "discarded"
+            message = "Exposure discarded; data product intentionally absent."
+        else:
+            data_product = DataProductRef.simulated_fits(
+                obs_id=observation_meta.obs_id,
+                exp_id=observation_meta.exp_id,
+                frame_token=frame_result.frame_token,
+                checksum=frame_result.checksum,
+            )
+            quicklook = DataProductRef.simulated_quicklook(
+                obs_id=observation_meta.obs_id,
+                exp_id=observation_meta.exp_id,
+                frame_token=frame_result.frame_token,
+            )
+            state = "completed"
+            message = (
+                "Exposure completed in simulator; data products are references "
+                "only until a real writer exists."
+            )
+
+        frame = FrameRecord(
+            obs_id=observation_meta.obs_id,
+            exp_id=observation_meta.exp_id,
+            frame_type=observation_meta.frame_type,
+            exp_time_s=observation_meta.exp_time_s,
+            state=state,
+            frame_token=frame_result.frame_token,
+            kept=frame_result.kept,
+            early_stop=frame_result.early_stop,
+            discarded=frame_result.discarded,
+            started_at_utc=frame_result.started_at_utc,
+            finished_at_utc=frame_result.finished_at_utc,
+            data_product=data_product,
+            quicklook=quicklook,
+            fits_header=fits_header,
+            quality_flags=flags,
+        )
+
+        return cls(
+            obs_id=observation_meta.obs_id,
+            exp_id=observation_meta.exp_id,
+            state=state,
+            frame_type=observation_meta.frame_type,
+            exp_time_s=observation_meta.exp_time_s,
+            created_at_utc=observation_meta.created_at_utc,
+            started_at_utc=observation_meta.started_at_utc,
+            finished_at_utc=observation_meta.finished_at_utc,
+            data_product_state=data_product.state,
+            frames=[frame],
+            primary_data_product=data_product,
+            quicklook=quicklook,
+            fits_header=fits_header,
+            quality_flags=flags,
+            simulated=True,
+            message=message,
+        )
+
+
 @dataclass(slots=True)
 class ObservationMeta:
     obs_id: str
@@ -69,6 +340,10 @@ class ObservationMeta:
     setup_context: dict[str, Any] | None = None
     data_preview: dict[str, Any] | None = None
     frame_results: list[dict[str, Any]] = field(default_factory=list)
+    data_products: list[dict[str, Any]] = field(default_factory=list)
+    quicklooks: list[dict[str, Any]] = field(default_factory=list)
+    fits_header_summary: dict[str, Any] | None = None
+    exposure_record: dict[str, Any] | None = None
 
     @classmethod
     def create(
@@ -116,6 +391,23 @@ class ObservationMeta:
     def add_frame_result(self, frame_result: FrameResult) -> None:
         self.frame_results.append(frame_result.to_dict())
 
+    def attach_exposure_record(self, exposure_record: ExposureRecord) -> None:
+        payload = exposure_record.model_dump(mode="json")
+        self.exposure_record = payload
+        self.fits_header_summary = (
+            exposure_record.fits_header.model_dump(mode="json")
+            if exposure_record.fits_header is not None
+            else None
+        )
+        self.data_products = []
+        if exposure_record.primary_data_product is not None:
+            self.data_products.append(
+                exposure_record.primary_data_product.model_dump(mode="json")
+            )
+        self.quicklooks = []
+        if exposure_record.quicklook is not None:
+            self.quicklooks.append(exposure_record.quicklook.model_dump(mode="json"))
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "obs_id": self.obs_id,
@@ -134,6 +426,10 @@ class ObservationMeta:
             "setup_context": self.setup_context,
             "data_preview": self.data_preview,
             "frame_results": self.frame_results,
+            "data_products": self.data_products,
+            "quicklooks": self.quicklooks,
+            "fits_header_summary": self.fits_header_summary,
+            "exposure_record": self.exposure_record,
         }
 
 

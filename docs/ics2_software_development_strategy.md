@@ -2,7 +2,7 @@
 
 ```text
 Scope: software strategy for JUST Long-Slit ICS 2.0
-Status: after Phase 2.9-C command-feedback closeout
+Status: after Phase 2.9-E exposure-record and observatory-context closeout
 ```
 
 ## Mission
@@ -99,7 +99,8 @@ Recommended responsibility split:
 ```text
 Domain
   Stable concepts: ObservationRequest, Preview, CommandFeedback,
-  SetupContext, DetectorConfig, Calibration, Slit, DataProduct candidates.
+  ExposureRecord, DataProductRef, ObservatoryContext,
+  SetupContext, DetectorConfig, Calibration, Slit.
 
 Kernel
   Runtime, states, guards, jobs, command request/job lifecycle.
@@ -124,7 +125,7 @@ No layer should compensate for a missing contract by leaking implementation deta
 
 ## Current contract baseline
 
-The current baseline after Phase 2.9-C includes:
+The current baseline after Phase 2.9-E includes:
 
 ```text
 SetupContext
@@ -135,6 +136,12 @@ ReadinessSnapshot
 ValidationIssue
 ObservationCommandFeedback
 ObservationCommandFeedbackResponse
+ExposureRecord
+FrameRecord
+DataProductRef
+FitsHeaderSummary
+QualityFlag
+ObservatoryContext
 ```
 
 Important split:
@@ -143,9 +150,15 @@ Important split:
 /status  -> current state
 /preview -> side-effect-free advisory readiness/validation
 command  -> auditable command feedback
+record   -> exposure lifecycle and data-product reference status
+context  -> read-only observatory/OCS/TCS visibility
 ```
 
 Preview and Arm are intentionally independent. UI preview is advisory. Backend Arm gate is authoritative.
+
+Exposure completion and data-product existence are intentionally separate. Simulator data products are references only until a real writer/pipeline exists.
+
+Observatory context is intentionally read-only. ICS must not gain telescope, dome, weather, or OCS write authority without a formal external contract.
 
 ## UI route and runtime strategy
 
@@ -188,37 +201,11 @@ HTML owns durable structure. Runtime JavaScript enhances existing skeletons and 
 Phase 2.9-A  Setup/Data Context
 Phase 2.9-B  Observation Request / Preview / Arm Gate
 Phase 2.9-C  Observation Command Feedback + v7 Observe feedback UI
+Phase 2.9-D  ExposureRecord / DataProductRef contract
+Phase 2.9-E  Read-only ObservatoryContext
 ```
 
 ### Candidate next phases
-
-#### Phase 2.9-D: Data Product / Exposure Record Contract
-
-Goal: separate exposure lifecycle success from data-product existence.
-
-Candidate concepts:
-
-```text
-ExposureRecord
-FrameRecord
-DataProductRef
-QuicklookRef
-FitsHeaderSummary
-QualityFlag
-```
-
-#### Phase 2.9-E: Read-only Observatory/TCS Context
-
-Goal: introduce observatory context without telescope write-control.
-
-Candidate concepts:
-
-```text
-ObservatoryContext
-TcsReadinessSnapshot
-stale/unavailable states
-read-only telescope/weather/dome context
-```
 
 #### Phase 2.9-F: Operator Workflow Polish
 
@@ -229,8 +216,21 @@ Candidate work:
 ```text
 Preset diff polish
 Diagnostics command/error polish
-Observe feedback wording
+Observe feedback and exposure-record wording
 Housekeeping/Engineer responsibility split
+```
+
+#### Phase 3.0: Observation Plan / Sequence Contract
+
+Goal: introduce multi-exposure observing intent after record semantics are stable.
+
+Candidate concepts:
+
+```text
+ObservationPlan
+SequencePreview
+PlanExecutionState
+pause/abort/recover semantics
 ```
 
 ### Later phases
@@ -240,7 +240,7 @@ Phase 3.x  Simulator-backed end-to-end observing workflow
 Phase 4.x  Real-hardware commissioning through adapter contracts
 ```
 
-Do not start a multi-exposure sequence runner before ExposureRecord/DataProduct semantics are stable.
+Do not start a multi-exposure sequence runner before the current ExposureRecord/DataProductRef contract is accepted as the baseline.
 
 ## Technology adoption gate
 
@@ -325,7 +325,7 @@ Short term:
 
 Medium term:
 
-- ExposureRecord/DataProduct semantics become durable;
+- ExposureRecord/DataProductRef semantics become durable;
 - simulator-backed end-to-end observing flow becomes repeatable;
 - read-only observatory/TCS context becomes honest and useful;
 - operator workflow becomes clearer without exposing engineering complexity.

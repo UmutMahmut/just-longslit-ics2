@@ -4,9 +4,9 @@
 
 ```text
 Project: JUST Long-Slit ICS 2.0
-Status: after Phase 2.9-C code closeout
-Validation: pytest -q -> 233 passed
-Current emphasis: freeze command-feedback baseline before the next feature phase
+Status: after Phase 2.9-E code closeout
+Validation: pytest -q -> 244 passed
+Current emphasis: stabilize exposure-record and read-only observatory context before workflow polish
 ```
 
 This file is a current-state snapshot. It is not a project diary. Historical details should be recovered from git history, not accumulated here.
@@ -23,6 +23,8 @@ Setup/session context
   -> backend readiness gate
   -> observation command
   -> ObservationCommandFeedbackResponse
+  -> ExposureRecord / simulated DataProductRef
+  -> read-only ObservatoryContext
   -> v7 Observe summary + raw diagnostics
 ```
 
@@ -40,9 +42,7 @@ The v5 fallback remains available:
 /ui/legacy
 ```
 
-## Completed baseline
-
-### Backend and runtime
+## Completed Baseline
 
 Established:
 
@@ -51,137 +51,71 @@ Established:
 - Runtime/subsystem state aggregation.
 - Exposure state model.
 - Job tracking and latest-job read model.
-- Dispatcher rejection behavior for invalid state, invalid param, and unsupported command cases.
 - Simulation-first assembly path.
-- Real adapter boundary remains explicit and not implemented by accident.
-
-### Setup and session context
-
-Established:
-
-- `SessionDataContext` domain model.
-- Setup context service.
-- JSON-backed setup context store.
-- `GET /api/v1/setup/context`.
-- `PUT /api/v1/setup/context`.
-- `POST /api/v1/setup/context/reload`.
-- Setup context and data preview snapshot handoff into observation metadata.
-
-### Instrument configuration
-
-Established:
-
-- Slit width and slit-angle API surfaces.
-- Slit unit contract: operator-facing arcsec, backend command in um.
-- Fixed current conversion: `1 arcsec = 128.34 um`.
-- Calibration status/mode/lamp API surfaces.
+- Setup/session context model, service, JSON store, and API.
+- Slit width and slit-angle API surfaces with arcsec/um unit boundary.
+- Calibration status/mode/lamp API surfaces and simulator state.
 - Detector configuration visibility and guarded mutation.
-- v7 Instrument / Configure static structure.
-- B/G/R channel summary visibility without fake per-channel hardware telemetry.
+- Preset catalog, preview, guarded apply, risk/confirmation metadata, and observation metadata linkage.
+- Observation request, side-effect-free preview, readiness snapshot, validation issues, and backend arm gate.
+- Observation command feedback for success, blocked, and failed command results.
+- v7 status runtime, Observe runtime, and Observe guard default-on.
 
-### Presets
+## Exposure Records
 
-Established:
+Established in Phase 2.9-D:
 
-- Preset catalog.
-- Side-effect-free preset preview.
-- Guarded preset apply.
-- Risk and confirmation metadata.
-- Latest successful preset summary attached to later observation arm metadata.
-
-### Observation request and preview
-
-Established in Phase 2.9-B:
-
-- `ObservationRequest`.
-- `ExposureSpec`.
-- `ObservationPreviewResult`.
-- `ValidationIssue`.
-- `ReadinessSnapshot`.
-- `ReadinessItem`.
-- Strict frame type enum for `science / flat / arc / test`.
-- Multiple exposure request shape reservation.
-- Single-exposure compatibility gate for current execution.
-- Side-effect-free `POST /api/v1/observation/preview`.
-- Preview readiness checks for detector, calibration, slit, and unavailable TCS placeholder.
-- Backend `ObservationService.arm()` readiness gate.
+- `ExposureRecord`, `FrameRecord`, `DataProductRef`, `FitsHeaderSummary`, and `QualityFlag`.
+- Latest exposure record attached to detector snapshots and observation metadata.
+- Completed simulator exposures produce simulated data-product and quicklook references.
+- Discarded exposures explicitly report `not_created` data-product state.
+- Current references do not claim that real FITS or quicklook files exist.
 
 Important boundary:
 
 ```text
-Preview is advisory.
-Arm is independent.
-Every Arm call reruns the backend readiness gate.
-The UI must not become the safety authority.
+Exposure completed does not mean a FITS file exists.
+Simulator data products are references only.
+Real file persistence remains a future writer/pipeline concern.
 ```
 
-### Observation command feedback
+## Observatory Context
 
-Established in Phase 2.9-C:
+Established in Phase 2.9-E:
 
-- `ObservationCommandFeedback` domain contract.
-- `ObservationCommandFeedbackResponse` API schema.
-- Success, blocked, and failed command shapes.
-- Request ID carried into command feedback body.
-- Latest job carried into command feedback.
-- Dispatch error code/message/details preserved when available.
-- `interlock_blocked` arm gate failures represented as blocked command feedback.
-- Observation command endpoints return command feedback:
+- `ObservatoryContext` and `ObservatoryComponentContext`.
+- `GET /api/v1/observatory/context`.
+- `/api/v1/status/full` includes observatory context.
+- OCS, TCS, telescope, dome, weather, and guider are visible as unavailable by default.
+- The context is explicitly read-only and exposes no telescope/dome/weather write route.
+
+Important boundary:
 
 ```text
-POST /api/v1/observation/arm
-POST /api/v1/observation/start
-POST /api/v1/observation/finish
-POST /api/v1/observation/stop_readout
-POST /api/v1/observation/abort_discard
+ICS can expose observatory context.
+ICS still has no telescope, dome, weather, or OCS write authority.
 ```
 
-Still separate:
-
-```text
-GET  /api/v1/observation/status  -> ObservationStatusResponse
-POST /api/v1/observation/preview -> ObservationPreviewResponse
-```
-
-### v7 Observe runtime
-
-Established in Phase 2.9-C:
-
-- v7 Observe runtime consumes `ObservationCommandFeedbackResponse`.
-- Command summary shows success, blocked, and failed outcomes.
-- Blocked arm can show readiness-gate reason, blocked components, and validation issues.
-- Failed command can show preserved backend error code/message.
-- Raw command JSON remains available in collapsible diagnostics.
-- Refreshing status does not overwrite the last command summary.
-- v7 status runtime, Observe runtime, and Observe guard are default-on.
-- Setup, Instrument, and Presets runtimes remain default-off.
-
-## Current test baseline
+## Current Test Baseline
 
 Current reported validation:
 
 ```text
 pytest -q
-233 passed
-```
-
-UI tests also pass after default runtime update:
-
-```text
-tests/ui -> 53 passed
+244 passed
 ```
 
 This means code and tests are aligned with the current runtime/default route behavior.
 
-## Explicitly not implemented
+## Explicitly Not Implemented
 
 The following are intentionally not part of the current baseline:
 
 - multi-exposure sequence runner;
 - observation plan executor;
-- FITS writer;
-- durable DataProduct pipeline;
-- ExposureRecord persistence beyond current observation metadata;
+- FITS writer or real file persistence;
+- durable DataProduct pipeline beyond current runtime/read-model contracts;
+- durable ExposureRecord persistence beyond current runtime state;
 - OCS adapter;
 - TCS telescope control;
 - real TCS readiness integration;
@@ -193,88 +127,39 @@ The following are intentionally not part of the current baseline:
 - quicklook/data watcher;
 - role-based authentication or operator/engineer permission enforcement.
 
-## Current phase status
-
-### Phase 2.9-A
-
-Closed.
-
-Durable setup/session context and observation metadata snapshot handoff are complete.
-
-### Phase 2.9-B
-
-Closed at the code-contract level.
-
-Observation request, preview, readiness snapshot, validation issue, preview endpoint, v7 preview visibility, and backend arm gate are implemented and tested.
-
-### Phase 2.9-C
-
-Code closed.
-
-Observation command feedback contract, API response migration, request ID/error preservation, v7 Observe runtime feedback rendering, and default Observe runtime injection are implemented and tested.
-
-Documentation closeout is complete for the Phase 2.9-C repository-docs refresh.
-
-## Recommended next feature phase
-
-Do not extend Phase 2.9-C with new features.
-
-The next phase should be selected from one of these focused options:
-
-### Option A: Phase 2.9-D Data Product / Exposure Record Contract
-
-Best if the next priority is to make “exposure completed” and “data product exists” distinct.
-
-Candidate outputs:
+## Current Phase Status
 
 ```text
-ExposureRecord
-FrameRecord
-DataProductRef
-QuicklookRef
-FitsHeaderSummary
-QualityFlag
+Phase 2.9-A  Setup/Data Context                         closed
+Phase 2.9-B  Observation Request / Preview / Arm Gate    closed
+Phase 2.9-C  Observation Command Feedback + v7 Observe   closed
+Phase 2.9-D  ExposureRecord / DataProductRef Contract    closed
+Phase 2.9-E  Read-only Observatory Context               closed
 ```
 
-### Option B: Phase 2.9-E Read-only Observatory/TCS Context
+## Recommended Next Feature Phase
 
-Best if the next priority is observatory integration without telescope control.
+Do not extend Phase 2.9-D/E with sequence or real-hardware scope.
 
-Candidate outputs:
+Focused options:
 
-```text
-ObservatoryContext
-TcsReadinessSnapshot
-Weather/Dome/Telescope read-only placeholders
-stale/unavailable semantics
-```
+- Phase 2.9-F Operator Workflow Polish: preset diff polish, diagnostics command/error polish, Observe exposure-record/data-product wording, and Housekeeping/Engineer boundaries.
+- Phase 3.0 Observation Plan / Sequence Contract: observation plan, sequence preview, execution state, pause/abort/recover semantics.
+- Phase 4.0 Real Hardware Adapter Hardening: detector/slit/calibration adapter parity expansion, timeout/disconnect/recovery contracts, and hardware-in-loop tests.
 
-### Option C: Phase 2.9-F Operator Workflow Polish
+Avoid starting a sequence runner until the current ExposureRecord/DataProductRef contract is accepted as the baseline.
 
-Best if the next priority is operator clarity before deeper backend expansion.
-
-Candidate outputs:
-
-```text
-Preset diff polish
-Diagnostics command/error polish
-Observe blocked/failed wording polish
-Housekeeping/Engineer boundaries
-```
-
-Avoid starting a sequence runner until DataProduct/ExposureRecord semantics are clearer.
-
-## Engineering cautions
+## Engineering Cautions
 
 - Do not let frontend preview state become safety authority.
 - Do not present placeholder telemetry as real.
 - Do not add telescope write-control inside ICS without an OCS/TCS contract.
 - Do not introduce a database just because persistence will eventually matter.
 - Do not turn B/G/R summary into fake per-channel readiness/control.
-- Do not bury command feedback inside raw JSON only.
+- Do not imply simulator data-product references are real FITS files.
 - Do not keep appending history to this document. Rewrite the snapshot when the phase changes.
 
-## Documentation state
+## Documentation State
 
 This document should be rewritten at phase boundaries.
 
